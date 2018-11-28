@@ -18,6 +18,7 @@
   "homepage": "https://github.com/nearprotocol/near-contract-helper#readme",
   "dependencies": {
     "@koa/cors": "^2.2.2",
+    "crypto2": "^2.0.0",
     "jayson": "^2.1.0",
     "koa": "^2.6.2",
     "koa-json-body": "^5.3.0",

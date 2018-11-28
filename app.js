@@ -21,26 +21,57 @@ var client = jayson.client.http({
     port: 3030
 });
 
-const convertToIntArray = base64Str => {
+const base64ToIntArray = base64Str => {
     let data = Buffer.from(base64Str, 'base64');
     return Array.prototype.slice.call(data, 0)
 };
+
+const hexToIntArray = hexStr => {
+    let data = Buffer.from(hexStr, 'hex');
+    return Array.prototype.slice.call(data, 0)
+};
+
+const checkError = (ctx, response) => {
+    if (response.error) {
+        ctx.throw(400, response.error.message);
+    }
+};
+
+const hash = async str => {
+    return hexToIntArray(await require('crypto2').hash.sha256(str));
+}
 
 router.post('/contract', async ctx => {
     const body = ctx.request.body;
     const response = await client.request('receive_transaction', [{
         nonce: body.nonce,
-        sender: body.sender,
-        receiver: body.receiver,
+        sender: await hash(body.sender),
+        receiver: await hash(body.receiver),
         amount: 0,
         method_name: 'deploy',
-        args: [convertToIntArray(body.contract)]
+        args: [base64ToIntArray(body.contract)]
     }]);
+    checkError(ctx, response);
     ctx.body = response.result;
 });
 
-router.get('/account/:id', async ctx => {
-    const response = await client.request('view', [{ account: parseInt(ctx.params.id) }]);
+router.post('/contract/:methodName', async ctx => {
+    const body = ctx.request.body;
+    const response = await client.request('receive_transaction', [{
+        nonce: body.nonce,
+        sender: await hash(body.sender),
+        receiver: await hash(body.receiver),
+        amount: 0,
+        method_name: ctx.params.methodName,
+        args: [body.args]
+    }]);
+    checkError(ctx, response);
+    ctx.body = response.result;
+});
+
+router.get('/account/:name', async ctx => {
+    const response = await client.request('view', [{ account: await hash(ctx.params.name) }]);
+    checkError(ctx, response);
     ctx.body = response.result;
 });
 
