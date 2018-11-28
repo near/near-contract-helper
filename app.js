@@ -43,7 +43,6 @@ const hash = async str => {
 
 router.post('/contract', async ctx => {
     const body = ctx.request.body;
-    const x = await hash(body.sender);
     const response = await client.request('receive_transaction', [{
         nonce: body.nonce,
         sender: await hash(body.sender),
