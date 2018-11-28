@@ -55,12 +55,12 @@ router.post('/contract', async ctx => {
     ctx.body = response.result;
 });
 
-router.post('/contract/:methodName', async ctx => {
+router.post('/contract/:name/:methodName', async ctx => {
     const body = ctx.request.body;
     const response = await client.request('receive_transaction', [{
         nonce: body.nonce,
         sender: await hash(body.sender),
-        receiver: await hash(body.receiver),
+        receiver: await hash(ctx.params.name),
         amount: 0,
         method_name: ctx.params.methodName,
         args: [body.args]
