@@ -6,6 +6,12 @@ Micro-service used by NEARStudio to deploy smart contracts.
 1) Install latest Node.js LTS release.
 2) Install [HTTPie](http://httpie.org/).
 
+## Install dependencies
+
+```
+npm install
+```
+
 ## Run server
 
 ```
