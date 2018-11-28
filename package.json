@@ -1,0 +1,19 @@
+{
+  "name": "near-contract-helper",
+  "version": "0.0.1",
+  "description": "Microservice used by NEARStudio to deploy smart contracts.",
+  "main": "app.js",
+  "scripts": {
+    "test": "jest test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nearprotocol/near-contract-helper.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/nearprotocol/near-contract-helper/issues"
+  },
+  "homepage": "https://github.com/nearprotocol/near-contract-helper#readme"
+}
