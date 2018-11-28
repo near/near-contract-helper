@@ -15,5 +15,5 @@ node app.js
 ## Creating contract
 
 ```
-http post http://localhost:3000/contract nonce=2 sender=1 receiver=10001 contract=`base64 main.wasm`
+http post http://localhost:3000/contract nonce:=2 sender:=1 receiver:=10001 contract=`base64 main.wasm`
 ```

@@ -13,8 +13,11 @@ app.use(cors());
 const Router = require('koa-router');
 const router = new Router();
 
-var jayson = require('jayson');
+var jayson = require('jayson/promise');
 var client = jayson.client.http({
+    headers: {
+        'Content-Type': 'application/json'
+    },
     port: 3030
 });
 
