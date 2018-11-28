@@ -43,6 +43,7 @@ const hash = async str => {
 
 router.post('/contract', async ctx => {
     const body = ctx.request.body;
+    const x = await hash(body.sender);
     const response = await client.request('receive_transaction', [{
         nonce: body.nonce,
         sender: await hash(body.sender),
@@ -70,7 +71,11 @@ router.post('/contract/:methodName', async ctx => {
 });
 
 router.get('/account/:name', async ctx => {
-    const response = await client.request('view', [{ account: await hash(ctx.params.name) }]);
+    const response = await client.request('view', [{
+        account: await hash(ctx.params.name),
+        method_name: '',
+        args: []
+    }]);
     checkError(ctx, response);
     ctx.body = response.result;
 });
