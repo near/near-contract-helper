@@ -28,7 +28,7 @@ const convertToIntArray = base64Str => {
 
 router.post('/contract', async ctx => {
     const body = ctx.request.body;
-    ctx.body = await client.request('receive_transaction', [{
+    const response = await client.request('receive_transaction', [{
         nonce: body.nonce,
         sender: body.sender,
         receiver: body.receiver,
@@ -36,6 +36,12 @@ router.post('/contract', async ctx => {
         method_name: 'deploy',
         args: [convertToIntArray(body.contract)]
     }]);
+    ctx.body = response.result;
+});
+
+router.get('/account/:id', async ctx => {
+    const response = await client.request('view', [{ account: parseInt(ctx.params.id) }]);
+    ctx.body = response.result;
 });
 
 app
