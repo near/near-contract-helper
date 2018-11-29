@@ -27,7 +27,7 @@ http post http://localhost:3000/contract nonce:=2 sender=bob receiver=test contr
 ## Call contract method
 
 ```
-http post http://localhost:3000/contract/totalSupply nonce:=2 sender=bob receiver=test args:="[]"
+http post http://localhost:3000/contract/test/totalSupply nonce:=2 sender=bob args:="[]"
 ```
 
 ## View account

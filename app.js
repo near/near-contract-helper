@@ -21,35 +21,32 @@ var client = jayson.client.http({
     port: 3030
 });
 
+const bs58 = require('bs58');
+const crypto2 = require('crypto2');
+
 const base64ToIntArray = base64Str => {
     let data = Buffer.from(base64Str, 'base64');
     return Array.prototype.slice.call(data, 0)
 };
 
-const hexToIntArray = hexStr => {
-    let data = Buffer.from(hexStr, 'hex');
-    return Array.prototype.slice.call(data, 0)
-};
-
 const checkError = (ctx, response) => {
     if (response.error) {
-        ctx.throw(400, response.error.message);
+        ctx.throw(400, `[${response.error.code}] ${response.error.message}`);
     }
 };
 
 const hash = async str => {
-    return hexToIntArray(await require('crypto2').hash.sha256(str));
-}
+    let data = Buffer.from(await crypto2.hash.sha256(str), 'hex');
+    return bs58.encode(data);
+};
 
 router.post('/contract', async ctx => {
     const body = ctx.request.body;
-    const response = await client.request('receive_transaction', [{
+    const response = await client.request('deploy_contract', [{
         nonce: body.nonce,
-        sender: await hash(body.sender),
-        receiver: await hash(body.receiver),
-        amount: 0,
-        method_name: 'deploy',
-        args: [base64ToIntArray(body.contract)]
+        sender_account_id: await hash(body.sender),
+        contract_account_id: await hash(body.receiver),
+        wasm_byte_array: base64ToIntArray(body.contract)
     }]);
     checkError(ctx, response);
     ctx.body = response.result;
@@ -57,11 +54,10 @@ router.post('/contract', async ctx => {
 
 router.post('/contract/:name/:methodName', async ctx => {
     const body = ctx.request.body;
-    const response = await client.request('receive_transaction', [{
+    const response = await client.request('schedule_function_call', [{
         nonce: body.nonce,
-        sender: await hash(body.sender),
-        receiver: await hash(ctx.params.name),
-        amount: 0,
+        sender_account_id: await hash(body.sender),
+        contract_account_id: await hash(ctx.params.name),
         method_name: ctx.params.methodName,
         args: [body.args]
     }]);
@@ -70,8 +66,8 @@ router.post('/contract/:name/:methodName', async ctx => {
 });
 
 router.get('/account/:name', async ctx => {
-    const response = await client.request('view', [{
-        account: await hash(ctx.params.name),
+    const response = await client.request('view_account', [{
+        account_id: await hash(ctx.params.name),
         method_name: '',
         args: []
     }]);
