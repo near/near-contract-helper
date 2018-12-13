@@ -52,6 +52,7 @@ router.post('/contract', async ctx => {
     const body = ctx.request.body;
     const sender = body.sender || hardcodedSender;
     const nonce = body.nonce || await getNonce(ctx, sender);
+    console.log(`Deploing ${body.receiver} contract`);
     const response = await client.request('deploy_contract', [{
         nonce: nonce,
         sender_account_id: await hash(sender),
@@ -61,7 +62,13 @@ router.post('/contract', async ctx => {
     }]);
     checkError(ctx, response);
     console.log("response", response);
-    ctx.body = response.result;
+    // TODO(#2): Sign transactions.
+    const res = await client.request('submit_transaction', [{
+        body: response.result.body,
+        sender_sig: [147, 237, 206, 27, 8, 112, 190, 228, 129, 23, 111, 153, 134, 68, 203, 152, 108, 105, 112, 238, 171, 200, 158, 83, 197, 20, 158, 214, 151, 190, 92, 135, 33, 158, 42, 159, 131, 80, 96, 201, 185, 254, 213, 46, 209, 11, 158, 2, 57, 161, 66, 222, 87, 192, 141, 53, 43, 198, 40, 107, 148, 218, 231, 7],
+    }]);
+    console.log("response", res);
+    ctx.body = res.result;
 });
 
 router.post('/contract/:name/:methodName', async ctx => {
@@ -71,6 +78,17 @@ router.post('/contract/:name/:methodName', async ctx => {
     const response = await client.request('schedule_function_call', [{
         nonce: nonce,
         originator_account_id: await hash(sender),
+        contract_account_id: await hash(ctx.params.name),
+        method_name: ctx.params.methodName,
+        args: [body.args]
+    }]);
+    checkError(ctx, response);
+    ctx.body = response.result;
+});
+
+router.post('/contract/view/:name/:methodName', async ctx => {
+    const body = ctx.request.body;
+    const response = await client.request('call_view_function', [{
         contract_account_id: await hash(ctx.params.name),
         method_name: ctx.params.methodName,
         args: [body.args]
