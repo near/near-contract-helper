@@ -10,6 +10,8 @@ const hardcodedKey = {
     "secret_key":"2hoLMP9X2Vsvib2t4F1fkZHpFd6fHLr5q7eqGroRoNqdBKcPja2jCrmxW9uGBLXdTnbtZYibWe4NoFtB4Bk7LWg6"
 };
 
+const hardcodedSender = "bob";
+
 // TODO: Check what limit means and set appropriate limit
 app.use(body({ limit: '500kb', fallback: true }))
 // TODO: Limit CORS to studio.nearprotocol.com
@@ -47,9 +49,11 @@ const hash = async str => {
 
 router.post('/contract', async ctx => {
     const body = ctx.request.body;
+    const sender = body.sender || hardcodedSender;
+    const nonce = body.nonce || await getNonce(ctx, sender);
     const response = await client.request('deploy_contract', [{
-        nonce: body.nonce,
-        sender_account_id: await hash(body.sender),
+        nonce: nonce,
+        sender_account_id: await hash(sender),
         contract_account_id: await hash(body.receiver),
         wasm_byte_array: base64ToIntArray(body.contract),
         public_key: hardcodedKey.public_key
@@ -60,9 +64,11 @@ router.post('/contract', async ctx => {
 
 router.post('/contract/:name/:methodName', async ctx => {
     const body = ctx.request.body;
+    const sender = body.sender || hardcodedSender;
+    const nonce = body.nonce || await getNonce(ctx, sender);
     const response = await client.request('schedule_function_call', [{
-        nonce: body.nonce,
-        originator_account_id: await hash(body.sender),
+        nonce: nonce,
+        originator_account_id: await hash(sender),
         contract_account_id: await hash(ctx.params.name),
         method_name: ctx.params.methodName,
         args: [body.args]
@@ -80,6 +86,16 @@ router.get('/account/:name', async ctx => {
     checkError(ctx, response);
     ctx.body = response.result;
 });
+
+async function getNonce(ctx, sender) {
+    const response = await client.request('view_account', [{
+        account_id: await hash(sender),
+        method_name: '',
+        args: []
+    }]);
+    checkError(ctx, response);
+    return response.result.nonce + 1;
+}
 
 app
     .use(router.routes())
