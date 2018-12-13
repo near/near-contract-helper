@@ -99,7 +99,7 @@ router.post('/contract/view/:name/:methodName', async ctx => {
     const response = await client.request('call_view_function', [{
         contract_account_id: await hash(ctx.params.name),
         method_name: ctx.params.methodName,
-        args: [body.args]
+        args: body.args
     }]);
     checkError(ctx, response);
     ctx.body = response.result;
