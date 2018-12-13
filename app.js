@@ -14,8 +14,9 @@ const hardcodedSender = "bob";
 
 // TODO: Check what limit means and set appropriate limit
 app.use(body({ limit: '500kb', fallback: true }))
-// TODO: Limit CORS to studio.nearprotocol.com
-app.use(cors());
+// TODO: Don't use CORS in production on studio.nearprotocol.com
+app.use(cors({ credentials: true }));
+
 
 const Router = require('koa-router');
 const router = new Router();
@@ -59,6 +60,7 @@ router.post('/contract', async ctx => {
         public_key: hardcodedKey.public_key
     }]);
     checkError(ctx, response);
+    console.log("response", response);
     ctx.body = response.result;
 });
 
