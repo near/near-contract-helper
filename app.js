@@ -5,6 +5,11 @@ const app = new Koa();
 const body = require('koa-json-body')
 const cors = require('@koa/cors');
 
+const hardcodedKey = {
+    "public_key":"9AhWenZ3JddamBoyMqnTbp7yVbRuvqAv3zwfrWgfVRJE",
+    "secret_key":"2hoLMP9X2Vsvib2t4F1fkZHpFd6fHLr5q7eqGroRoNqdBKcPja2jCrmxW9uGBLXdTnbtZYibWe4NoFtB4Bk7LWg6"
+};
+
 // TODO: Check what limit means and set appropriate limit
 app.use(body({ limit: '500kb', fallback: true }))
 // TODO: Limit CORS to studio.nearprotocol.com
@@ -46,7 +51,8 @@ router.post('/contract', async ctx => {
         nonce: body.nonce,
         sender_account_id: await hash(body.sender),
         contract_account_id: await hash(body.receiver),
-        wasm_byte_array: base64ToIntArray(body.contract)
+        wasm_byte_array: base64ToIntArray(body.contract),
+        public_key: hardcodedKey.public_key
     }]);
     checkError(ctx, response);
     ctx.body = response.result;
@@ -56,7 +62,7 @@ router.post('/contract/:name/:methodName', async ctx => {
     const body = ctx.request.body;
     const response = await client.request('schedule_function_call', [{
         nonce: body.nonce,
-        sender_account_id: await hash(body.sender),
+        originator_account_id: await hash(body.sender),
         contract_account_id: await hash(ctx.params.name),
         method_name: ctx.params.methodName,
         args: [body.args]
