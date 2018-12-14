@@ -82,8 +82,8 @@ router.post('/contract/:name/:functionType/:methodName', async ctx => {
     console.log('JANE CALL 2');
 
     const params = [{
-        contract_account_id: await hash('magic'),
-        method_name: 'add',
+        contract_account_id: await hash(body.sender),
+        method_name: ctx.params.methodName,
         args: serializedArgs
     }];
 
@@ -110,8 +110,11 @@ router.post('/contract/:name/:methodName', async ctx => {
     const sender = body.sender || hardcodedSender;
     const nonce = body.nonce || await getNonce(ctx, sender);
     const serializedArgs =  Array.from(BSON.serialize(body.args));
-    const response = await client.request('schedule_function_call', [{
+    //const response = await client.request('schedule_function_call', [{
+    const response = await client.request('call_view_function', [{
         nonce: nonce,
+        amount: parseInt(body.amount || "0"),
+        originator_id: await hash(sender),
         originator_account_id: await hash(sender),
         contract_account_id: await hash(ctx.params.name),
         method_name: ctx.params.methodName,
