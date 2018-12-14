@@ -68,7 +68,7 @@ router.post('/contract', async ctx => {
     console.log(`Deploing ${body.receiver} contract`);
     const contract_response = await submit_transaction_rpc(client, 'deploy_contract', {
         nonce: nonce,
-        sender_account_id: await hash(body.receiver),
+        sender_account_id: await hash(sender),
         contract_account_id: await hash(body.receiver),
         wasm_byte_array: base64ToIntArray(body.contract),
         public_key: hardcodedKey.public_key
