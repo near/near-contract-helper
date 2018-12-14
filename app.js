@@ -39,7 +39,7 @@ const base64ToIntArray = base64Str => {
 
 const checkError = (ctx, response) => {
     if (response.error) {
-        ctx.throw(400, `[${response.error.code}] ${response.error.message}`);
+        ctx.throw(400, `[${response.error.code}] ${response.error.message}: ${response.error.data}`);
     }
 };
 
