@@ -4,6 +4,7 @@ const app = new Koa();
 
 const body = require('koa-json-body')
 const cors = require('@koa/cors');
+const BSON = require('bsonfy').BSON;
 
 const hardcodedKey = {
     "public_key":"9AhWenZ3JddamBoyMqnTbp7yVbRuvqAv3zwfrWgfVRJE",
@@ -106,6 +107,37 @@ router.post('/contract/view/:name/:methodName', async ctx => {
         contract_account_id: await hash(ctx.params.name),
         method_name: ctx.params.methodName,
         args: body.args
+    }]);
+    checkError(ctx, response);
+    ctx.body = response.result;
+});
+
+router.get('/contract/:name/:methodName', async ctx => {
+    const args = ctx.request.query ? ctx.request.query : {};
+    const serializedArgs = Array.from(BSON.serialize(args));
+
+    const rpcParams = [{
+        contract_account_id: await hash(ctx.params.name),
+        method_name: ctx.params.methodName,
+        args: serializedArgs
+    }];
+
+    const response = await client.request('call_view_function', rpcParams);
+    checkError(ctx, response);
+    ctx.body = response.result;
+});
+
+router.post('/contract/:name/:methodName', async ctx => {
+    const body = ctx.request.body;
+    const sender = body.sender || hardcodedSender;
+    const nonce = body.nonce || await getNonce(ctx, sender);
+    const serializedArgs =  Array.from(BSON.serialize(body.args));
+    const response = await client.request('schedule_function_call', [{
+        nonce: nonce,
+        originator_account_id: await hash(sender),
+        contract_account_id: await hash(ctx.params.name),
+        method_name: ctx.params.methodName,
+        args: serializedArgs
     }]);
     checkError(ctx, response);
     ctx.body = response.result;
