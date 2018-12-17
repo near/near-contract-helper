@@ -93,6 +93,8 @@ router.post('/contract/:name/:methodName', async ctx => {
     const serializedArgs =  Array.from(BSON.serialize(args));
     const response = await submit_transaction_rpc(client, 'schedule_function_call', {
         nonce: nonce,
+        // TODO(#5): Need to make sure that big ints are supported later
+        amount: parseInt(body.amount) || 0,
         originator_account_id: await hash(sender),
         contract_account_id: await hash(ctx.params.name),
         method_name: ctx.params.methodName,
