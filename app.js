@@ -108,12 +108,13 @@ router.post('/contract/view/:name/:methodName', async ctx => {
     const args = body.args || {};
     const serializedArgs =  Array.from(BSON.serialize(args));
     const response = await client.request('call_view_function', [{
+        originator_id: await hash(hardcodedSender),
         contract_account_id: await hash(ctx.params.name),
         method_name: ctx.params.methodName,
         args: serializedArgs
     }]);
     checkError(ctx, response);
-    ctx.body = response.result;
+    ctx.body = BSON.deserialize(Uint8Array.from(response.result.result));
 });
 
 router.get('/account/:name', async ctx => {
