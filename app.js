@@ -89,7 +89,7 @@ router.post('/contract/:name/:methodName', async ctx => {
     const body = ctx.request.body;
     const sender = body.sender || hardcodedSender;
     const nonce = body.nonce || await getNonce(ctx, sender);
-    const args = body.args ? body.args : {};
+    const args = body.args || {};
     const serializedArgs =  Array.from(BSON.serialize(args));
     const response = await submit_transaction_rpc(client, 'schedule_function_call', {
         nonce: nonce,
@@ -105,7 +105,7 @@ router.post('/contract/:name/:methodName', async ctx => {
 
 router.post('/contract/view/:name/:methodName', async ctx => {
     const body = ctx.request.body;
-    const args = body.args ? body.args : {};
+    const args = body.args || {};
     const serializedArgs =  Array.from(BSON.serialize(args));
     const response = await client.request('call_view_function', [{
         contract_account_id: await hash(ctx.params.name),
