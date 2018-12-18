@@ -5,6 +5,7 @@ const app = new Koa();
 const body = require('koa-json-body')
 const cors = require('@koa/cors');
 const BSON = require('bsonfy').BSON;
+const uuidV4 = require('uuid/v4');
 
 const hardcodedKey = {
     "public_key":"9AhWenZ3JddamBoyMqnTbp7yVbRuvqAv3zwfrWgfVRJE",
@@ -12,6 +13,8 @@ const hardcodedKey = {
 };
 
 const hardcodedSender = "bob";
+const defaultSender = "alice";
+const newAccountAmount = 5;
 
 // TODO: Check what limit means and set appropriate limit
 app.use(body({ limit: '500kb', fallback: true }))
@@ -43,6 +46,12 @@ const checkError = (ctx, response) => {
         ctx.throw(400, `[${response.error.code}] ${response.error.message}: ${response.error.data}`);
     }
 };
+
+const ensureTrue = (boolValue) => {
+    if (!boolValue) {
+        ctx.throw(400, `Internal error`);
+    }
+}
 
 const hash = async str => {
     let data = Buffer.from(await crypto2.hash.sha256(str), 'hex');
@@ -96,7 +105,7 @@ router.post('/contract/:name/:methodName', async ctx => {
         // TODO(#5): Need to make sure that big ints are supported later
         amount: parseInt(body.amount) || 0,
         originator_account_id: await hash(sender),
-        contract_account_id: await hash(ctx.params.name),
+        contract_account_id: await encodeAccountNameForRpc(ctx.params.name),
         method_name: ctx.params.methodName,
         args: serializedArgs
     });
@@ -111,7 +120,7 @@ router.post('/contract/view/:name/:methodName', async ctx => {
     const serializedArgs =  Array.from(BSON.serialize(args));
     const response = await client.request('call_view_function', [{
         originator_id: await hash(hardcodedSender),
-        contract_account_id: await hash(ctx.params.name),
+        contract_account_id: await encodeAccountNameForRpc(ctx.params.name),
         method_name: ctx.params.methodName,
         args: serializedArgs
     }]);
@@ -121,13 +130,43 @@ router.post('/contract/view/:name/:methodName', async ctx => {
 
 router.get('/account/:name', async ctx => {
     const response = await client.request('view_account', [{
-        account_id: await hash(ctx.params.name),
+        account_id: await encodeAccountNameForRpc(ctx.params.name),
         method_name: '',
         args: []
     }]);
     checkError(ctx, response);
     ctx.body = response.result;
 });
+
+/**
+ * Create a new account. Generate a throw away account id (UUID).
+ */
+router.post('/account', async ctx => {
+    // TODO: this is using alice account to create all accounts. We may want to change that.
+    const nonce = await getNonce(ctx, defaultSender);
+    ensureTrue(nonce);
+    const newAccountName = uuidV4();
+    console.log("Creating new account " + newAccountName);
+
+    // TODO: unhardcode key
+    const createAccountParams = [{
+        'nonce': nonce,
+        'sender': await encodeAccountNameForRpc(defaultSender),
+        'new_account_id': await encodeAccountNameForRpc(newAccountName),
+        'amount': newAccountAmount,
+        'public_key': hardcodedKey.public_key,
+    }];
+    const response = await client.request('create_account', createAccountParams);
+    checkError(ctx, response);
+    ctx.body = response.result;
+});
+
+/*
+ * Helper to encode the account name in the format which is used in rpcs.
+ */
+async function encodeAccountNameForRpc(plainTextName){
+    return hash(plainTextName)
+}
 
 async function getNonce(ctx, sender) {
     const response = await client.request('view_account', [{
