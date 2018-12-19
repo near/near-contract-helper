@@ -36,7 +36,7 @@ var client = jayson.client.http({
 });
 
 const bs58 = require('bs58');
-const crypto2 = require('crypto2');
+const crypto = require('crypto');
 
 const base64ToIntArray = base64Str => {
     let data = Buffer.from(base64Str, 'base64');
@@ -50,9 +50,14 @@ const checkError = (response) => {
     return response;
 };
 
+const sha256 = data => {
+    const hash = crypto.createHash('sha256');
+    hash.update(data, 'utf8');
+    return hash.digest();
+}
+
 const accountHash = async str => {
-    let data = Buffer.from(await crypto2.hash.sha256(str), 'hex');
-    return bs58.encode(data);
+    return bs58.encode(sha256(str));
 };
 
 const viewAccount = async senderHash => {
