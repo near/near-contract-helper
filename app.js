@@ -200,6 +200,7 @@ router.post('/account', async ctx => {
     // TODO: record key info
     const clientResponse = {
         accountName: newAccountName,
+        accountNameHash: await accountHash(newAccountName)
     };
     console.log(clientResponse);
     ctx.body = clientResponse;
