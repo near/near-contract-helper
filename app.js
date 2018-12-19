@@ -17,6 +17,7 @@ const hardcodedSender = "bob";
 const defaultSender = "alice";
 const newAccountAmount = 5;
 
+app.use(require('koa-logger')());
 // TODO: Check what limit means and set appropriate limit
 app.use(body({ limit: '500kb', fallback: true }))
 // TODO: Don't use CORS in production on studio.nearprotocol.com
