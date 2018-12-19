@@ -8,8 +8,8 @@ const BSON = require('bsonfy').BSON;
 const uuidV4 = require('uuid/v4');
 
 const hardcodedKey = {
-    "public_key":"9AhWenZ3JddamBoyMqnTbp7yVbRuvqAv3zwfrWgfVRJE",
-    "secret_key":"2hoLMP9X2Vsvib2t4F1fkZHpFd6fHLr5q7eqGroRoNqdBKcPja2jCrmxW9uGBLXdTnbtZYibWe4NoFtB4Bk7LWg6"
+    public_key: "9AhWenZ3JddamBoyMqnTbp7yVbRuvqAv3zwfrWgfVRJE",
+    secret_key: "2hoLMP9X2Vsvib2t4F1fkZHpFd6fHLr5q7eqGroRoNqdBKcPja2jCrmxW9uGBLXdTnbtZYibWe4NoFtB4Bk7LWg6"
 };
 
 const hardcodedSender = "bob";
@@ -138,6 +138,7 @@ router.get('/account/:name', async ctx => {
 
 /**
  * Create a new account. Generate a throw away account id (UUID).
+ * Returns account name and public/private key.
  */
 router.post('/account', async ctx => {
     // TODO: this is using alice account to create all accounts. We may want to change that.
@@ -145,19 +146,28 @@ router.post('/account', async ctx => {
     ctx.assert(nonce)
     const newAccountName = uuidV4();
     console.log("Creating new account " + newAccountName);
-
     // TODO: unhardcode key
+    const accountKey = hardcodedKey;
+
     const createAccountParams = {
         nonce: nonce,
         sender: await encodeAccountNameForRpc(defaultSender),
         new_account_id: await encodeAccountNameForRpc(newAccountName),
         amount: newAccountAmount,
-        public_key: hardcodedKey.public_key,
+        public_key: accountKey.public_key,
     };
 
-    const resp = await submit_transaction_rpc(client, "create_account", createAccountParams);
-    checkError(ctx, resp);
-    ctx.body = resp.result;
+    const transactionResponse = await submit_transaction_rpc(client, "create_account", createAccountParams);
+    checkError(ctx, transactionResponse);
+
+    // transactionResponse does not contain useful information, so construct a custom response
+    // TODO: is it fine to return private key here? 
+    const clientResponse = {
+        account_name: newAccountName,
+        account_key: accountKey
+    };
+    console.log(clientResponse);
+    ctx.body = clientResponse;
 });
 
 async function encodeAccountNameForRpc(plainTextName){
