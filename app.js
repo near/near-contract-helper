@@ -30,13 +30,7 @@ app.use(cors({ credentials: true }));
 const Router = require('koa-router');
 const router = new Router();
 
-var jayson = require('jayson/promise');
-var client = jayson.client.http({
-    headers: {
-        'Content-Type': 'application/json'
-    },
-    port: 3030
-});
+const superagent = require('superagent');
 
 const bs58 = require('bs58');
 const crypto = require('crypto');
@@ -44,13 +38,6 @@ const crypto = require('crypto');
 const base64ToIntArray = base64Str => {
     let data = Buffer.from(base64Str, 'base64');
     return Array.prototype.slice.call(data, 0)
-};
-
-const checkError = (response) => {
-    if (response.error) {
-        throw createError(400, `[${response.error.code}] ${response.error.message}: ${response.error.data}`);
-    }
-    return response;
 };
 
 const sha256 = data => {
@@ -63,12 +50,23 @@ const accountHash = async str => {
     return bs58.encode(sha256(str));
 };
 
+const request = async (methodName, params) => {
+    try {
+        const response = await superagent
+            .post(`http://localhost:3030/${methodName}`)
+            .use(require('superagent-logger'))
+            .send(params);
+        return JSON.parse(response.text);
+    } catch(e) {
+        console.error("request error:", e.response.text);
+        throw e;
+    }
+}
+
 const viewAccount = async senderHash => {
-    return checkError(await client.request('view_account', [{
+    return await request('view_account', {
         account_id: senderHash,
-        method_name: '',
-        args: []
-    }])).result;
+    });
 }
 
 const getNonce = async senderHash => {
@@ -100,15 +98,12 @@ const submitTransaction = async (method, args) => {
     const senderKeys = ['sender_account_id', 'originator_account_id', 'originator_id', 'sender'];
     const sender = senderKeys.map(key => args[key]).find(it => !!it)
     const nonce = await getNonce(sender);
-    const callList = [Object.assign({}, args, { nonce })];
 
     for (let i = 0; i < MAX_RETRIES; i++) {
-        const response = await client.request(method, callList);
-        checkError(response);
+        const response = await request(method, Object.assign({}, args, { nonce }));
 
-        const transaction = response.result.body;
-        const submitResponse = await client.request('submit_transaction', [await signTransaction(transaction)]);
-        checkError(submitResponse);
+        const transaction = response.body;
+        const submitResponse = await request('submit_transaction', await signTransaction(transaction));
         await sleep(POLL_TIME_MS);
 
         // TODO: Don't hardcode special check for deploy once it works same as other calls
@@ -161,18 +156,17 @@ router.post('/contract/view/:name/:methodName', async ctx => {
     const body = ctx.request.body;
     const args = body.args || {};
     const serializedArgs =  Array.from(BSON.serialize(args));
-    const response = await client.request('call_view_function', [{
+    const response = await request('call_view_function', {
         originator_id: await accountHash(hardcodedSender),
         contract_account_id: await accountHash(ctx.params.name),
         method_name: ctx.params.methodName,
         args: serializedArgs
-    }]);
-    checkError(response);
-    ctx.body = BSON.deserialize(Uint8Array.from(response.result.result));
+    });
+    ctx.body = BSON.deserialize(Uint8Array.from(response.result));
 });
 
 router.get('/account/:name', async ctx => {
-    ctx.body = await viewAccount(accountHash(ctx.params.name));
+    ctx.body = await viewAccount(await accountHash(ctx.params.name));
 });
 
 /**
@@ -182,7 +176,7 @@ router.get('/account/:name', async ctx => {
 router.post('/account', async ctx => {
     // TODO: this is using alice account to create all accounts. We may want to change that.
     const newAccountName = uuidV4();
-    console.log("Creating new account " + newAccountName);
+
     // TODO: unhardcode key
     const accountKey = hardcodedKey;
 
