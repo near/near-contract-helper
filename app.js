@@ -61,9 +61,13 @@ const hash = async str => {
 const util = require('util');
 const execFile = util.promisify(require('child_process').execFile);
 const signTransaction = async (transaction) => {
+    const stringifiedTxn = JSON.stringify(transaction);
     const { stdout, stderr } = await execFile(
         '../nearcore/target/debug/keystore',
-        ['sign_transaction', '--data', JSON.stringify(transaction)]);
+        ['sign_transaction',
+        '--data', stringifiedTxn,
+        '--keystore-path', '../nearcore/keystore/'
+    ]);
     return JSON.parse(stdout);
 };
 
@@ -149,16 +153,17 @@ router.post('/account', async ctx => {
     console.log("Creating new account " + newAccountName);
 
     // TODO: unhardcode key
-    const createAccountParams = [{
+    const createAccountParams = {
         'nonce': nonce,
         'sender': await encodeAccountNameForRpc(defaultSender),
         'new_account_id': await encodeAccountNameForRpc(newAccountName),
         'amount': newAccountAmount,
         'public_key': hardcodedKey.public_key,
-    }];
-    const response = await client.request('create_account', createAccountParams);
-    checkError(ctx, response);
-    ctx.body = response.result;
+    };
+
+    const resp = await submit_transaction_rpc(client, "create_account", createAccountParams);
+    checkError(ctx, resp);
+    ctx.body = resp.result;
 });
 
 /*
