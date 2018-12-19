@@ -48,7 +48,7 @@ const checkError = (response) => {
     }
 };
 
-const hash = async str => {
+const accountHash = async str => {
     let data = Buffer.from(await crypto2.hash.sha256(str), 'hex');
     return bs58.encode(data);
 };
@@ -87,8 +87,8 @@ router.post('/contract', async ctx => {
     const body = ctx.request.body;
     const sender = body.sender || hardcodedSender;
     ctx.body = await submitTransaction('deploy_contract', {
-        sender_account_id: await hash(sender),
-        contract_account_id: await hash(body.receiver),
+        sender_account_id: await accountHash(sender),
+        contract_account_id: await accountHash(body.receiver),
         wasm_byte_array: base64ToIntArray(body.contract),
         public_key: hardcodedKey.public_key
     })
@@ -102,8 +102,8 @@ router.post('/contract/:name/:methodName', async ctx => {
     ctx.body = await submitTransaction('schedule_function_call', {
         // TODO(#5): Need to make sure that big ints are supported later
         amount: parseInt(body.amount) || 0,
-        originator_account_id: await hash(sender),
-        contract_account_id: await encodeAccountNameForRpc(ctx.params.name),
+        originator_account_id: await accountHash(sender),
+        contract_account_id: await accountHash(ctx.params.name),
         method_name: ctx.params.methodName,
         args: serializedArgs
     });
@@ -114,8 +114,8 @@ router.post('/contract/view/:name/:methodName', async ctx => {
     const args = body.args || {};
     const serializedArgs =  Array.from(BSON.serialize(args));
     const response = await client.request('call_view_function', [{
-        originator_id: await hash(hardcodedSender),
-        contract_account_id: await encodeAccountNameForRpc(ctx.params.name),
+        originator_id: await accountHash(hardcodedSender),
+        contract_account_id: await accountHash(ctx.params.name),
         method_name: ctx.params.methodName,
         args: serializedArgs
     }]);
@@ -125,7 +125,7 @@ router.post('/contract/view/:name/:methodName', async ctx => {
 
 router.get('/account/:name', async ctx => {
     const response = await client.request('view_account', [{
-        account_id: await encodeAccountNameForRpc(ctx.params.name),
+        account_id: await accountHash(ctx.params.name),
         method_name: '',
         args: []
     }]);
@@ -143,18 +143,14 @@ router.post('/account', async ctx => {
 
     // TODO: unhardcode key
     const createAccountParams = {
-        sender: await encodeAccountNameForRpc(defaultSender),
-        new_account_id: await encodeAccountNameForRpc(newAccountName),
+        sender: await accountHash(defaultSender),
+        new_account_id: await accountHash(newAccountName),
         amount: newAccountAmount,
         public_key: hardcodedKey.public_key,
     };
 
     ctx.body = await submit_transaction_rpc(client, "create_account", createAccountParams);
 });
-
-async function encodeAccountNameForRpc(plainTextName){
-    return hash(plainTextName)
-}
 
 async function getNonce(senderHash) {
     const response = await client.request('view_account', [{
