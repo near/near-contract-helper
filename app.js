@@ -162,7 +162,7 @@ router.post('/account', async ctx => {
         public_key: hardcodedKey.public_key,
     };
 
-    ctx.body = await submit_transaction_rpc(client, "create_account", createAccountParams);
+    ctx.body = await submitTransaction("create_account", createAccountParams);
 });
 
 app
