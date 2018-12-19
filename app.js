@@ -2,6 +2,7 @@
 const Koa = require('koa');
 const app = new Koa();
 
+const createError = require('http-errors')
 const body = require('koa-json-body')
 const cors = require('@koa/cors');
 const BSON = require('bsonfy').BSON;
@@ -16,6 +17,10 @@ const hardcodedSender = "bob";
 const defaultSender = "alice";
 const newAccountAmount = 5;
 
+const MAX_RETRIES = 3;
+const POLL_TIME_MS = 500;
+
+app.use(require('koa-logger')());
 // TODO: Check what limit means and set appropriate limit
 app.use(body({ limit: '500kb', fallback: true }))
 // TODO: Don't use CORS in production on studio.nearprotocol.com
@@ -34,23 +39,47 @@ var client = jayson.client.http({
 });
 
 const bs58 = require('bs58');
-const crypto2 = require('crypto2');
+const crypto = require('crypto');
 
 const base64ToIntArray = base64Str => {
     let data = Buffer.from(base64Str, 'base64');
     return Array.prototype.slice.call(data, 0)
 };
 
-const checkError = (ctx, response) => {
+const checkError = (response) => {
     if (response.error) {
-        ctx.throw(400, `[${response.error.code}] ${response.error.message}: ${response.error.data}`);
+        throw createError(400, `[${response.error.code}] ${response.error.message}: ${response.error.data}`);
     }
+    return response;
 };
 
-const hash = async str => {
-    let data = Buffer.from(await crypto2.hash.sha256(str), 'hex');
-    return bs58.encode(data);
+const sha256 = data => {
+    const hash = crypto.createHash('sha256');
+    hash.update(data, 'utf8');
+    return hash.digest();
+}
+
+const accountHash = async str => {
+    return bs58.encode(sha256(str));
 };
+
+const viewAccount = async senderHash => {
+    return checkError(await client.request('view_account', [{
+        account_id: senderHash,
+        method_name: '',
+        args: []
+    }])).result;
+}
+
+const getNonce = async senderHash => {
+    return (await viewAccount(senderHash)).nonce + 1;
+}
+
+const sleep = timeMs => {
+    return new Promise(function (resolve, reject) {
+        setTimeout(resolve, timeMs);
+    });
+}
 
 const util = require('util');
 const execFile = util.promisify(require('child_process').execFile);
@@ -65,51 +94,67 @@ const signTransaction = async (transaction) => {
     return JSON.parse(stdout);
 };
 
-const submit_transaction_rpc = async (client, method, args) => {
-    const response = await client.request(method, [args])
-    if (response.error) {
-        return response
-    }
+const submitTransaction = async (method, args) => {
+    // TODO: Make sender param names consistent
+    // TODO: https://github.com/nearprotocol/nearcore/issues/287
+    const senderKeys = ['sender_account_id', 'originator_account_id', 'originator_id', 'sender'];
+    const sender = senderKeys.map(key => args[key]).find(it => !!it)
+    const nonce = await getNonce(sender);
+    const callList = [Object.assign({}, args, { nonce })];
 
-    const transaction = response.result.body;
-    return await client.request('submit_transaction', [await signTransaction(transaction)])
+    for (let i = 0; i < MAX_RETRIES; i++) {
+        const response = await client.request(method, callList);
+        checkError(response);
+
+        const transaction = response.result.body;
+        const submitResponse = await client.request('submit_transaction', [await signTransaction(transaction)]);
+        checkError(submitResponse);
+        await sleep(POLL_TIME_MS);
+
+        // TODO: Don't hardcode special check for deploy once it works same as other calls
+        if (method == 'deploy_contract') {
+            const contractHash = bs58.encode(sha256(Buffer.from(args.wasm_byte_array)));
+            const accountInfo = await viewAccount(args.contract_account_id);
+            if (accountInfo.code_hash == contractHash) {
+                return accountInfo;
+            }
+            continue;
+        }
+
+        const accountInfo = await viewAccount(sender);
+        if (accountInfo.nonce >= nonce) {
+            // TODO: Use better check when it's available:
+            // TODO: https://github.com/nearprotocol/nearcore/issues/276
+            return accountInfo;
+        }
+    }
+    throw createError(504, `Transaction not accepted after ${MAX_RETRIES} retries`);
 }
 
 router.post('/contract', async ctx => {
     const body = ctx.request.body;
     const sender = body.sender || hardcodedSender;
-    const nonce = body.nonce || await getNonce(ctx, sender);
-    console.log(`Deploying ${body.receiver} contract`);
-    const contract_response = await submit_transaction_rpc(client, 'deploy_contract', {
-        nonce: nonce,
-        sender_account_id: await hash(sender),
-        contract_account_id: await hash(body.receiver),
+    ctx.body = await submitTransaction('deploy_contract', {
+        sender_account_id: await accountHash(sender),
+        contract_account_id: await accountHash(body.receiver),
         wasm_byte_array: base64ToIntArray(body.contract),
         public_key: hardcodedKey.public_key
     })
-    console.log("response", contract_response);
-    checkError(ctx, contract_response);
-    ctx.body = contract_response.result;
 });
 
 router.post('/contract/:name/:methodName', async ctx => {
     const body = ctx.request.body;
     const sender = body.sender || hardcodedSender;
-    const nonce = body.nonce || await getNonce(ctx, sender);
     const args = body.args || {};
     const serializedArgs =  Array.from(BSON.serialize(args));
-    const response = await submit_transaction_rpc(client, 'schedule_function_call', {
-        nonce: nonce,
+    ctx.body = await submitTransaction('schedule_function_call', {
         // TODO(#5): Need to make sure that big ints are supported later
         amount: parseInt(body.amount) || 0,
-        originator_account_id: await hash(sender),
-        contract_account_id: await encodeAccountNameForRpc(ctx.params.name),
+        originator_account_id: await accountHash(sender),
+        contract_account_id: await accountHash(ctx.params.name),
         method_name: ctx.params.methodName,
         args: serializedArgs
     });
-    checkError(ctx, response);
-    console.log("response", response);
-    ctx.body = response.result;
 });
 
 router.post('/contract/view/:name/:methodName', async ctx => {
@@ -117,23 +162,17 @@ router.post('/contract/view/:name/:methodName', async ctx => {
     const args = body.args || {};
     const serializedArgs =  Array.from(BSON.serialize(args));
     const response = await client.request('call_view_function', [{
-        originator_id: await hash(hardcodedSender),
-        contract_account_id: await encodeAccountNameForRpc(ctx.params.name),
+        originator_id: await accountHash(hardcodedSender),
+        contract_account_id: await accountHash(ctx.params.name),
         method_name: ctx.params.methodName,
         args: serializedArgs
     }]);
-    checkError(ctx, response);
+    checkError(response);
     ctx.body = BSON.deserialize(Uint8Array.from(response.result.result));
 });
 
 router.get('/account/:name', async ctx => {
-    const response = await client.request('view_account', [{
-        account_id: await encodeAccountNameForRpc(ctx.params.name),
-        method_name: '',
-        args: []
-    }]);
-    checkError(ctx, response);
-    ctx.body = response.result;
+    ctx.body = await viewAccount(accountHash(ctx.params.name));
 });
 
 /**
@@ -142,47 +181,29 @@ router.get('/account/:name', async ctx => {
  */
 router.post('/account', async ctx => {
     // TODO: this is using alice account to create all accounts. We may want to change that.
-    const nonce = await getNonce(ctx, defaultSender);
-    ctx.assert(nonce)
     const newAccountName = uuidV4();
     console.log("Creating new account " + newAccountName);
     // TODO: unhardcode key
     const accountKey = hardcodedKey;
 
     const createAccountParams = {
-        nonce: nonce,
-        sender: await encodeAccountNameForRpc(defaultSender),
-        new_account_id: await encodeAccountNameForRpc(newAccountName),
+        sender: await accountHash(defaultSender),
+        new_account_id: await accountHash(newAccountName),
         amount: newAccountAmount,
         public_key: accountKey.public_key,
     };
 
-    const transactionResponse = await submit_transaction_rpc(client, "create_account", createAccountParams);
-    checkError(ctx, transactionResponse);
+    const transactionResponse = await submitTransaction("create_account", createAccountParams);
+    checkError(transactionResponse);
 
     // transactionResponse does not contain useful information, so construct a custom response
-    // TODO: is it fine to return private key here? 
+    // TODO: record key info
     const clientResponse = {
-        account_name: newAccountName,
-        account_key: accountKey
+        accountName: newAccountName,
     };
     console.log(clientResponse);
     ctx.body = clientResponse;
 });
-
-async function encodeAccountNameForRpc(plainTextName){
-    return hash(plainTextName)
-}
-
-async function getNonce(ctx, sender) {
-    const response = await client.request('view_account', [{
-        account_id: await hash(sender),
-        method_name: '',
-        args: []
-    }]);
-    checkError(ctx, response);
-    return response.result.nonce + 1;
-}
 
 app
     .use(router.routes())
