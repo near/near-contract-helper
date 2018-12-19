@@ -46,12 +46,25 @@ const checkError = (response) => {
     if (response.error) {
         throw createError(400, `[${response.error.code}] ${response.error.message}: ${response.error.data}`);
     }
+    return response;
 };
 
 const accountHash = async str => {
     let data = Buffer.from(await crypto2.hash.sha256(str), 'hex');
     return bs58.encode(data);
 };
+
+const viewAccount = async senderHash => {
+    return checkError(await client.request('view_account', [{
+        account_id: senderHash,
+        method_name: '',
+        args: []
+    }])).result;
+}
+
+const getNonce = async senderHash => {
+    return (await viewAccount(senderHash)).nonce + 1;
+}
 
 const util = require('util');
 const execFile = util.promisify(require('child_process').execFile);
@@ -124,13 +137,7 @@ router.post('/contract/view/:name/:methodName', async ctx => {
 });
 
 router.get('/account/:name', async ctx => {
-    const response = await client.request('view_account', [{
-        account_id: await accountHash(ctx.params.name),
-        method_name: '',
-        args: []
-    }]);
-    checkError(response);
-    ctx.body = response.result;
+    ctx.body = await viewAccount(accountHash(ctx.params.name));
 });
 
 /**
@@ -151,16 +158,6 @@ router.post('/account', async ctx => {
 
     ctx.body = await submit_transaction_rpc(client, "create_account", createAccountParams);
 });
-
-async function getNonce(senderHash) {
-    const response = await client.request('view_account', [{
-        account_id: senderHash,
-        method_name: '',
-        args: []
-    }]);
-    checkError(response);
-    return response.result.nonce + 1;
-}
 
 app
     .use(router.routes())
