@@ -9,8 +9,8 @@ const BSON = require('bsonfy').BSON;
 const uuidV4 = require('uuid/v4');
 
 const hardcodedKey = {
-    "public_key":"9AhWenZ3JddamBoyMqnTbp7yVbRuvqAv3zwfrWgfVRJE",
-    "secret_key":"2hoLMP9X2Vsvib2t4F1fkZHpFd6fHLr5q7eqGroRoNqdBKcPja2jCrmxW9uGBLXdTnbtZYibWe4NoFtB4Bk7LWg6"
+    public_key: "9AhWenZ3JddamBoyMqnTbp7yVbRuvqAv3zwfrWgfVRJE",
+    secret_key: "2hoLMP9X2Vsvib2t4F1fkZHpFd6fHLr5q7eqGroRoNqdBKcPja2jCrmxW9uGBLXdTnbtZYibWe4NoFtB4Bk7LWg6"
 };
 
 const hardcodedSender = "bob";
@@ -177,21 +177,33 @@ router.get('/account/:name', async ctx => {
 
 /**
  * Create a new account. Generate a throw away account id (UUID).
+ * Returns account name and public/private key.
  */
 router.post('/account', async ctx => {
     // TODO: this is using alice account to create all accounts. We may want to change that.
     const newAccountName = uuidV4();
     console.log("Creating new account " + newAccountName);
-
     // TODO: unhardcode key
+    const accountKey = hardcodedKey;
+
     const createAccountParams = {
         sender: await accountHash(defaultSender),
         new_account_id: await accountHash(newAccountName),
         amount: newAccountAmount,
-        public_key: hardcodedKey.public_key,
+        public_key: accountKey.public_key,
     };
 
-    ctx.body = await submitTransaction("create_account", createAccountParams);
+    const transactionResponse = await submitTransaction("create_account", createAccountParams);
+    checkError(transactionResponse);
+
+    // transactionResponse does not contain useful information, so construct a custom response
+    // TODO: record key info
+    const clientResponse = {
+        accountName: newAccountName,
+        accountNameHash: await accountHash(newAccountName)
+    };
+    console.log(clientResponse);
+    ctx.body = clientResponse;
 });
 
 app
