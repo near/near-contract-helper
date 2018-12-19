@@ -2,6 +2,7 @@
 const Koa = require('koa');
 const app = new Koa();
 
+const createError = require('http-errors')
 const body = require('koa-json-body')
 const cors = require('@koa/cors');
 const BSON = require('bsonfy').BSON;
@@ -41,9 +42,9 @@ const base64ToIntArray = base64Str => {
     return Array.prototype.slice.call(data, 0)
 };
 
-const checkError = (ctx, response) => {
+const checkError = (response) => {
     if (response.error) {
-        ctx.throw(400, `[${response.error.code}] ${response.error.message}: ${response.error.data}`);
+        throw createError(400, `[${response.error.code}] ${response.error.message}: ${response.error.data}`);
     }
 };
 
@@ -65,41 +66,40 @@ const signTransaction = async (transaction) => {
     return JSON.parse(stdout);
 };
 
-const submit_transaction_rpc = async (client, method, args) => {
-    const response = await client.request(method, [args])
-    if (response.error) {
-        return response
-    }
+const submitTransaction = async (method, args) => {
+    // TODO: Make sender param names consistent
+    const senderKeys = ['sender_account_id', 'originator_account_id', 'originator_id', 'sender'];
+    const sender = senderKeys.map(key => args[key]).find(it => !!it)
+    console.log("sender", sender);
+    const nonce = await getNonce(sender);
+    console.log("nonce", nonce);
+
+    const response = await client.request(method, [Object.assign({}, args, { nonce })]);
+    checkError(response);
 
     const transaction = response.result.body;
-    return await client.request('submit_transaction', [await signTransaction(transaction)])
+    const submitResponse = await client.request('submit_transaction', [await signTransaction(transaction)]);
+    checkError(submitResponse);
+    return submitResponse.result;
 }
 
 router.post('/contract', async ctx => {
     const body = ctx.request.body;
     const sender = body.sender || hardcodedSender;
-    const nonce = body.nonce || await getNonce(ctx, sender);
-    console.log(`Deploying ${body.receiver} contract`);
-    const contract_response = await submit_transaction_rpc(client, 'deploy_contract', {
-        nonce: nonce,
+    ctx.body = await submitTransaction('deploy_contract', {
         sender_account_id: await hash(sender),
         contract_account_id: await hash(body.receiver),
         wasm_byte_array: base64ToIntArray(body.contract),
         public_key: hardcodedKey.public_key
     })
-    console.log("response", contract_response);
-    checkError(ctx, contract_response);
-    ctx.body = contract_response.result;
 });
 
 router.post('/contract/:name/:methodName', async ctx => {
     const body = ctx.request.body;
     const sender = body.sender || hardcodedSender;
-    const nonce = body.nonce || await getNonce(ctx, sender);
     const args = body.args || {};
     const serializedArgs =  Array.from(BSON.serialize(args));
-    const response = await submit_transaction_rpc(client, 'schedule_function_call', {
-        nonce: nonce,
+    ctx.body = await submitTransaction('schedule_function_call', {
         // TODO(#5): Need to make sure that big ints are supported later
         amount: parseInt(body.amount) || 0,
         originator_account_id: await hash(sender),
@@ -107,9 +107,6 @@ router.post('/contract/:name/:methodName', async ctx => {
         method_name: ctx.params.methodName,
         args: serializedArgs
     });
-    checkError(ctx, response);
-    console.log("response", response);
-    ctx.body = response.result;
 });
 
 router.post('/contract/view/:name/:methodName', async ctx => {
@@ -122,7 +119,7 @@ router.post('/contract/view/:name/:methodName', async ctx => {
         method_name: ctx.params.methodName,
         args: serializedArgs
     }]);
-    checkError(ctx, response);
+    checkError(response);
     ctx.body = BSON.deserialize(Uint8Array.from(response.result.result));
 });
 
@@ -132,7 +129,7 @@ router.get('/account/:name', async ctx => {
         method_name: '',
         args: []
     }]);
-    checkError(ctx, response);
+    checkError(response);
     ctx.body = response.result;
 });
 
@@ -141,36 +138,31 @@ router.get('/account/:name', async ctx => {
  */
 router.post('/account', async ctx => {
     // TODO: this is using alice account to create all accounts. We may want to change that.
-    const nonce = await getNonce(ctx, defaultSender);
-    ctx.assert(nonce)
     const newAccountName = uuidV4();
     console.log("Creating new account " + newAccountName);
 
     // TODO: unhardcode key
     const createAccountParams = {
-        nonce: nonce,
         sender: await encodeAccountNameForRpc(defaultSender),
         new_account_id: await encodeAccountNameForRpc(newAccountName),
         amount: newAccountAmount,
         public_key: hardcodedKey.public_key,
     };
 
-    const resp = await submit_transaction_rpc(client, "create_account", createAccountParams);
-    checkError(ctx, resp);
-    ctx.body = resp.result;
+    ctx.body = await submit_transaction_rpc(client, "create_account", createAccountParams);
 });
 
 async function encodeAccountNameForRpc(plainTextName){
     return hash(plainTextName)
 }
 
-async function getNonce(ctx, sender) {
+async function getNonce(senderHash) {
     const response = await client.request('view_account', [{
-        account_id: await hash(sender),
+        account_id: senderHash,
         method_name: '',
         args: []
     }]);
-    checkError(ctx, response);
+    checkError(response);
     return response.result.nonce + 1;
 }
 
