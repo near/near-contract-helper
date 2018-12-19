@@ -47,12 +47,6 @@ const checkError = (ctx, response) => {
     }
 };
 
-const ensureTrue = (boolValue) => {
-    if (!boolValue) {
-        ctx.throw(400, `Internal error`);
-    }
-}
-
 const hash = async str => {
     let data = Buffer.from(await crypto2.hash.sha256(str), 'hex');
     return bs58.encode(data);
@@ -148,17 +142,17 @@ router.get('/account/:name', async ctx => {
 router.post('/account', async ctx => {
     // TODO: this is using alice account to create all accounts. We may want to change that.
     const nonce = await getNonce(ctx, defaultSender);
-    ensureTrue(nonce);
+    ctx.assert(nonce)
     const newAccountName = uuidV4();
     console.log("Creating new account " + newAccountName);
 
     // TODO: unhardcode key
     const createAccountParams = {
-        'nonce': nonce,
-        'sender': await encodeAccountNameForRpc(defaultSender),
-        'new_account_id': await encodeAccountNameForRpc(newAccountName),
-        'amount': newAccountAmount,
-        'public_key': hardcodedKey.public_key,
+        nonce: nonce,
+        sender: await encodeAccountNameForRpc(defaultSender),
+        new_account_id: await encodeAccountNameForRpc(newAccountName),
+        amount: newAccountAmount,
+        public_key: hardcodedKey.public_key,
     };
 
     const resp = await submit_transaction_rpc(client, "create_account", createAccountParams);
@@ -166,9 +160,6 @@ router.post('/account', async ctx => {
     ctx.body = resp.result;
 });
 
-/*
- * Helper to encode the account name in the format which is used in rpcs.
- */
 async function encodeAccountNameForRpc(plainTextName){
     return hash(plainTextName)
 }
