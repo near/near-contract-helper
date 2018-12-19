@@ -17,6 +17,9 @@ const hardcodedSender = "bob";
 const defaultSender = "alice";
 const newAccountAmount = 5;
 
+const MAX_RETRIES = 3;
+const POLL_TIME_MS = 500;
+
 app.use(require('koa-logger')());
 // TODO: Check what limit means and set appropriate limit
 app.use(body({ limit: '500kb', fallback: true }))
@@ -72,6 +75,12 @@ const getNonce = async senderHash => {
     return (await viewAccount(senderHash)).nonce + 1;
 }
 
+const sleep = timeMs => {
+    return new Promise(function (resolve, reject) {
+        setTimeout(resolve, timeMs);
+    });
+}
+
 const util = require('util');
 const execFile = util.promisify(require('child_process').execFile);
 const signTransaction = async (transaction) => {
@@ -87,19 +96,39 @@ const signTransaction = async (transaction) => {
 
 const submitTransaction = async (method, args) => {
     // TODO: Make sender param names consistent
+    // TODO: https://github.com/nearprotocol/nearcore/issues/287
     const senderKeys = ['sender_account_id', 'originator_account_id', 'originator_id', 'sender'];
     const sender = senderKeys.map(key => args[key]).find(it => !!it)
-    console.log("sender", sender);
     const nonce = await getNonce(sender);
-    console.log("nonce", nonce);
+    const callList = [Object.assign({}, args, { nonce })];
 
-    const response = await client.request(method, [Object.assign({}, args, { nonce })]);
-    checkError(response);
+    for (let i = 0; i < MAX_RETRIES; i++) {
+        const response = await client.request(method, callList);
+        checkError(response);
 
-    const transaction = response.result.body;
-    const submitResponse = await client.request('submit_transaction', [await signTransaction(transaction)]);
-    checkError(submitResponse);
-    return submitResponse.result;
+        const transaction = response.result.body;
+        const submitResponse = await client.request('submit_transaction', [await signTransaction(transaction)]);
+        checkError(submitResponse);
+        await sleep(POLL_TIME_MS);
+
+        // TODO: Don't hardcode special check for deploy once it works same as other calls
+        if (method == 'deploy_contract') {
+            const contractHash = bs58.encode(sha256(Buffer.from(args.wasm_byte_array)));
+            const accountInfo = await viewAccount(args.contract_account_id);
+            if (accountInfo.code_hash == contractHash) {
+                return accountInfo;
+            }
+            continue;
+        }
+
+        const accountInfo = await viewAccount(sender);
+        if (accountInfo.nonce >= nonce) {
+            // TODO: Use better check when it's available:
+            // TODO: https://github.com/nearprotocol/nearcore/issues/276
+            return accountInfo;
+        }
+    }
+    throw createError(504, `Transaction not accepted after ${MAX_RETRIES} retries`);
 }
 
 router.post('/contract', async ctx => {
