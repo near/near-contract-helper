@@ -2,16 +2,25 @@
 const Koa = require('koa');
 const app = new Koa();
 
+const createError = require('http-errors')
 const body = require('koa-json-body')
 const cors = require('@koa/cors');
+const BSON = require('bsonfy').BSON;
+const uuidV4 = require('uuid/v4');
 
 const hardcodedKey = {
-    "public_key":"9AhWenZ3JddamBoyMqnTbp7yVbRuvqAv3zwfrWgfVRJE",
-    "secret_key":"2hoLMP9X2Vsvib2t4F1fkZHpFd6fHLr5q7eqGroRoNqdBKcPja2jCrmxW9uGBLXdTnbtZYibWe4NoFtB4Bk7LWg6"
+    public_key: "9AhWenZ3JddamBoyMqnTbp7yVbRuvqAv3zwfrWgfVRJE",
+    secret_key: "2hoLMP9X2Vsvib2t4F1fkZHpFd6fHLr5q7eqGroRoNqdBKcPja2jCrmxW9uGBLXdTnbtZYibWe4NoFtB4Bk7LWg6"
 };
 
 const hardcodedSender = "bob";
+const defaultSender = "alice";
+const newAccountAmount = 5;
 
+const MAX_RETRIES = 3;
+const POLL_TIME_MS = 500;
+
+app.use(require('koa-logger')());
 // TODO: Check what limit means and set appropriate limit
 app.use(body({ limit: '500kb', fallback: true }))
 // TODO: Don't use CORS in production on studio.nearprotocol.com
@@ -21,109 +30,171 @@ app.use(cors({ credentials: true }));
 const Router = require('koa-router');
 const router = new Router();
 
-var jayson = require('jayson/promise');
-var client = jayson.client.http({
-    headers: {
-        'Content-Type': 'application/json'
-    },
-    port: 3030
-});
+const superagent = require('superagent');
 
 const bs58 = require('bs58');
-const crypto2 = require('crypto2');
+const crypto = require('crypto');
 
 const base64ToIntArray = base64Str => {
     let data = Buffer.from(base64Str, 'base64');
     return Array.prototype.slice.call(data, 0)
 };
 
-const checkError = (ctx, response) => {
-    if (response.error) {
-        ctx.throw(400, `[${response.error.code}] ${response.error.message}: ${response.error.data}`);
+const sha256 = data => {
+    const hash = crypto.createHash('sha256');
+    hash.update(data, 'utf8');
+    return hash.digest();
+}
+
+const request = async (methodName, params) => {
+    try {
+        const response = await superagent
+            .post(`http://localhost:3030/${methodName}`)
+            .use(require('superagent-logger'))
+            .send(params);
+        return JSON.parse(response.text);
+    } catch(e) {
+        console.error("request error:", e.response.text);
+        throw e;
     }
+}
+
+const viewAccount = async senderHash => {
+    return await request('view_account', {
+        account_id: senderHash,
+    });
+}
+
+const getNonce = async senderHash => {
+    return (await viewAccount(senderHash)).nonce + 1;
+}
+
+const sleep = timeMs => {
+    return new Promise(function (resolve, reject) {
+        setTimeout(resolve, timeMs);
+    });
+}
+
+const util = require('util');
+const execFile = util.promisify(require('child_process').execFile);
+const signTransaction = async (transaction) => {
+    const stringifiedTxn = JSON.stringify(transaction);
+    const { stdout, stderr } = await execFile(
+        '../nearcore/target/debug/keystore',
+        ['sign_transaction',
+        '--data', stringifiedTxn,
+        '--keystore-path', '../nearcore/keystore/'
+    ]);
+    return JSON.parse(stdout);
 };
 
-const hash = async str => {
-    let data = Buffer.from(await crypto2.hash.sha256(str), 'hex');
-    return bs58.encode(data);
-};
+const submitTransaction = async (method, args) => {
+    // TODO: Make sender param names consistent
+    // TODO: https://github.com/nearprotocol/nearcore/issues/287
+    const senderKeys = ['sender_account_id', 'originator_account_id', 'originator_id', 'sender'];
+    const sender = senderKeys.map(key => args[key]).find(it => !!it)
+    const nonce = await getNonce(sender);
 
-const submit_transaction_rpc = async (client, method, args) => {
-    const response = await client.request(method, [args])
-    if (response.error) {
-        return response
+    for (let i = 0; i < MAX_RETRIES; i++) {
+        const response = await request(method, Object.assign({}, args, { nonce }));
+
+        const transaction = response.body;
+        const submitResponse = await request('submit_transaction', await signTransaction(transaction));
+        await sleep(POLL_TIME_MS);
+
+        // TODO: Don't hardcode special check for deploy once it works same as other calls
+        if (method == 'deploy_contract') {
+            const contractHash = bs58.encode(sha256(Buffer.from(args.wasm_byte_array)));
+            const accountInfo = await viewAccount(args.contract_account_id);
+            if (accountInfo.code_hash == contractHash) {
+                return accountInfo;
+            }
+            continue;
+        }
+
+        const accountInfo = await viewAccount(sender);
+        if (accountInfo.nonce >= nonce) {
+            // TODO: Use better check when it's available:
+            // TODO: https://github.com/nearprotocol/nearcore/issues/276
+            return accountInfo;
+        }
     }
-    // TODO(#2): Sign transactions.
-    const res = await client.request('submit_transaction', [{
-        body: response.result.body,
-        sender_sig: [147, 237, 206, 27, 8, 112, 190, 228, 129, 23, 111, 153, 134, 68, 203, 152, 108, 105, 112, 238, 171, 200, 158, 83, 197, 20, 158, 214, 151, 190, 92, 135, 33, 158, 42, 159, 131, 80, 96, 201, 185, 254, 213, 46, 209, 11, 158, 2, 57, 161, 66, 222, 87, 192, 141, 53, 43, 198, 40, 107, 148, 218, 231, 7],
-    }])
-    return res
+    throw createError(504, `Transaction not accepted after ${MAX_RETRIES} retries`);
 }
 
 router.post('/contract', async ctx => {
     const body = ctx.request.body;
     const sender = body.sender || hardcodedSender;
-    const nonce = body.nonce || await getNonce(ctx, sender);
-    console.log(`Deploing ${body.receiver} contract`);
-    const contract_response = await submit_transaction_rpc(client, 'deploy_contract', {
-        nonce: nonce,
-        sender_account_id: sender,
+    ctx.body = await submitTransaction('deploy_contract', {
+        originator: sender,
         contract_account_id: body.receiver,
         wasm_byte_array: base64ToIntArray(body.contract),
         public_key: hardcodedKey.public_key
     })
-    console.log("response", contract_response);
-    checkError(ctx, contract_response);
-    ctx.body = contract_response.result;
 });
 
 router.post('/contract/:name/:methodName', async ctx => {
     const body = ctx.request.body;
     const sender = body.sender || hardcodedSender;
-    const nonce = body.nonce || await getNonce(ctx, sender);
-    const response = await submit_transaction_rpc(client, 'schedule_function_call', {
-        nonce: nonce,
-        originator_account_id: sender,
+    const args = body.args || {};
+    const serializedArgs =  Array.from(BSON.serialize(args));
+    ctx.body = await submitTransaction('schedule_function_call', {
+        // TODO(#5): Need to make sure that big ints are supported later
+        amount: parseInt(body.amount) || 0,
+        originator: sender,
         contract_account_id: ctx.params.name,
         method_name: ctx.params.methodName,
-        args: [body.args]
+        args: serializedArgs
     });
-    checkError(ctx, response);
-    console.log("response", response);
-    ctx.body = response.result;
 });
 
 router.post('/contract/view/:name/:methodName', async ctx => {
     const body = ctx.request.body;
-    const response = await client.request('call_view_function', [{
+    const args = body.args || {};
+    const serializedArgs =  Array.from(BSON.serialize(args));
+    const response = await request('call_view_function', {
+        originator: hardcodedSender,
         contract_account_id: ctx.params.name,
         method_name: ctx.params.methodName,
-        args: body.args
-    }]);
-    checkError(ctx, response);
-    ctx.body = response.result;
+        args: serializedArgs
+    });
+    ctx.body = BSON.deserialize(Uint8Array.from(response.result));
 });
 
 router.get('/account/:name', async ctx => {
-    const response = await client.request('view_account', [{
-        account_id: ctx.params.name,
-        method_name: '',
-        args: []
-    }]);
-    checkError(ctx, response);
-    ctx.body = response.result;
+    ctx.body = await viewAccount(ctx.params.name);
 });
 
-async function getNonce(ctx, sender) {
-    const response = await client.request('view_account', [{
-        account_id: sender,
-        method_name: '',
-        args: []
-    }]);
-    checkError(ctx, response);
-    return response.result.nonce + 1;
-}
+/**
+ * Create a new account. Generate a throw away account id (UUID).
+ * Returns account name and public/private key.
+ */
+router.post('/account', async ctx => {
+    // TODO: this is using alice account to create all accounts. We may want to change that.
+    const newAccountName = uuidV4();
+
+    // TODO: unhardcode key
+    const accountKey = hardcodedKey;
+
+    const createAccountParams = {
+        originator: defaultSender,
+        new_account_id: newAccountName,
+        amount: newAccountAmount,
+        public_key: accountKey.public_key,
+    };
+
+    const transactionResponse = await submitTransaction("create_account", createAccountParams);
+    checkError(transactionResponse);
+
+    // transactionResponse does not contain useful information, so construct a custom response
+    // TODO: record key info
+    const clientResponse = {
+        accountName: newAccountName,
+        accountNameHash: newAccountName
+    };
+    console.log(clientResponse);
+    ctx.body = clientResponse;
+});
 
 app
     .use(router.routes())
