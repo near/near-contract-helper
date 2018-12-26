@@ -68,8 +68,8 @@ router.post('/contract', async ctx => {
     console.log(`Deploing ${body.receiver} contract`);
     const contract_response = await submit_transaction_rpc(client, 'deploy_contract', {
         nonce: nonce,
-        sender_account_id: await hash(sender),
-        contract_account_id: await hash(body.receiver),
+        sender_account_id: sender,
+        contract_account_id: body.receiver,
         wasm_byte_array: base64ToIntArray(body.contract),
         public_key: hardcodedKey.public_key
     })
@@ -84,8 +84,8 @@ router.post('/contract/:name/:methodName', async ctx => {
     const nonce = body.nonce || await getNonce(ctx, sender);
     const response = await submit_transaction_rpc(client, 'schedule_function_call', {
         nonce: nonce,
-        originator_account_id: await hash(sender),
-        contract_account_id: await hash(ctx.params.name),
+        originator_account_id: sender,
+        contract_account_id: ctx.params.name,
         method_name: ctx.params.methodName,
         args: [body.args]
     });
@@ -97,7 +97,7 @@ router.post('/contract/:name/:methodName', async ctx => {
 router.post('/contract/view/:name/:methodName', async ctx => {
     const body = ctx.request.body;
     const response = await client.request('call_view_function', [{
-        contract_account_id: await hash(ctx.params.name),
+        contract_account_id: ctx.params.name,
         method_name: ctx.params.methodName,
         args: body.args
     }]);
@@ -107,7 +107,7 @@ router.post('/contract/view/:name/:methodName', async ctx => {
 
 router.get('/account/:name', async ctx => {
     const response = await client.request('view_account', [{
-        account_id: await hash(ctx.params.name),
+        account_id: ctx.params.name,
         method_name: '',
         args: []
     }]);
@@ -117,7 +117,7 @@ router.get('/account/:name', async ctx => {
 
 async function getNonce(ctx, sender) {
     const response = await client.request('view_account', [{
-        account_id: await hash(sender),
+        account_id: sender,
         method_name: '',
         args: []
     }]);
@@ -134,4 +134,3 @@ if (!module.parent) {
 } else {
     module.exports = app;
 }
-
