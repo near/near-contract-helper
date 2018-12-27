@@ -46,10 +46,6 @@ const sha256 = data => {
     return hash.digest();
 }
 
-const accountHash = async str => {
-    return bs58.encode(sha256(str));
-};
-
 const request = async (methodName, params) => {
     try {
         const response = await superagent
@@ -130,8 +126,8 @@ router.post('/contract', async ctx => {
     const body = ctx.request.body;
     const sender = body.sender || hardcodedSender;
     ctx.body = await submitTransaction('deploy_contract', {
-        sender_account_id: await accountHash(sender),
-        contract_account_id: await accountHash(body.receiver),
+        originator: sender,
+        contract_account_id: body.receiver,
         wasm_byte_array: base64ToIntArray(body.contract),
         public_key: hardcodedKey.public_key
     })
@@ -145,8 +141,8 @@ router.post('/contract/:name/:methodName', async ctx => {
     ctx.body = await submitTransaction('schedule_function_call', {
         // TODO(#5): Need to make sure that big ints are supported later
         amount: parseInt(body.amount) || 0,
-        originator_account_id: await accountHash(sender),
-        contract_account_id: await accountHash(ctx.params.name),
+        originator: sender,
+        contract_account_id: ctx.params.name,
         method_name: ctx.params.methodName,
         args: serializedArgs
     });
@@ -157,8 +153,8 @@ router.post('/contract/view/:name/:methodName', async ctx => {
     const args = body.args || {};
     const serializedArgs =  Array.from(BSON.serialize(args));
     const response = await request('call_view_function', {
-        originator_id: await accountHash(hardcodedSender),
-        contract_account_id: await accountHash(ctx.params.name),
+        originator: hardcodedSender,
+        contract_account_id: ctx.params.name,
         method_name: ctx.params.methodName,
         args: serializedArgs
     });
@@ -166,7 +162,7 @@ router.post('/contract/view/:name/:methodName', async ctx => {
 });
 
 router.get('/account/:name', async ctx => {
-    ctx.body = await viewAccount(await accountHash(ctx.params.name));
+    ctx.body = await viewAccount(ctx.params.name);
 });
 
 /**
@@ -181,8 +177,8 @@ router.post('/account', async ctx => {
     const accountKey = hardcodedKey;
 
     const createAccountParams = {
-        sender: await accountHash(defaultSender),
-        new_account_id: await accountHash(newAccountName),
+        originator: defaultSender,
+        new_account_id: newAccountName,
         amount: newAccountAmount,
         public_key: accountKey.public_key,
     };
@@ -194,7 +190,7 @@ router.post('/account', async ctx => {
     // TODO: record key info
     const clientResponse = {
         accountName: newAccountName,
-        accountNameHash: await accountHash(newAccountName)
+        accountNameHash: newAccountName
     };
     console.log(clientResponse);
     ctx.body = clientResponse;
@@ -209,4 +205,3 @@ if (!module.parent) {
 } else {
     module.exports = app;
 }
-
