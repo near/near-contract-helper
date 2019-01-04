@@ -4,7 +4,9 @@
   "description": "Micro-service used by NEARStudio to deploy smart contracts.",
   "main": "app.js",
   "scripts": {
-    "test": "jest test"
+    "test": "npm run lint && jest test",
+    "lint": "eslint .",
+    "fix": "eslint . --fix"
   },
   "repository": {
     "type": "git",
@@ -28,5 +30,8 @@
     "superagent": "^4.0.0",
     "superagent-logger": "^1.1.0",
     "uuid": "^3.3.2"
+  },
+  "devDependencies": {
+    "eslint": "^5.12.0"
   }
 }
