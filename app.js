@@ -15,7 +15,6 @@ const hardcodedKey = {
 
 const hardcodedSender = 'bob';
 const defaultSender = 'alice.near';
-const newAccountAmount = 5;
 
 const MAX_RETRIES = 3;
 const POLL_TIME_MS = 500;
@@ -80,7 +79,7 @@ const getNonce = async senderHash => {
 };
 
 const sleep = timeMs => {
-    return new Promise(function (resolve, reject) {
+    return new Promise(function (resolve) {
         setTimeout(resolve, timeMs);
     });
 };
@@ -89,7 +88,7 @@ const util = require('util');
 const execFile = util.promisify(require('child_process').execFile);
 const signTransaction = async (transaction) => {
     const stringifiedTxn = JSON.stringify(transaction);
-    const { stdout, stderr } = await execFile(
+    const { stdout } = await execFile(
         '../nearcore/target/debug/keystore',
         ['sign_transaction',
             '--data', stringifiedTxn,
@@ -109,7 +108,7 @@ const submitTransaction = async (method, args) => {
         const response = await request(method, Object.assign({}, args, { nonce }));
 
         const transaction = response.body;
-        const submitResponse = await request('submit_transaction', await signTransaction(transaction));
+        await request('submit_transaction', await signTransaction(transaction));
         await sleep(POLL_TIME_MS);
 
         // TODO: Don't hardcode special check for deploy once it works same as other calls
