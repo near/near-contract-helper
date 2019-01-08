@@ -5,7 +5,6 @@ const app = new Koa();
 const createError = require('http-errors');
 const body = require('koa-json-body');
 const cors = require('@koa/cors');
-const BSON = require('bsonfy').BSON;
 const uuidV4 = require('uuid/v4');
 
 const hardcodedKey = {
@@ -100,7 +99,7 @@ const signTransaction = async (transaction) => {
 const submitTransaction = async (method, args) => {
     // TODO: Make sender param names consistent
     // TODO: https://github.com/nearprotocol/nearcore/issues/287
-    const senderKeys = ['sender_account_id', 'originator_account_id', 'originator_id', 'sender'];
+    const senderKeys = ['sender_account_id', 'originator_account_id', 'originator_id', 'sender', 'originator'];
     const sender = senderKeys.map(key => args[key]).find(it => !!it);
     const nonce = await getNonce(sender);
 
@@ -146,7 +145,7 @@ router.post('/contract/:name/:methodName', async ctx => {
     const body = ctx.request.body;
     const sender = body.sender || hardcodedSender;
     const args = body.args || {};
-    const serializedArgs =  Array.from(BSON.serialize(args));
+    const serializedArgs =  Array.from(Buffer.from(JSON.stringify(args)));
     ctx.body = await submitTransaction('schedule_function_call', {
         // TODO(#5): Need to make sure that big ints are supported later
         amount: parseInt(body.amount) || 0,
@@ -160,14 +159,14 @@ router.post('/contract/:name/:methodName', async ctx => {
 router.post('/contract/view/:name/:methodName', async ctx => {
     const body = ctx.request.body;
     const args = body.args || {};
-    const serializedArgs =  Array.from(BSON.serialize(args));
+    const serializedArgs =  Array.from(Buffer.from(JSON.stringify(args)));
     const response = await request('call_view_function', {
         originator: hardcodedSender,
         contract_account_id: ctx.params.name,
         method_name: ctx.params.methodName,
         args: serializedArgs
     });
-    ctx.body = BSON.deserialize(Uint8Array.from(response.result));
+    ctx.body = JSON.parse(Buffer.from(response.result).toString());
 });
 
 router.get('/account/:name', async ctx => {
