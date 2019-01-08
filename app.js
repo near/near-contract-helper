@@ -14,7 +14,7 @@ const hardcodedKey = {
 };
 
 const hardcodedSender = "bob";
-const defaultSender = "alice";
+const defaultSender = "alice.near";
 const newAccountAmount = 5;
 
 const MAX_RETRIES = 3;
@@ -34,6 +34,16 @@ const superagent = require('superagent');
 
 const bs58 = require('bs58');
 const crypto = require('crypto');
+
+const InMemoryKeyStore = require('nearlib/test-tools/in_memory_key_store.js');
+const LocalNodeConnection = require('nearlib/local_node_connection')
+const NearClient = require('nearlib/nearclient');
+const keyStore = new InMemoryKeyStore();
+keyStore.setKey(defaultSender, hardcodedKey);
+const localNodeConnection = new LocalNodeConnection("http://localhost:3030");
+const nearClient = new NearClient(keyStore, localNodeConnection);
+const Account = require('nearlib/account');
+const account = new Account(nearClient);
 
 const base64ToIntArray = base64Str => {
     let data = Buffer.from(base64Str, 'base64');
@@ -173,27 +183,10 @@ router.post('/account', async ctx => {
     // TODO: this is using alice account to create all accounts. We may want to change that.
     const newAccountName = uuidV4();
 
-    // TODO: unhardcode key
-    const accountKey = hardcodedKey;
-
-    const createAccountParams = {
-        originator: defaultSender,
-        new_account_id: newAccountName,
-        amount: newAccountAmount,
-        public_key: accountKey.public_key,
-    };
-
-    const transactionResponse = await submitTransaction("create_account", createAccountParams);
-    checkError(transactionResponse);
-
-    // transactionResponse does not contain useful information, so construct a custom response
-    // TODO: record key info
-    const clientResponse = {
-        accountName: newAccountName,
-        accountNameHash: newAccountName
-    };
-    console.log(clientResponse);
-    ctx.body = clientResponse;
+    const createAccountResponse =
+        await account.createAccountWithRandomKey(newAccountName, 1, defaultSender);
+    createAccountResponse["accountName"] = newAccountName;
+    ctx.body = createAccountResponse;
 });
 
 app
