@@ -184,7 +184,7 @@ router.post('/account', async ctx => {
 
     const createAccountResponse =
         await account.createAccountWithRandomKey(newAccountName, 1, defaultSender);
-    createAccountResponse['accountName'] = newAccountName;
+    createAccountResponse["account_id"] = newAccountName;
     ctx.body = createAccountResponse;
 });
 
