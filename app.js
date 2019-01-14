@@ -124,12 +124,15 @@ router.get('/account/:name', async ctx => {
  */
 router.post('/account', async ctx => {
     // TODO: this is using alice account to create all accounts. We may want to change that.
-    const newAccountName = ctx.params.newAccountName;
-    const newAccountPublicKey = crt.params.newAccountPublicKey;
+    const body = ctx.request.body;
+    const newAccountName = body.newAccountName;
+    const newAccountPublicKey = body.newAccountPublicKey;
     const createAccountResponse =
-        await account.createAccount(newAccountName,newAccountPublicKey, NEW_ACCOUNT_AMOUNT, defaultSender);
-    createAccountResponse["account_id"] = newAccountName;
-    ctx.body = createAccountResponse;
+        await account.createAccount(newAccountName, newAccountPublicKey, 1, defaultSender);
+    const response = {
+        account_id: newAccountName
+    };
+    ctx.body = response;
 });
 
 app
