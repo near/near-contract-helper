@@ -16,6 +16,7 @@ const defaultSender = 'alice.near';
 
 const MAX_RETRIES = 3;
 const POLL_TIME_MS = 500;
+const NEW_ACCOUNT_AMOUNT = 100;
 
 app.use(require('koa-logger')());
 // TODO: Check what limit means and set appropriate limit
@@ -123,12 +124,15 @@ router.get('/account/:name', async ctx => {
  */
 router.post('/account', async ctx => {
     // TODO: this is using alice account to create all accounts. We may want to change that.
-    const newAccountName = uuidV4();
-
+    const body = ctx.request.body;
+    const newAccountName = body.newAccountName;
+    const newAccountPublicKey = body.newAccountPublicKey;
     const createAccountResponse =
-        await account.createAccountWithRandomKey(newAccountName, 1, defaultSender);
-    createAccountResponse["account_id"] = newAccountName;
-    ctx.body = createAccountResponse;
+        await account.createAccount(newAccountName, newAccountPublicKey, 1, defaultSender);
+    const response = {
+        account_id: newAccountName
+    };
+    ctx.body = response;
 });
 
 app
