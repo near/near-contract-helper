@@ -5,12 +5,12 @@ const app = new Koa();
 const createError = require('http-errors');
 const body = require('koa-json-body');
 const cors = require('@koa/cors');
-const uuidV4 = require('uuid/v4');
+const KeyPair = require('nearlib/signing/key_pair.js');
 
-const hardcodedKey = {
-    public_key: '9AhWenZ3JddamBoyMqnTbp7yVbRuvqAv3zwfrWgfVRJE',
-    secret_key: '2hoLMP9X2Vsvib2t4F1fkZHpFd6fHLr5q7eqGroRoNqdBKcPja2jCrmxW9uGBLXdTnbtZYibWe4NoFtB4Bk7LWg6'
-};
+const hardcodedKey = KeyPair.fromRandomSeed(
+    '9AhWenZ3JddamBoyMqnTbp7yVbRuvqAv3zwfrWgfVRJE',
+    '2hoLMP9X2Vsvib2t4F1fkZHpFd6fHLr5q7eqGroRoNqdBKcPja2jCrmxW9uGBLXdTnbtZYibWe4NoFtB4Bk7LWg6'
+);
 
 const defaultSender = 'alice.near';
 
@@ -33,13 +33,15 @@ const superagent = require('superagent');
 const bs58 = require('bs58');
 const crypto = require('crypto');
 
-const InMemoryKeyStore = require('nearlib/test-tools/in_memory_key_store.js');
+const InMemoryKeyStore = require('nearlib/signing/in_memory_key_store');
+const SimpleKeyPairSigner = require('nearlib/signing/simple_key_store_signer');
 const LocalNodeConnection = require('nearlib/local_node_connection');
 const NearClient = require('nearlib/nearclient');
 const keyStore = new InMemoryKeyStore();
 keyStore.setKey(defaultSender, hardcodedKey);
+
 const localNodeConnection = new LocalNodeConnection('http://localhost:3030');
-const nearClient = new NearClient(keyStore, localNodeConnection);
+const nearClient = new NearClient(new SimpleKeyPairSigner(keyStore), localNodeConnection);
 const Account = require('nearlib/account');
 const account = new Account(nearClient);
 
@@ -125,12 +127,12 @@ router.get('/account/:name', async ctx => {
 router.post('/account', async ctx => {
     // TODO: this is using alice account to create all accounts. We may want to change that.
     const body = ctx.request.body;
-    const newAccountName = body.newAccountName;
+    const newAccountId = body.newAccountId;
     const newAccountPublicKey = body.newAccountPublicKey;
     const createAccountResponse =
-        await account.createAccount(newAccountName, newAccountPublicKey, 1, defaultSender);
+        await account.createAccount(newAccountId, newAccountPublicKey, 1, defaultSender);
     const response = {
-        account_id: newAccountName
+        account_id: newAccountId
     };
     ctx.body = response;
 });
