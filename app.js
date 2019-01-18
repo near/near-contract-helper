@@ -130,7 +130,7 @@ router.post('/account', async ctx => {
     const newAccountId = body.newAccountId;
     const newAccountPublicKey = body.newAccountPublicKey;
     const createAccountResponse =
-        await account.createAccount(newAccountId, newAccountPublicKey, 1, defaultSender);
+        await account.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT, defaultSender);
     const response = {
         account_id: newAccountId
     };
