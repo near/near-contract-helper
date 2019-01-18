@@ -2,21 +2,14 @@
 const Koa = require('koa');
 const app = new Koa();
 
-const createError = require('http-errors');
 const body = require('koa-json-body');
 const cors = require('@koa/cors');
-const KeyPair = require('nearlib/signing/key_pair.js');
-
-const hardcodedKey = KeyPair.fromRandomSeed(
-    '9AhWenZ3JddamBoyMqnTbp7yVbRuvqAv3zwfrWgfVRJE',
-    '2hoLMP9X2Vsvib2t4F1fkZHpFd6fHLr5q7eqGroRoNqdBKcPja2jCrmxW9uGBLXdTnbtZYibWe4NoFtB4Bk7LWg6'
-);
 
 const defaultSender = 'alice.near';
+const rawKey = JSON.parse(require('fs').readFileSync(`./${defaultSender}.json`));
 
-const MAX_RETRIES = 3;
-const POLL_TIME_MS = 500;
-const NEW_ACCOUNT_AMOUNT = 100;
+const KeyPair = require('nearlib/signing/key_pair.js');
+const defaultKey = new KeyPair(rawKey.public_key, rawKey.secret_key);
 
 app.use(require('koa-logger')());
 // TODO: Check what limit means and set appropriate limit
@@ -30,15 +23,12 @@ const router = new Router();
 
 const superagent = require('superagent');
 
-const bs58 = require('bs58');
-const crypto = require('crypto');
-
 const InMemoryKeyStore = require('nearlib/signing/in_memory_key_store');
 const SimpleKeyPairSigner = require('nearlib/signing/simple_key_store_signer');
 const LocalNodeConnection = require('nearlib/local_node_connection');
 const NearClient = require('nearlib/nearclient');
 const keyStore = new InMemoryKeyStore();
-keyStore.setKey(defaultSender, hardcodedKey);
+keyStore.setKey(defaultSender, defaultKey);
 
 const localNodeConnection = new LocalNodeConnection('http://localhost:3030');
 const nearClient = new NearClient(new SimpleKeyPairSigner(keyStore), localNodeConnection);
@@ -50,12 +40,6 @@ const base64ToIntArray = base64Str => {
     return Array.prototype.slice.call(data, 0);
 };
 
-const sha256 = data => {
-    const hash = crypto.createHash('sha256');
-    hash.update(data, 'utf8');
-    return hash.digest();
-};
-
 const request = async (methodName, params) => {
     try {
         const response = await superagent
@@ -65,7 +49,7 @@ const request = async (methodName, params) => {
         return JSON.parse(response.text);
     } catch(e) {
         console.error('request error:', e.response ? e.response.text : e);
-        throw e
+        throw e;
     }
 };
 
@@ -84,7 +68,7 @@ router.post('/contract', async ctx => {
         originator: sender,
         contract_account_id: body.receiver,
         wasm_byte_array: base64ToIntArray(body.contract),
-        public_key: hardcodedKey.public_key
+        public_key: defaultKey.publicKey
     });
 });
 
@@ -129,8 +113,7 @@ router.post('/account', async ctx => {
     const body = ctx.request.body;
     const newAccountId = body.newAccountId;
     const newAccountPublicKey = body.newAccountPublicKey;
-    const createAccountResponse =
-        await account.createAccount(newAccountId, newAccountPublicKey, 1, defaultSender);
+    await account.createAccount(newAccountId, newAccountPublicKey, 1, defaultSender);
     const response = {
         account_id: newAccountId
     };
