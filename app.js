@@ -34,6 +34,7 @@ const localNodeConnection = new LocalNodeConnection('http://localhost:3030');
 const nearClient = new NearClient(new SimpleKeyPairSigner(keyStore), localNodeConnection);
 const Account = require('nearlib/account');
 const account = new Account(nearClient);
+const NEW_ACCOUNT_AMOUNT = 100;
 
 const base64ToIntArray = base64Str => {
     let data = Buffer.from(base64Str, 'base64');
