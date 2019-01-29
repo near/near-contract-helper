@@ -33,8 +33,11 @@ keyStore.setKey(defaultSender, defaultKey);
 const localNodeConnection = new LocalNodeConnection('http://localhost:3030');
 const nearClient = new NearClient(new SimpleKeyPairSigner(keyStore), localNodeConnection);
 const Account = require('nearlib/account');
+const Near = require('nearlib/near')
 const account = new Account(nearClient);
+const nearlib = new Near(nearClient);
 const NEW_ACCOUNT_AMOUNT = 100;
+const TXN_STATUS_RETRIES = 5;
 
 const base64ToIntArray = base64Str => {
     let data = Buffer.from(base64Str, 'base64');
@@ -116,10 +119,17 @@ router.post('/account', async ctx => {
     const newAccountPublicKey = body.newAccountPublicKey;
     const createAccountResponse =
         await account.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT, defaultSender);
-    const response = {
-        account_id: newAccountId
-    };
-    ctx.body = response;
+    for (let i = 0; i < TXN_STATUS_RETRIES; i++) {
+        const txnStatus = await nearlib.getTransactionStatus(createAccountResponse.hash);
+        if (txnStatus.status == 'Completed') {
+            const response = {
+                account_id: newAccountId
+            };
+            ctx.body = response;
+            return;
+        }
+    }
+    ctx.throw(500,'Failed to create an account');
 });
 
 app
@@ -130,4 +140,10 @@ if (!module.parent) {
     app.listen(process.env.PORT || 3000);
 } else {
     module.exports = app;
+}
+
+function sleep(time) {
+    return new Promise(function (resolve) {
+        setTimeout(resolve, time);
+    });
 }
