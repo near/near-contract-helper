@@ -5,34 +5,40 @@ const app = new Koa();
 const body = require('koa-json-body');
 const cors = require('@koa/cors');
 
-const defaultSender = 'alice.near';
-const rawKey = JSON.parse(require('fs').readFileSync(`./${defaultSender}.json`));
-
-const KeyPair = require('nearlib/signing/key_pair.js');
-const defaultKey = new KeyPair(rawKey.public_key, rawKey.secret_key);
-
 app.use(require('koa-logger')());
 // TODO: Check what limit means and set appropriate limit
 app.use(body({ limit: '500kb', fallback: true }));
 // TODO: Don't use CORS in production on studio.nearprotocol.com
 app.use(cors({ credentials: true }));
 
+// Middleware to passthrough HTTP errors from node
+app.use(async function(ctx, next) {
+    try {
+        await next();
+    } catch(e) {
+        if (e.response) {
+            console.log("e", e, "e.response", e. response);
+            ctx.throw(e.response.status, e.response.text);
+        }
+        throw e;
+    }
+});
 
 const Router = require('koa-router');
 const router = new Router();
 
 const superagent = require('superagent');
 
-const InMemoryKeyStore = require('nearlib/signing/in_memory_key_store');
-const SimpleKeyPairSigner = require('nearlib/signing/simple_key_store_signer');
-const LocalNodeConnection = require('nearlib/local_node_connection');
-const NearClient = require('nearlib/nearclient');
+const { KeyPair, InMemoryKeyStore, SimpleKeyStoreSigner, LocalNodeConnection, NearClient, Near, Account } = require('nearlib');
+const defaultSender = 'alice.near';
+const rawKey = JSON.parse(require('fs').readFileSync(`./${defaultSender}.json`));
+const defaultKey = new KeyPair(rawKey.public_key, rawKey.secret_key);
 const keyStore = new InMemoryKeyStore();
 keyStore.setKey(defaultSender, defaultKey);
-
 const localNodeConnection = new LocalNodeConnection('http://localhost:3030');
-const nearClient = new NearClient(new SimpleKeyPairSigner(keyStore), localNodeConnection);
-const Account = require('nearlib/account');
+const nearClient = new NearClient(new SimpleKeyStoreSigner(keyStore), localNodeConnection);
+const near = new Near(nearClient);
+
 const account = new Account(nearClient);
 const NEW_ACCOUNT_AMOUNT = 100;
 
@@ -42,16 +48,11 @@ const base64ToIntArray = base64Str => {
 };
 
 const request = async (methodName, params) => {
-    try {
-        const response = await superagent
-            .post(`http://localhost:3030/${methodName}`)
-            .use(require('superagent-logger'))
-            .send(params);
-        return JSON.parse(response.text);
-    } catch(e) {
-        console.error('request error:', e.response ? e.response.text : e);
-        throw e;
-    }
+    const response = await superagent
+        .post(`http://localhost:3030/${methodName}`)
+        .use(require('superagent-logger'))
+        .send(params);
+    return JSON.parse(response.text);
 };
 
 const viewAccount = async senderHash => {
@@ -60,7 +61,10 @@ const viewAccount = async senderHash => {
     });
 };
 
-const submitTransaction = nearClient.submitTransaction.bind(nearClient);
+async function submitTransaction() {
+    const response = await nearClient.submitTransaction.apply(nearClient, arguments);
+    return near.waitForTransactionResult(response.hash);
+}
 
 router.post('/contract', async ctx => {
     const body = ctx.request.body;
