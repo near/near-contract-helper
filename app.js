@@ -4,6 +4,7 @@ const app = new Koa();
 
 const body = require('koa-json-body');
 const cors = require('@koa/cors');
+const createError = require('http-errors')
 
 const defaultSender = 'alice.near';
 const rawKey = JSON.parse(require('fs').readFileSync(`./${defaultSender}.json`));
@@ -17,6 +18,14 @@ app.use(body({ limit: '500kb', fallback: true }));
 // TODO: Don't use CORS in production on studio.nearprotocol.com
 app.use(cors({ credentials: true }));
 
+app.use(async function(ctx, next) {
+    try {
+        await next();
+    } catch(e) {
+        console.log('error: ', e);
+        throw e;
+    }
+});
 
 const Router = require('koa-router');
 const router = new Router();
@@ -27,6 +36,7 @@ const InMemoryKeyStore = require('nearlib/signing/in_memory_key_store');
 const SimpleKeyPairSigner = require('nearlib/signing/simple_key_store_signer');
 const LocalNodeConnection = require('nearlib/local_node_connection');
 const NearClient = require('nearlib/nearclient');
+const { Near } = require('nearlib');
 const keyStore = new InMemoryKeyStore();
 keyStore.setKey(defaultSender, defaultKey);
 
@@ -60,7 +70,34 @@ const viewAccount = async senderHash => {
     });
 };
 
-const submitTransaction = nearClient.submitTransaction.bind(nearClient);
+const MAX_STATUS_POLL_ATTEMPTS = 3;
+const STATUS_POLL_PERIOD_MS = 750;
+
+function sleep(time) {
+    return new Promise(function (resolve) {
+        setTimeout(resolve, time);
+    });
+}
+
+async function submitTransaction() {
+    const response = await nearClient.submitTransaction.apply(nearClient, arguments);
+    console.log("response", response);
+
+    const near = new Near(nearClient);
+    let result;
+    for (let i = 0; i < MAX_STATUS_POLL_ATTEMPTS; i++) {
+        await sleep(STATUS_POLL_PERIOD_MS);
+        result = (await near.getTransactionStatus(response.hash)).result;
+        if (result.status == 'Completed') {
+            return result;
+        }
+        if (result.status == 'Failed') {
+            throw createError(400, `Transaction ${response.hash} failed.`);
+        }
+    }
+    throw createError(408, `Exceeded ${MAX_STATUS_POLL_ATTEMPTS} status check attempts ` +
+        `for transaction ${response.hash} with status: ${result.status}`);
+}
 
 router.post('/contract', async ctx => {
     const body = ctx.request.body;
