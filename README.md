@@ -37,4 +37,6 @@ http get http://localhost:3000/account/bob
 ```
 
 ## Create account
-http post http://localhost:3000/account newAccountId={youriud} newAccountPublicKey={yourpublickey}
+```
+http post http://localhost:3000/account newAccountId=nosuchuseryet.near newAccountPublicKey=22skMptHjFWNyuEWY22ftn2AbLPSYpmYwGJRGwpNHbTV
+```
