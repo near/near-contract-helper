@@ -27,8 +27,6 @@ app.use(async function(ctx, next) {
 const Router = require('koa-router');
 const router = new Router();
 
-const superagent = require('superagent');
-
 const { KeyPair, InMemoryKeyStore, SimpleKeyStoreSigner, LocalNodeConnection, NearClient, Near, Account } = require('nearlib');
 const defaultSender = 'alice.near';
 const rawKey = JSON.parse(require('fs').readFileSync(`./${defaultSender}.json`));
@@ -42,67 +40,29 @@ const near = new Near(nearClient);
 const account = new Account(nearClient);
 const NEW_ACCOUNT_AMOUNT = 100;
 
-const base64ToIntArray = base64Str => {
-    let data = Buffer.from(base64Str, 'base64');
-    return Array.prototype.slice.call(data, 0);
+const viewAccount = accoundId => {
+    return account.viewAccount(accoundId);
 };
-
-const request = async (methodName, params) => {
-    const response = await superagent
-        .post(`http://localhost:3030/${methodName}`)
-        .use(require('superagent-logger'))
-        .send(params);
-    return JSON.parse(response.text);
-};
-
-const viewAccount = async senderHash => {
-    return await request('view_account', {
-        account_id: senderHash,
-    });
-};
-
-async function submitTransaction() {
-    const response = await nearClient.submitTransaction.apply(nearClient, arguments);
-    return near.waitForTransactionResult(response.hash);
-}
 
 router.post('/contract', async ctx => {
     const body = ctx.request.body;
     const sender = body.sender || defaultSender;
-    ctx.body = await submitTransaction('deploy_contract', {
-        originator: sender,
-        contract_account_id: body.receiver,
-        wasm_byte_array: base64ToIntArray(body.contract),
-        public_key: defaultKey.publicKey
-    });
+    ctx.body = await near.waitForTransactionResult(
+        await near.deployContract(sender, body.receiver, Buffer.from(body.contract, 'base64')));
 });
 
 router.post('/contract/:name/:methodName', async ctx => {
     const body = ctx.request.body;
     const sender = body.sender || defaultSender;
     const args = body.args || {};
-    const serializedArgs =  Array.from(Buffer.from(JSON.stringify(args)));
-    ctx.body = await submitTransaction('schedule_function_call', {
-        // TODO(#5): Need to make sure that big ints are supported later
-        amount: parseInt(body.amount) || 0,
-        originator: sender,
-        contract_account_id: ctx.params.name,
-        method_name: ctx.params.methodName,
-        args: serializedArgs
-    });
+    ctx.body = await near.waitForTransactionResult(
+        await near.scheduleFunctionCall(parseInt(body.amount) || 0, sender, ctx.params.name, ctx.params.methodName, args));
 });
 
 router.post('/contract/view/:name/:methodName', async ctx => {
     const body = ctx.request.body;
     const args = body.args || {};
-    const serializedArgs =  Array.from(Buffer.from(JSON.stringify(args)));
-    const response = await request('call_view_function', {
-        originator: defaultSender,
-        contract_account_id: ctx.params.name,
-        method_name: ctx.params.methodName,
-        args: serializedArgs
-    });
-    ctx.body = JSON.parse(Buffer.from(response.result).toString());
+    ctx.body = await near.callViewFunction(defaultSender, ctx.params.name, ctx.params.methodName, args);
 });
 
 router.get('/account/:name', async ctx => {
@@ -118,8 +78,7 @@ router.post('/account', async ctx => {
     const body = ctx.request.body;
     const newAccountId = body.newAccountId;
     const newAccountPublicKey = body.newAccountPublicKey;
-    const createAccountResponse =
-        await account.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT, defaultSender);
+    await account.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT, defaultSender);
     const response = {
         account_id: newAccountId
     };
