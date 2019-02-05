@@ -79,7 +79,7 @@ router.post('/account', async ctx => {
     const newAccountId = body.newAccountId;
     const newAccountPublicKey = body.newAccountPublicKey;
     await near.waitForTransactionResult(
-        account.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT, defaultSender));
+        await account.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT, defaultSender));
     const response = {
         account_id: newAccountId
     };
