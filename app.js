@@ -16,8 +16,8 @@ app.use(async function(ctx, next) {
     try {
         await next();
     } catch(e) {
+        console.log("Error: ", e);
         if (e.response) {
-            console.log("e", e, "e.response", e. response);
             ctx.throw(e.response.status, e.response.text);
         }
         throw e;
@@ -78,7 +78,8 @@ router.post('/account', async ctx => {
     const body = ctx.request.body;
     const newAccountId = body.newAccountId;
     const newAccountPublicKey = body.newAccountPublicKey;
-    await account.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT, defaultSender);
+    await near.waitForTransactionResult(
+        account.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT, defaultSender));
     const response = {
         account_id: newAccountId
     };
