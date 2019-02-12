@@ -40,15 +40,14 @@ const near = new Near(nearClient);
 const account = new Account(nearClient);
 const NEW_ACCOUNT_AMOUNT = 100;
 
-const viewAccount = accoundId => {
-    return account.viewAccount(accoundId);
+const viewAccount = accountId => {
+    return account.viewAccount(accountId);
 };
 
 router.post('/contract', async ctx => {
     const body = ctx.request.body;
-    const sender = body.sender || defaultSender;
     ctx.body = await near.waitForTransactionResult(
-        await near.deployContract(sender, body.receiver, Buffer.from(body.contract, 'base64')));
+        await near.deployContract(body.receiver, Buffer.from(body.contract, 'base64')));
 });
 
 router.post('/contract/:name/:methodName', async ctx => {
@@ -77,12 +76,13 @@ router.post('/account', async ctx => {
     // TODO: this is using alice account to create all accounts. We may want to change that.
     const body = ctx.request.body;
     const newAccountId = body.newAccountId;
-    const newAccountPublicKey = body.newAccountPublicKey;
+    // TODO: we should find a way to store the key pair for the new account
     await near.waitForTransactionResult(
-        await account.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT, defaultSender));
+        await account.createAccount(newAccountId, defaultKey.getPublicKey(), NEW_ACCOUNT_AMOUNT, defaultSender));
     const response = {
         account_id: newAccountId
     };
+    keyStore.setKey(newAccountId, defaultKey);
     ctx.body = response;
 });
 
