@@ -76,13 +76,12 @@ router.post('/account', async ctx => {
     // TODO: this is using alice account to create all accounts. We may want to change that.
     const body = ctx.request.body;
     const newAccountId = body.newAccountId;
-    // TODO: we should find a way to store the key pair for the new account
+    const newAccountPublicKey = body.newAccountPublicKey;
     await near.waitForTransactionResult(
-        await account.createAccount(newAccountId, defaultKey.getPublicKey(), NEW_ACCOUNT_AMOUNT, defaultSender));
+        await account.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT, defaultSender));
     const response = {
         account_id: newAccountId
     };
-    keyStore.setKey(newAccountId, defaultKey);
     ctx.body = response;
 });
 
