@@ -40,15 +40,14 @@ const near = new Near(nearClient);
 const account = new Account(nearClient);
 const NEW_ACCOUNT_AMOUNT = 100;
 
-const viewAccount = accoundId => {
-    return account.viewAccount(accoundId);
+const viewAccount = accountId => {
+    return account.viewAccount(accountId);
 };
 
 router.post('/contract', async ctx => {
     const body = ctx.request.body;
-    const sender = body.sender || defaultSender;
     ctx.body = await near.waitForTransactionResult(
-        await near.deployContract(sender, body.receiver, Buffer.from(body.contract, 'base64')));
+        await near.deployContract(body.receiver, Buffer.from(body.contract, 'base64')));
 });
 
 router.post('/contract/:name/:methodName', async ctx => {
