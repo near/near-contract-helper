@@ -46,6 +46,7 @@ const viewAccount = accountId => {
 
 router.post('/contract', async ctx => {
     const body = ctx.request.body;
+    keyStore.setKey(body.receiver, defaultKey);
     ctx.body = await near.waitForTransactionResult(
         await near.deployContract(body.receiver, Buffer.from(body.contract, 'base64')));
 });
