@@ -29,7 +29,7 @@ const router = new Router();
 
 const { KeyPair, InMemoryKeyStore, SimpleKeyStoreSigner, LocalNodeConnection, NearClient, Near, Account } = require('nearlib');
 const defaultSender = 'alice.near';
-const rawKey = JSON.parse(require('fs').readFileSync(`./${defaultSender}.json`));
+const rawKey = JSON.parse(require('fs').readFileSync(`./keystore/${defaultSender}.json`));
 const defaultKey = new KeyPair(rawKey.public_key, rawKey.secret_key);
 const keyStore = new InMemoryKeyStore();
 keyStore.setKey(defaultSender, defaultKey);
