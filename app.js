@@ -91,7 +91,7 @@ app
     .use(router.allowedMethods());
 
 if (!module.parent) {
-    app.listen(process.env.PORT || 3000);
+    app.listen(process.env.NEAR_CONTRACT_HELPER_PORT || process.env.PORT || 3000);
 } else {
     module.exports = app;
 }
