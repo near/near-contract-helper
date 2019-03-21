@@ -33,7 +33,7 @@ const rawKey = JSON.parse(require('fs').readFileSync(`./keystore/${defaultSender
 const defaultKey = new KeyPair(rawKey.public_key, rawKey.secret_key);
 const keyStore = new InMemoryKeyStore();
 keyStore.setKey(defaultSender, defaultKey);
-const localNodeConnection = new LocalNodeConnection('http://localhost:3030');
+const localNodeConnection = new LocalNodeConnection(process.env.NEAR_CONTRACT_HELPER_NODE_URL || 'http://localhost:3030');
 const nearClient = new NearClient(new SimpleKeyStoreSigner(keyStore), localNodeConnection);
 const near = new Near(nearClient);
 
