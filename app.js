@@ -1,4 +1,3 @@
-
 const Koa = require('koa');
 const app = new Koa();
 
@@ -28,9 +27,17 @@ const Router = require('koa-router');
 const router = new Router();
 
 const { KeyPair, InMemoryKeyStore, SimpleKeyStoreSigner, LocalNodeConnection, NearClient, Near, Account } = require('nearlib');
-const defaultSender = 'alice.near';
-const rawKey = JSON.parse(require('fs').readFileSync(`./keystore/${defaultSender}.json`));
-const defaultKey = new KeyPair(rawKey.public_key, rawKey.secret_key);
+const defaultSender = process.env.NEAR_CONTRACT_HELPER_DEFAULT_SENDER || 'alice.near';
+var publicKey, secretKey;
+if (process.env.NEAR_CONTRACT_HELPER_PUBLIC_KEY && process.env.NEAR_CONTRACT_HELPER_SECRET_KEY) {
+    publicKey = process.env.NEAR_CONTRACT_HELPER_PUBLIC_KEY;
+    secretKey = process.env.NEAR_CONTRACT_HELPER_SECRET_KEY;
+} else {
+    const rawKey = JSON.parse(require('fs').readFileSync(`./keystore/${defaultSender}.json`));
+    publicKey = rawKey.public_key;
+    secretKey = rawKey.secret_key;
+}
+const defaultKey = new KeyPair(publicKey, secretKey);
 const keyStore = new InMemoryKeyStore();
 keyStore.setKey(defaultSender, defaultKey);
 const localNodeConnection = new LocalNodeConnection(process.env.NEAR_CONTRACT_HELPER_NODE_URL || 'http://localhost:3030');
