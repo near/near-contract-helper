@@ -28,7 +28,7 @@ const router = new Router();
 
 const { KeyPair, InMemoryKeyStore, SimpleKeyStoreSigner, LocalNodeConnection, NearClient, Near, Account } = require('nearlib');
 const defaultSender = process.env.NEAR_CONTRACT_HELPER_DEFAULT_SENDER || 'alice.near';
-const publicKey, secretKey;
+let publicKey, secretKey;
 if (process.env.NEAR_CONTRACT_HELPER_PUBLIC_KEY && process.env.NEAR_CONTRACT_HELPER_SECRET_KEY) {
     publicKey = process.env.NEAR_CONTRACT_HELPER_PUBLIC_KEY;
     secretKey = process.env.NEAR_CONTRACT_HELPER_SECRET_KEY;
