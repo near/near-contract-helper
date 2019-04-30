@@ -47,35 +47,6 @@ const near = new Near(nearClient);
 const account = new Account(nearClient);
 const NEW_ACCOUNT_AMOUNT = 100;
 
-const viewAccount = accountId => {
-    return account.viewAccount(accountId);
-};
-
-router.post('/contract', async ctx => {
-    const body = ctx.request.body;
-    keyStore.setKey(body.receiver, defaultKey);
-    ctx.body = await near.waitForTransactionResult(
-        await near.deployContract(body.receiver, Buffer.from(body.contract, 'base64')));
-});
-
-router.post('/contract/:name/:methodName', async ctx => {
-    const body = ctx.request.body;
-    const sender = body.sender || defaultSender;
-    const args = body.args || {};
-    ctx.body = await near.waitForTransactionResult(
-        await near.scheduleFunctionCall(parseInt(body.amount) || 0, sender, ctx.params.name, ctx.params.methodName, args));
-});
-
-router.post('/contract/view/:name/:methodName', async ctx => {
-    const body = ctx.request.body;
-    const args = body.args || {};
-    ctx.body = await near.callViewFunction(defaultSender, ctx.params.name, ctx.params.methodName, args);
-});
-
-router.get('/account/:name', async ctx => {
-    ctx.body = await viewAccount(ctx.params.name);
-});
-
 router.post('/account', async ctx => {
     const body = ctx.request.body;
     const newAccountId = body.newAccountId;
