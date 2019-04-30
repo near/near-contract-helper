@@ -76,12 +76,7 @@ router.get('/account/:name', async ctx => {
     ctx.body = await viewAccount(ctx.params.name);
 });
 
-/**
- * Create a new account. Generate a throw away account id (UUID).
- * Returns account name and public/private key.
- */
 router.post('/account', async ctx => {
-    // TODO: this is using alice account to create all accounts. We may want to change that.
     const body = ctx.request.body;
     const newAccountId = body.newAccountId;
     const newAccountPublicKey = body.newAccountPublicKey;
