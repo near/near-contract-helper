@@ -62,14 +62,12 @@ router.post('/account', async ctx => {
 const password = require('secure-random-password');
 const models = require('./models');
 const FROM_PHONE = '+14086179592';
-router.post('/account/:accountId/phoneNumber', async ctx => {
+router.post('/account/:phoneNumber/:accountId/requestCode', async ctx => {
     const accountId = ctx.params.accountId;
-    const body = ctx.request.body;
-    const phoneNumber = body.phoneNumber;
-    // TODO: Validate account using nearlib
+    const phoneNumber = ctx.params.phoneNumber;
 
     const securityCode = password.randomPassword({ length: 6, characters: password.digits });
-    const [account] = await models.Account.findOrCreate({ where: { accountId } });
+    const [account] = await models.Account.findOrCreate({ where: { accountId, phoneNumber } });
     await account.update({ securityCode });
 
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -81,6 +79,25 @@ router.post('/account/:accountId/phoneNumber', async ctx => {
             from: FROM_PHONE,
             to: phoneNumber
         });
+    ctx.body = {};
+});
+
+router.post('/account/:phoneNumber/:accountId/validateCode', async ctx => {
+    const accountId = ctx.params.accountId;
+    const phoneNumber = ctx.params.phoneNumber;
+
+    const securityCode = ctx.request.body.securityCode
+
+    const account = await models.Account.findOne({ where: { accountId, phoneNumber } });
+    if (!account.securityCode || account.securityCode != securityCode) {
+        ctx.throw(401);
+    }
+    if (!account.confirmed) {
+        // TODO: Validate that user actually owns account (e.g. expect signed message with securityCode)
+    }
+    await account.update({ securityCode: null, confirmed: true });
+    // TODO: Update account key using nearlib
+
     ctx.body = {};
 });
 
