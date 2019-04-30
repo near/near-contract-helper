@@ -59,6 +59,27 @@ router.post('/account', async ctx => {
     ctx.body = response;
 });
 
+const FROM_PHONE = '+14086179592';
+router.post('/account/:accountId/phoneNumber', async ctx => {
+    const accountId = ctx.params.accountId;
+    const body = ctx.request.body;
+    // TODO: Validate account exists
+    // TODO: Save account -> phone mapping to DB
+    // TODO: Generate short code and send SMS
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    const client = require('twilio')(accountSid, authToken);
+
+    const response = await client.messages
+        .create({
+            body: `Hello ${accountId}`,
+            from: FROM_PHONE,
+            to: '+16502153191'
+        });
+
+    ctx.body = { response: response };
+});
+
 app
     .use(router.routes())
     .use(router.allowedMethods());
