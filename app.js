@@ -15,7 +15,7 @@ app.use(async function(ctx, next) {
     try {
         await next();
     } catch(e) {
-        console.log("Error: ", e);
+        console.log('Error: ', e);
         if (e.response) {
             ctx.throw(e.response.status, e.response.text);
         }
