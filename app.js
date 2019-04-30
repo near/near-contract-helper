@@ -59,25 +59,29 @@ router.post('/account', async ctx => {
     ctx.body = response;
 });
 
+const password = require('secure-random-password');
+const models = require('./models');
 const FROM_PHONE = '+14086179592';
 router.post('/account/:accountId/phoneNumber', async ctx => {
     const accountId = ctx.params.accountId;
     const body = ctx.request.body;
-    // TODO: Validate account exists
-    // TODO: Save account -> phone mapping to DB
-    // TODO: Generate short code and send SMS
+    const phoneNumber = body.phoneNumber;
+    // TODO: Validate account using nearlib
+
+    const securityCode = password.randomPassword({ length: 6, characters: password.digits });
+    const [account] = await models.Account.findOrCreate({ where: { accountId } });
+    await account.update({ securityCode });
+
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
     const client = require('twilio')(accountSid, authToken);
-
-    const response = await client.messages
+    await client.messages
         .create({
-            body: `Hello ${accountId}`,
+            body: `Your NEAR Wallet security code is: ${securityCode}`,
             from: FROM_PHONE,
-            to: '+16502153191'
+            to: phoneNumber
         });
-
-    ctx.body = { response: response };
+    ctx.body = {};
 });
 
 app

@@ -28,6 +28,7 @@
     "koa-router": "^7.4.0",
     "nearlib": "^0.5.1",
     "pg": "^7.10.0",
+    "secure-random-password": "^0.1.0",
     "sequelize": "^5.8.0",
     "twilio": "^3.30.2",
     "uuid": "^3.3.2"
