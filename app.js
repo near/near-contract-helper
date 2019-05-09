@@ -61,12 +61,13 @@ router.post('/account', async ctx => {
 
 const password = require('secure-random-password');
 const models = require('./models');
-const FROM_PHONE = '+14086179592';
+const FROM_PHONE = process.env.TWILIO_FROM_PHONE || '+14086179592';
+const SECURITY_CODE_DIGITS = 6;
 router.post('/account/:phoneNumber/:accountId/requestCode', async ctx => {
     const accountId = ctx.params.accountId;
     const phoneNumber = ctx.params.phoneNumber;
 
-    const securityCode = password.randomPassword({ length: 6, characters: password.digits });
+    const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
     const [account] = await models.Account.findOrCreate({ where: { accountId, phoneNumber } });
     await account.update({ securityCode });
 
