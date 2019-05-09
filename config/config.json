@@ -1,0 +1,23 @@
+{
+  "development": {
+    "username": "helper",
+    "password": "helper",
+    "database": "accounts_development",
+    "host": "127.0.0.1",
+    "dialect": "postgres"
+  },
+  "test": {
+    "username": "helper",
+    "password": "helper",
+    "database": "accounts_test",
+    "host": "127.0.0.1",
+    "dialect": "postgres"
+  },
+  "production": {
+    "username": "helper",
+    "password": "helper",
+    "database": "accounts_production",
+    "host": "127.0.0.1",
+    "dialect": "postgres"
+  }
+}

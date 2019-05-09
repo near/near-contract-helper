@@ -14,26 +14,16 @@ npm install
 
 ## Run server
 
-```
-node app.js
-```
+Make sure that before running service there are appropriate env variables set (can be put in  `.env` file in root directory of project):
 
-## Create contract
-
-```
-http post http://localhost:3000/contract nonce:=2 sender=bob receiver=test contract=`base64 main.wasm`
-```
-
-## Call contract method
+* `NODE_ENV` Node.js environment (should be `production` for production use, `development` for local development)
+* `PORT` HTTP port to listen at, defaults to `3000`
+* `TWILIO_FROM_PHONE` – phone number from which to send SMS with security code (international format, starting with `+`)
+* `TWILIO_ACCOUNT_SID` – account SID from Twilio (used to send security code)
+* `TWILIO_AUTH_TOKEN` – auth token from Twilio (used to send security code)
 
 ```
-http post http://localhost:3000/contract/test/totalSupply nonce:=2 sender=bob args:="[]"
-```
-
-## View account
-
-```
-http get http://localhost:3000/account/bob
+npm start
 ```
 
 ## Create account

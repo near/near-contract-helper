@@ -15,7 +15,7 @@ app.use(async function(ctx, next) {
     try {
         await next();
     } catch(e) {
-        console.log("Error: ", e);
+        console.log('Error: ', e);
         if (e.response) {
             ctx.throw(e.response.status, e.response.text);
         }
@@ -47,41 +47,7 @@ const near = new Near(nearClient);
 const account = new Account(nearClient);
 const NEW_ACCOUNT_AMOUNT = 100;
 
-const viewAccount = accountId => {
-    return account.viewAccount(accountId);
-};
-
-router.post('/contract', async ctx => {
-    const body = ctx.request.body;
-    keyStore.setKey(body.receiver, defaultKey);
-    ctx.body = await near.waitForTransactionResult(
-        await near.deployContract(body.receiver, Buffer.from(body.contract, 'base64')));
-});
-
-router.post('/contract/:name/:methodName', async ctx => {
-    const body = ctx.request.body;
-    const sender = body.sender || defaultSender;
-    const args = body.args || {};
-    ctx.body = await near.waitForTransactionResult(
-        await near.scheduleFunctionCall(parseInt(body.amount) || 0, sender, ctx.params.name, ctx.params.methodName, args));
-});
-
-router.post('/contract/view/:name/:methodName', async ctx => {
-    const body = ctx.request.body;
-    const args = body.args || {};
-    ctx.body = await near.callViewFunction(defaultSender, ctx.params.name, ctx.params.methodName, args);
-});
-
-router.get('/account/:name', async ctx => {
-    ctx.body = await viewAccount(ctx.params.name);
-});
-
-/**
- * Create a new account. Generate a throw away account id (UUID).
- * Returns account name and public/private key.
- */
 router.post('/account', async ctx => {
-    // TODO: this is using alice account to create all accounts. We may want to change that.
     const body = ctx.request.body;
     const newAccountId = body.newAccountId;
     const newAccountPublicKey = body.newAccountPublicKey;
@@ -91,6 +57,49 @@ router.post('/account', async ctx => {
         account_id: newAccountId
     };
     ctx.body = response;
+});
+
+const password = require('secure-random-password');
+const models = require('./models');
+const FROM_PHONE = process.env.TWILIO_FROM_PHONE || '+14086179592';
+const SECURITY_CODE_DIGITS = 6;
+router.post('/account/:phoneNumber/:accountId/requestCode', async ctx => {
+    const accountId = ctx.params.accountId;
+    const phoneNumber = ctx.params.phoneNumber;
+
+    const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
+    const [account] = await models.Account.findOrCreate({ where: { accountId, phoneNumber } });
+    await account.update({ securityCode });
+
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    const client = require('twilio')(accountSid, authToken);
+    await client.messages
+        .create({
+            body: `Your NEAR Wallet security code is: ${securityCode}`,
+            from: FROM_PHONE,
+            to: phoneNumber
+        });
+    ctx.body = {};
+});
+
+router.post('/account/:phoneNumber/:accountId/validateCode', async ctx => {
+    const accountId = ctx.params.accountId;
+    const phoneNumber = ctx.params.phoneNumber;
+
+    const securityCode = ctx.request.body.securityCode
+
+    const account = await models.Account.findOne({ where: { accountId, phoneNumber } });
+    if (!account.securityCode || account.securityCode != securityCode) {
+        ctx.throw(401);
+    }
+    if (!account.confirmed) {
+        // TODO: Validate that user actually owns account (e.g. expect signed message with securityCode)
+    }
+    await account.update({ securityCode: null, confirmed: true });
+    // TODO: Update account key using nearlib
+
+    ctx.body = {};
 });
 
 app

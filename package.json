@@ -4,6 +4,7 @@
   "description": "Micro-service used by NEARStudio to deploy smart contracts.",
   "main": "app.js",
   "scripts": {
+    "start": "env $(cat .env) supervisor app",
     "test": "npm run lint && jest test",
     "lint": "eslint .",
     "fix": "eslint . --fix"
@@ -26,9 +27,15 @@
     "koa-logger": "^3.2.0",
     "koa-router": "^7.4.0",
     "nearlib": "^0.5.1",
+    "pg": "^7.10.0",
+    "secure-random-password": "^0.1.0",
+    "sequelize": "^5.8.0",
+    "twilio": "^3.30.2",
     "uuid": "^3.3.2"
   },
   "devDependencies": {
-    "eslint": "^5.12.0"
+    "eslint": "^5.12.0",
+    "sequelize-cli": "^5.4.0",
+    "supervisor": "^0.12.0"
   }
 }
