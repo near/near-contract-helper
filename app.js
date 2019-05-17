@@ -44,7 +44,7 @@ const localNodeConnection = new LocalNodeConnection(process.env.NEAR_CONTRACT_HE
 const nearClient = new NearClient(new SimpleKeyStoreSigner(keyStore), localNodeConnection);
 const near = new Near(nearClient);
 
-const account = new Account(nearClient);
+const accountApi = new Account(nearClient);
 const NEW_ACCOUNT_AMOUNT = 100;
 
 router.post('/account', async ctx => {
@@ -52,7 +52,7 @@ router.post('/account', async ctx => {
     const newAccountId = body.newAccountId;
     const newAccountPublicKey = body.newAccountPublicKey;
     await near.waitForTransactionResult(
-        await account.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT, defaultSender));
+        await accountApi.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT, defaultSender));
     const response = {
         account_id: newAccountId
     };
@@ -93,18 +93,24 @@ router.post('/account/:phoneNumber/:accountId/requestCode', async ctx => {
     ctx.body = {};
 });
 
+const nacl = require('tweetnacl');
+const crypto = require('crypto');
 router.post('/account/:phoneNumber/:accountId/validateCode', async ctx => {
-    const accountId = ctx.params.accountId;
-    const phoneNumber = ctx.params.phoneNumber;
-
-    const securityCode = ctx.request.body.securityCode
+    const { phoneNumber, accountId } = ctx.params;
+    const { securityCode, signature } = ctx.request.body;
 
     const account = await models.Account.findOne({ where: { accountId, phoneNumber } });
-    if (!account.securityCode || account.securityCode != securityCode) {
+    if (!account || !account.securityCode || account.securityCode != securityCode) {
         ctx.throw(401);
     }
     if (!account.confirmed) {
-        // TODO: Validate that user actually owns account (e.g. expect signed message with securityCode)
+        const nearAccount = await accountApi.viewAccount(accountId);
+        const hasher = crypto.createHash('sha256');
+        hasher.update(securityCode);
+        const publicKeys = nearAccount.public_keys.map(key => Buffer.from(key));
+        if (!publicKeys.some(publicKey => nacl.sign.detached.verify(hasher.digest(), Buffer.from(signature), publicKey))) {
+            ctx.throw(401);
+        }
     }
     await account.update({ securityCode: null, confirmed: true });
     // TODO: Update account key using nearlib
