@@ -95,6 +95,13 @@ router.post('/account/:phoneNumber/:accountId/requestCode', async ctx => {
 
 const nacl = require('tweetnacl');
 const crypto = require('crypto');
+const verifySignature = (nearAccount, securityCode, signature) => {
+    const hasher = crypto.createHash('sha256');
+    hasher.update(securityCode);
+    const publicKeys = nearAccount.public_keys.map(key => Buffer.from(key));
+    return publicKeys.some(publicKey => nacl.sign.detached.verify(hasher.digest(), Buffer.from(signature), publicKey));
+}
+
 router.post('/account/:phoneNumber/:accountId/validateCode', async ctx => {
     const { phoneNumber, accountId } = ctx.params;
     const { securityCode, signature } = ctx.request.body;
@@ -104,11 +111,8 @@ router.post('/account/:phoneNumber/:accountId/validateCode', async ctx => {
         ctx.throw(401);
     }
     if (!account.confirmed) {
-        const nearAccount = await accountApi.viewAccount(accountId);
-        const hasher = crypto.createHash('sha256');
-        hasher.update(securityCode);
-        const publicKeys = nearAccount.public_keys.map(key => Buffer.from(key));
-        if (!publicKeys.some(publicKey => nacl.sign.detached.verify(hasher.digest(), Buffer.from(signature), publicKey))) {
+        const nearAccount = await accountApi.viewAccount(accountId)
+        if (!verifySignature(nearAccount, securityCode, signature)) {
             ctx.throw(401);
         }
     }
