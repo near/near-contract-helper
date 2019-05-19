@@ -45,7 +45,7 @@ const nearClient = new NearClient(new SimpleKeyStoreSigner(keyStore), localNodeC
 const near = new Near(nearClient);
 
 const accountApi = new Account(nearClient);
-const NEW_ACCOUNT_AMOUNT = 100;
+const NEW_ACCOUNT_AMOUNT = 1000000000;
 
 router.post('/account', async ctx => {
     const body = ctx.request.body;
