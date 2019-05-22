@@ -12,7 +12,7 @@ Micro-service used by NEARStudio to deploy smart contracts.
 npm install
 ```
 
-## Intialize database
+## Create database
 
 Create `accounts_development` Postgres DB with `fiddle` user/password.
 After that:
