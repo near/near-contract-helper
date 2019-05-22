@@ -40,7 +40,7 @@ if (process.env.NEAR_CONTRACT_HELPER_PUBLIC_KEY && process.env.NEAR_CONTRACT_HEL
 const defaultKey = new KeyPair(publicKey, secretKey);
 const keyStore = new InMemoryKeyStore();
 keyStore.setKey(defaultSender, defaultKey);
-const localNodeConnection = new LocalNodeConnection(process.env.NEAR_CONTRACT_HELPER_NODE_URL || 'http://localhost:3030');
+const localNodeConnection = new LocalNodeConnection(process.env.INTERNAL_NODE_HOST || 'http://localhost:3030');
 const nearClient = new NearClient(new SimpleKeyStoreSigner(keyStore), localNodeConnection);
 const near = new Near(nearClient);
 
@@ -127,7 +127,7 @@ app
     .use(router.allowedMethods());
 
 if (!module.parent) {
-    app.listen(process.env.NEAR_CONTRACT_HELPER_PORT || process.env.PORT || 3000);
+    app.listen(process.env.INTERNAL_CONTRACT_HELPER_PORT || process.env.PORT || 3000);
 } else {
     module.exports = app;
 }
