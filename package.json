@@ -7,7 +7,8 @@
     "start": "env $(cat .env) supervisor app",
     "test": "npm run lint && jest test",
     "lint": "eslint .",
-    "fix": "eslint . --fix"
+    "fix": "eslint . --fix",
+    "migrate": "sequelize db:migrate"
   },
   "repository": {
     "type": "git",
