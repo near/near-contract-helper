@@ -12,6 +12,17 @@ Micro-service used by NEARStudio to deploy smart contracts.
 npm install
 ```
 
+## Intialize database
+
+Create `accounts_development` Postgres DB with `fiddle` user/password.
+After that:
+
+```
+npm run migrate
+```
+
+You can also modify DB config in `config/config.json` to use different connection settings, etc.
+
 ## Run server
 
 Make sure that before running service there are appropriate env variables set (can be put in  `.env` file in root directory of project):
