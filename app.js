@@ -95,16 +95,23 @@ router.post('/account/:phoneNumber/:accountId/requestCode', async ctx => {
 
 const nacl = require('tweetnacl');
 const crypto = require('crypto');
+const bs58 = require('bs58');
 const verifySignature = (nearAccount, securityCode, signature) => {
     const hasher = crypto.createHash('sha256');
     hasher.update(securityCode);
+    const hash = hasher.digest();
     const publicKeys = nearAccount.public_keys.map(key => Buffer.from(key));
-    return publicKeys.some(publicKey => nacl.sign.detached.verify(hasher.digest(), Buffer.from(signature), publicKey));
+    const helperPublicKey = bs58.decode(defaultKey.publicKey);
+    if (!publicKeys.some(publicKey => publicKey.equals(helperPublicKey))) {
+        throw Error(`Account ${nearAccount.account_id} doesn't have helper key`);
+    }
+    return publicKeys.some(publicKey => nacl.sign.detached.verify(hash, Buffer.from(signature), publicKey));
 }
 
+// TODO: Different endpoints for setup and recovery
 router.post('/account/:phoneNumber/:accountId/validateCode', async ctx => {
     const { phoneNumber, accountId } = ctx.params;
-    const { securityCode, signature } = ctx.request.body;
+    const { securityCode, signature, publicKey } = ctx.request.body;
 
     const account = await models.Account.findOne({ where: { accountId, phoneNumber } });
     if (!account || !account.securityCode || account.securityCode != securityCode) {
@@ -115,9 +122,16 @@ router.post('/account/:phoneNumber/:accountId/validateCode', async ctx => {
         if (!verifySignature(nearAccount, securityCode, signature)) {
             ctx.throw(401);
         }
+        await account.update({ securityCode: null, confirmed: true });
+    } else {
+        const keyStore = new InMemoryKeyStore();
+        keyStore.setKey(accountId, defaultKey);
+        const nearClient = new NearClient(new SimpleKeyStoreSigner(keyStore), localNodeConnection);
+        const accountApi = new Account(nearClient);
+        await accountApi.addAccountKey(accountId, publicKey);
+
+        await account.update({ securityCode: null });
     }
-    await account.update({ securityCode: null, confirmed: true });
-    // TODO: Update account key using nearlib
 
     ctx.body = {};
 });
