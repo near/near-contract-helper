@@ -128,7 +128,7 @@ router.post('/account/:phoneNumber/:accountId/validateCode', async ctx => {
         keyStore.setKey(accountId, defaultKey);
         const nearClient = new NearClient(new SimpleKeyStoreSigner(keyStore), localNodeConnection);
         const accountApi = new Account(nearClient);
-        await accountApi.addAccountKey(accountId, publicKey);
+        await accountApi.addAccessKey(accountId, publicKey);
 
         await account.update({ securityCode: null });
     }
