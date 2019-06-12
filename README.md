@@ -4,6 +4,10 @@ Micro-service used to create accounts.
 ## Environment Variables
 This micro-service depends on the following environment variables:
 * `NODE_URL` -- default `https://studio.nearprotocol.com/devnet`;
+
+The above variable is used internally by the contract helper, it does not have to correspond to the external IP or DNS
+name and can link to the host machine running the Docker container.
+
 * `NODE_ENV` -- default `production`. Node.js environment (should be `production` for production use, `development` for local development)
 * `NEAR_CONTRACT_HELPER_DEFAULT_SENDER` -- default `alice.near`;
 * `NEW_ACCOUNT_AMOUNT` -- default `10000000000`, integer;
