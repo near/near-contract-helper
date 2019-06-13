@@ -141,7 +141,7 @@ app
     .use(router.allowedMethods());
 
 if (!module.parent) {
-    app.listen(3000);
+    app.listen(process.env.PORT || 3000);
 } else {
     module.exports = app;
 }

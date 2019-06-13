@@ -4,6 +4,7 @@ Micro-service used to create accounts.
 ## Environment Variables
 This micro-service depends on the following environment variables:
 * `NODE_URL` -- default `https://studio.nearprotocol.com/devnet`;
+* `PORT` -- default `3000`;
 
 The above variable is used internally by the contract helper, it does not have to correspond to the external IP or DNS
 name and can link to the host machine running the Docker container.
@@ -17,8 +18,6 @@ name and can link to the host machine running the Docker container.
 * `TWILIO_FROM_PHONE` – phone number from which to send SMS with security code (international format, starting with `+`)
 * `TWILIO_ACCOUNT_SID` – account SID from Twilio (used to send security code)
 * `TWILIO_AUTH_TOKEN` – auth token from Twilio (used to send security code)
-
-The port that the service is listening on is 3000.
 
 ## Local Development
 
