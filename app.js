@@ -100,16 +100,17 @@ router.post('/account/:phoneNumber/:accountId/requestCode', async ctx => {
 
 const nacl = require('tweetnacl');
 const crypto = require('crypto');
-const verifySignature = async (ctx, nearAccount, securityCode, signature) => {
+const b58 = require('b58');
+const verifySignature = async (nearAccount, securityCode, signature) => {
     const hasher = crypto.createHash('sha256');
     hasher.update(securityCode);
     const hash = hasher.digest();
     const publicKeys = nearAccount.public_keys.map(key => Buffer.from(key));
-    const helperPublicKey = (await ctx.near.connection.signer.keyStore.getKey(defaultSender)).publicKey;
+    const helperPublicKey = b58.decode((await keyStore.getKey(defaultSender)).publicKey);
     if (!publicKeys.some(publicKey => publicKey.equals(helperPublicKey))) {
         throw Error(`Account ${nearAccount.account_id} doesn't have helper key`);
     }
-    return publicKeys.some(publicKey => nacl.sign.detached.verify(hash, Buffer.from(signature), publicKey));
+    return publicKeys.some(publicKey => nacl.sign.detached.verify(hash, Buffer.from(signature, 'base64'), publicKey));
 }
 
 // TODO: Different endpoints for setup and recovery
@@ -123,12 +124,13 @@ router.post('/account/:phoneNumber/:accountId/validateCode', async ctx => {
     }
     if (!account.confirmed) {
         const nearAccount = await (await ctx.near.account(accountId)).state()
-        if (!verifySignature(ctx, nearAccount, securityCode, signature)) {
+        const isSignatureValid = await verifySignature(nearAccount, securityCode, signature);
+        if (!isSignatureValid) {
             ctx.throw(401);
         }
         await account.update({ securityCode: null, confirmed: true });
     } else {
-        await (await ctx.near.account(accountId)).addAccessKey(accountId, publicKey);
+        await (await ctx.near.account(accountId)).addKey(publicKey);
         await account.update({ securityCode: null });
     }
 
