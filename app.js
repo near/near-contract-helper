@@ -19,44 +19,49 @@ app.use(async function(ctx, next) {
         if (e.response) {
             ctx.throw(e.response.status, e.response.text);
         }
-        throw e;
+        // TODO: Figure out which errors should be exposed to user
+        ctx.throw(400, e.toString());
     }
 });
 
 const Router = require('koa-router');
 const router = new Router();
 
-const { KeyPair, InMemoryKeyStore, SimpleKeyStoreSigner, LocalNodeConnection, NearClient, Near, Account } = require('nearlib');
+const { connect } = require('nearlib');
 const defaultSender = process.env.NEAR_CONTRACT_HELPER_DEFAULT_SENDER || 'test.near';
-let publicKey, secretKey;
-if (process.env.NEAR_CONTRACT_HELPER_PUBLIC_KEY && process.env.NEAR_CONTRACT_HELPER_SECRET_KEY) {
-    publicKey = process.env.NEAR_CONTRACT_HELPER_PUBLIC_KEY;
-    secretKey = process.env.NEAR_CONTRACT_HELPER_SECRET_KEY;
-} else {
-    const rawKey = JSON.parse(require('fs').readFileSync(`./keystore/${defaultSender}.json`));
-    publicKey = rawKey.public_key;
-    secretKey = rawKey.secret_key;
-}
-const defaultKey = new KeyPair(publicKey, secretKey);
-const keyStore = new InMemoryKeyStore();
-keyStore.setKey(defaultSender, defaultKey);
-const localNodeConnection = new LocalNodeConnection(process.env.NODE_URL || 'https://studio.nearprotocol.com/devnet');
-const nearClient = new NearClient(new SimpleKeyStoreSigner(keyStore), localNodeConnection);
-const near = new Near(nearClient);
+const keyStore = {
+    defaultKey: null,
+    // For account recovery purposes use default sender when updating any account
+    async getKey() {
+        return this.defaultKey
+    },
+    async setKey(networkId, accountId, keyPair) {
+        if (accountId != defaultSender) {
+            throw new Error(`Attempting to set key for ${accountI} while expected to only work with ${defaultSender}`);
+        }
+        this.defaultKey = keyPair;
+    }
+};
+const nearPromise = (async () => {
+    const near = await connect({
+        deps: { keyStore },
+        keyPath: process.env.NEAR_CONTRACT_HELPER_KEY_PATH || `${process.env.HOME}/.near/validator_key.json`,
+        nodeUrl: process.env.NODE_URL || 'https://studio.nearprotocol.com/devnet'
+    });
+    return near;
+})();
+app.use(async (ctx, next) => {
+    ctx.near = await nearPromise;
+    await next();
+});
 
-const accountApi = new Account(nearClient);
 const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT || 10000000000;
 
 router.post('/account', async ctx => {
-    const body = ctx.request.body;
-    const newAccountId = body.newAccountId;
-    const newAccountPublicKey = body.newAccountPublicKey;
-    await near.waitForTransactionResult(
-        await accountApi.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT, defaultSender));
-    const response = {
-        account_id: newAccountId
-    };
-    ctx.body = response;
+    const { newAccountId, newAccountPublicKey } = ctx.request.body;
+    console.log('ctx.near', ctx.near)
+    const masterAccount = await ctx.near.account(defaultSender);
+    ctx.body = await masterAccount.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT);
 });
 
 const password = require('secure-random-password');
@@ -95,13 +100,12 @@ router.post('/account/:phoneNumber/:accountId/requestCode', async ctx => {
 
 const nacl = require('tweetnacl');
 const crypto = require('crypto');
-const bs58 = require('bs58');
-const verifySignature = (nearAccount, securityCode, signature) => {
+const verifySignature = async (ctx, nearAccount, securityCode, signature) => {
     const hasher = crypto.createHash('sha256');
     hasher.update(securityCode);
     const hash = hasher.digest();
     const publicKeys = nearAccount.public_keys.map(key => Buffer.from(key));
-    const helperPublicKey = bs58.decode(defaultKey.publicKey);
+    const helperPublicKey = (await ctx.near.connection.signer.keyStore.getKey(defaultSender)).publicKey;
     if (!publicKeys.some(publicKey => publicKey.equals(helperPublicKey))) {
         throw Error(`Account ${nearAccount.account_id} doesn't have helper key`);
     }
@@ -118,18 +122,13 @@ router.post('/account/:phoneNumber/:accountId/validateCode', async ctx => {
         ctx.throw(401);
     }
     if (!account.confirmed) {
-        const nearAccount = await accountApi.viewAccount(accountId)
-        if (!verifySignature(nearAccount, securityCode, signature)) {
+        const nearAccount = await (await ctx.near.account(accountId)).state()
+        if (!verifySignature(ctx, nearAccount, securityCode, signature)) {
             ctx.throw(401);
         }
         await account.update({ securityCode: null, confirmed: true });
     } else {
-        const keyStore = new InMemoryKeyStore();
-        keyStore.setKey(accountId, defaultKey);
-        const nearClient = new NearClient(new SimpleKeyStoreSigner(keyStore), localNodeConnection);
-        const accountApi = new Account(nearClient);
-        await accountApi.addAccessKey(accountId, publicKey);
-
+        await (await ctx.near.account(accountId)).addAccessKey(accountId, publicKey);
         await account.update({ securityCode: null });
     }
 
