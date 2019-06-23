@@ -8,4 +8,5 @@ fi
 
 cd /near-contract-helper
 
+npm run migrate
 node app.js >> /var/log/contract-helper.log 2>&1
