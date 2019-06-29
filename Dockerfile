@@ -6,8 +6,11 @@ RUN curl -sL https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
 RUN echo 'deb https://dl.yarnpkg.com/debian/ stable main' | tee /etc/apt/sources.list.d/yarn.list
 RUN apt-get update -qq && apt-get install -y \
     jq \
-    nodejs
+    nodejs \
+    postgresql
 
+COPY /scripts/postgresql.conf /etc/postgresql/10/main/postgresql.conf
+COPY /scripts/init_postgres.sh /etc/my_init.d/
 
 # contract-helper
 COPY . /near-contract-helper/
