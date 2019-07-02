@@ -39,7 +39,7 @@ After that:
 npm run migrate
 ```
 
-You can also modify DB config in `config/config.json` to use different connection settings, etc.
+You can also modify DB config in `config/config.js` to use different connection settings, etc.
 
 ### Run server
 
