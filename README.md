@@ -10,11 +10,9 @@ The above variable is used internally by the contract helper, it does not have t
 name and can link to the host machine running the Docker container.
 
 * `NODE_ENV` -- default `production`. Node.js environment (should be `production` for production use, `development` for local development)
-* `NEAR_CONTRACT_HELPER_DEFAULT_SENDER` -- default `alice.near`;
 * `NEW_ACCOUNT_AMOUNT` -- default `10000000000`, integer;
-* `NEAR_CONTRACT_HELPER_PUBLIC_KEY`
-* `NEAR_CONTRACT_HELPER_SECRET_KEY` -- if either public or secret keys not set will try to read them from 
-    `./keystore/${NEAR_CONTRACT_HELPER_DEFAULT_SENDER}.json`
+* `ACCOUNT_CREATOR_KEY` -- JSON key of account used to create accounts
+* `ACCOUNT_RECOVERY_KEY` -- JSON key of  account used to recover accounts
 * `TWILIO_FROM_PHONE` – phone number from which to send SMS with security code (international format, starting with `+`)
 * `TWILIO_ACCOUNT_SID` – account SID from Twilio (used to send security code)
 * `TWILIO_AUTH_TOKEN` – auth token from Twilio (used to send security code)

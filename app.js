@@ -5,9 +5,7 @@ const body = require('koa-json-body');
 const cors = require('@koa/cors');
 
 app.use(require('koa-logger')());
-// TODO: Check what limit means and set appropriate limit
 app.use(body({ limit: '500kb', fallback: true }));
-// TODO: Don't use CORS in production on studio.nearprotocol.com
 app.use(cors({ credentials: true }));
 
 // Middleware to passthrough HTTP errors from node
@@ -27,25 +25,18 @@ app.use(async function(ctx, next) {
 const Router = require('koa-router');
 const router = new Router();
 
-const { connect } = require('nearlib');
-const defaultSender = process.env.NEAR_CONTRACT_HELPER_DEFAULT_SENDER || 'test.near';
+const creatorKeyJson = JSON.parse(process.env.ACCOUNT_CREATOR_KEY);
+const recoveryKeyJson = JSON.parse(process.env.ACCOUNT_RECOVERY_KEY);
 const keyStore = {
-    defaultKey: null,
     // For account recovery purposes use default sender when updating any account
     async getKey() {
-        return this.defaultKey
-    },
-    async setKey(networkId, accountId, keyPair) {
-        if (accountId != defaultSender) {
-            throw new Error(`Attempting to set key for ${accountI} while expected to only work with ${defaultSender}`);
-        }
-        this.defaultKey = keyPair;
+        return KeyPair.fromString(recoveryKeyJson.private_key);
     }
 };
+const { connect, KeyPair } = require('nearlib');
 const nearPromise = (async () => {
     const near = await connect({
         deps: { keyStore },
-        keyPath: process.env.NEAR_CONTRACT_HELPER_KEY_PATH || `${process.env.HOME}/.near/validator_key.json`,
         nodeUrl: process.env.NODE_URL || 'https://studio.nearprotocol.com/devnet'
     });
     return near;
@@ -60,7 +51,7 @@ const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT || 10000000000;
 router.post('/account', async ctx => {
     const { newAccountId, newAccountPublicKey } = ctx.request.body;
     console.log('ctx.near', ctx.near)
-    const masterAccount = await ctx.near.account(defaultSender);
+    const masterAccount = await ctx.near.account(creatorKeyJson.account_id);
     ctx.body = await masterAccount.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT);
 });
 
@@ -106,7 +97,7 @@ const verifySignature = async (nearAccount, securityCode, signature) => {
     hasher.update(securityCode);
     const hash = hasher.digest();
     const publicKeys = nearAccount.public_keys.map(key => Buffer.from(key));
-    const helperPublicKey = b58.decode((await keyStore.getKey(defaultSender)).publicKey);
+    const helperPublicKey = b58.decode((await keyStore.getKey(recoveryKeyJson.account_id)).publicKey);
     if (!publicKeys.some(publicKey => publicKey.equals(helperPublicKey))) {
         throw Error(`Account ${nearAccount.account_id} doesn't have helper key`);
     }
