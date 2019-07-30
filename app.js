@@ -95,9 +95,8 @@ const verifySignature = async (nearAccount, securityCode, signature) => {
     const hasher = crypto.createHash('sha256');
     hasher.update(securityCode);
     const hash = hasher.digest();
-    const publicKeys = nearAccount.public_keys.map(key => Buffer.from(key));
     const helperPublicKey = (await keyStore.getKey(recoveryKeyJson.account_id)).publicKey;
-    if (publicKeys.indexOf(helperPublicKey) < 0) {
+    if (nearAccount.public_keys.indexOf(helperPublicKey) < 0) {
         throw Error(`Account ${nearAccount.account_id} doesn't have helper key`);
     }
     return publicKeys.some(publicKey => nacl.sign.detached.verify(hash, Buffer.from(signature, 'base64'), publicKey));
