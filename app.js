@@ -90,7 +90,7 @@ router.post('/account/:phoneNumber/:accountId/requestCode', async ctx => {
 
 const nacl = require('tweetnacl');
 const crypto = require('crypto');
-const b58 = require('b58');
+const bs58 = require('bs58');
 const verifySignature = async (nearAccount, securityCode, signature) => {
     const hasher = crypto.createHash('sha256');
     hasher.update(securityCode);
@@ -99,7 +99,7 @@ const verifySignature = async (nearAccount, securityCode, signature) => {
     if (nearAccount.public_keys.indexOf(helperPublicKey) < 0) {
         throw Error(`Account ${nearAccount.account_id} doesn't have helper key`);
     }
-    return publicKeys.some(publicKey => nacl.sign.detached.verify(hash, Buffer.from(signature, 'base64'), publicKey));
+    return nearAccount.public_keys.some(publicKey => nacl.sign.detached.verify(hash, Buffer.from(signature, 'base64'), bs58.decode(publicKey)));
 }
 
 // TODO: Different endpoints for setup and recovery
