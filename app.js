@@ -96,10 +96,14 @@ const verifySignature = async (nearAccount, securityCode, signature) => {
     hasher.update(securityCode);
     const hash = hasher.digest();
     const helperPublicKey = (await keyStore.getKey(recoveryKeyJson.account_id)).publicKey;
-    if (nearAccount.public_keys.indexOf(helperPublicKey) < 0) {
-        throw Error(`Account ${nearAccount.account_id} doesn't have helper key`);
+    const accessKeys = await nearAccount.getAccessKeys();
+    if (!accessKeys.find(it => it.public_key == helperPublicKey.toString())) {
+        throw Error(`Account ${nearAccount.accountId} doesn't have helper key`);
     }
-    return nearAccount.public_keys.some(publicKey => nacl.sign.detached.verify(hash, Buffer.from(signature, 'base64'), bs58.decode(publicKey)));
+    return accessKeys.some(it => {
+        const publicKey = it.public_key.replace('ed25519:', '');
+        return nacl.sign.detached.verify(hash, Buffer.from(signature, 'base64'), bs58.decode(publicKey))
+    });
 }
 
 // TODO: Different endpoints for setup and recovery
@@ -112,7 +116,7 @@ router.post('/account/:phoneNumber/:accountId/validateCode', async ctx => {
         ctx.throw(401);
     }
     if (!account.confirmed) {
-        const nearAccount = await (await ctx.near.account(accountId)).state()
+        const nearAccount = await ctx.near.account(accountId);
         const isSignatureValid = await verifySignature(nearAccount, securityCode, signature);
         if (!isSignatureValid) {
             ctx.throw(401);
