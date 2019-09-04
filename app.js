@@ -56,7 +56,7 @@ router.post('/account', async ctx => {
     const masterAccount = await ctx.near.account(creatorKeyJson.account_id);
     await masterAccount.state();
     console.log('masterAccount', masterAccount);
-    console.log('keys', await account.getAccessKeys());
+    console.log('keys', await masterAccount.getAccessKeys());
     ctx.body = await masterAccount.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT);
 });
 
