@@ -28,8 +28,11 @@ const router = new Router();
 const creatorKeyJson = JSON.parse(process.env.ACCOUNT_CREATOR_KEY);
 const recoveryKeyJson = JSON.parse(process.env.ACCOUNT_RECOVERY_KEY);
 const keyStore = {
-    // For account recovery purposes use default sender when updating any account
-    async getKey() {
+    async getKey(networkId, accountId) {
+        if (accountId == creatorKeyJson.account_id) {
+            return KeyPair.fromString(creatorKeyJson.private_key);
+        }
+        // For account recovery purposes use recovery key when updating any account
         return KeyPair.fromString(recoveryKeyJson.private_key);
     }
 };
