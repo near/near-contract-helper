@@ -57,8 +57,8 @@ router.post('/account', async ctx => {
     await masterAccount.state();
 
     console.log('masterAccount', masterAccount);
-    const publicKey = (await this.connection.signer.getPublicKey(masterAccount.accountId, ctx.near.connection.networkId)).toString();
-    console.log('accessKey', publicKey, await this.connection.provider.query(`access_key/${masterAccount.accountId}/${publicKey}`, ''));
+    const publicKey = (await ctx.near.connection.signer.getPublicKey(masterAccount.accountId, ctx.near.connection.networkId)).toString();
+    console.log('accessKey', publicKey, await ctx.near.connection.provider.query(`access_key/${masterAccount.accountId}/${publicKey}`, ''));
     console.log('keys', await masterAccount.getAccessKeys());
     ctx.body = await masterAccount.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT);
 });
