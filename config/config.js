@@ -20,4 +20,4 @@ module.exports = {
         host:  process.env.HELPER_DB_HOST || '127.0.0.1',
         dialect: 'postgres',
     },
-}
+};

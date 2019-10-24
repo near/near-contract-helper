@@ -105,9 +105,9 @@ const verifySignature = async (nearAccount, securityCode, signature) => {
     }
     return accessKeys.some(it => {
         const publicKey = it.public_key.replace('ed25519:', '');
-        return nacl.sign.detached.verify(hash, Buffer.from(signature, 'base64'), bs58.decode(publicKey))
+        return nacl.sign.detached.verify(hash, Buffer.from(signature, 'base64'), bs58.decode(publicKey));
     });
-}
+};
 
 // TODO: Different endpoints for setup and recovery
 router.post('/account/:phoneNumber/:accountId/validateCode', async ctx => {
