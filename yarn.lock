@@ -1868,14 +1868,14 @@ scmp@2.0.0:
   resolved "https://registry.yarnpkg.com/scmp/-/scmp-2.0.0.tgz#247110ef22ccf897b13a3f0abddb52782393cd6a"
   integrity sha1-JHEQ7yLM+JexOj8KvdtSeCOTzWo=
 
-secure-random-password@^0.1.0:
-  version "0.1.0"
-  resolved "https://registry.yarnpkg.com/secure-random-password/-/secure-random-password-0.1.0.tgz#66ba0ff7902f7bad414572092ee0c8dc837a16f9"
-  integrity sha512-YeUpiu6H3QQQNLXDa3HdSxhYtPbyq33TCcOif6NjJ7hcxHhSuUDujB9rbzaueedXySkYtPlDFrnUxIYazAlV0g==
+secure-random-password@^0.2.1:
+  version "0.2.1"
+  resolved "https://registry.yarnpkg.com/secure-random-password/-/secure-random-password-0.2.1.tgz#21fc2da1a74fd564f327cd6ea4c627a0da6147bd"
+  integrity sha512-cYUIFsCpOHCbLWAPah9jJLomGEnXFqadb7Y3dzCL/UQwp7q6yGS3xQTaFHFf9i8ibh4DTwGYV6Uu8YY9SmMy4Q==
   dependencies:
-    secure-random "^1.1.1"
+    secure-random "^1.1.2"
 
-secure-random@^1.1.1:
+secure-random@^1.1.2:
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/secure-random/-/secure-random-1.1.2.tgz#ed103b460a851632d420d46448b2a900a41e7f7c"
   integrity sha512-H2bdSKERKdBV1SwoqYm6C0y+9EA94v6SUBOWO8kDndc4NoUih7Dv6Tsgma7zO1lv27wIvjlD0ZpMQk7um5dheQ==
