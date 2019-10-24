@@ -10,8 +10,9 @@ module.exports = (sequelize, DataTypes) => {
             defaultValue: false
         }
     }, {});
+    // eslint-disable-next-line no-unused-vars
     Account.associate = function(models) {
-    // associations can be defined here
+        // associations can be defined here
     };
     return Account;
 };
