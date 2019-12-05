@@ -32,7 +32,7 @@
     "secure-random-password": "^0.2.1",
     "sequelize": "^5.21.2",
     "tweetnacl": "^1.0.1",
-    "twilio": "^3.37.0",
+    "twilio": "^3.38.0",
     "uuid": "^3.3.2"
   },
   "devDependencies": {
