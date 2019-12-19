@@ -55,10 +55,10 @@
     "@types/node" "*"
     "@types/range-parser" "*"
 
-"@types/express@^4.17.1":
-  version "4.17.1"
-  resolved "https://registry.yarnpkg.com/@types/express/-/express-4.17.1.tgz#4cf7849ae3b47125a567dfee18bfca4254b88c5c"
-  integrity sha512-VfH/XCP0QbQk5B5puLqTLEeFgR8lfCJHZJKkInZ9mkYd+u8byX0kztXEQxEk4wZXJs8HI+7km2ALXjn4YKcX9w==
+"@types/express@^4.17.2":
+  version "4.17.2"
+  resolved "https://registry.yarnpkg.com/@types/express/-/express-4.17.2.tgz#a0fb7a23d8855bac31bc01d5a58cadd9b2173e6c"
+  integrity sha512-5mHFNyavtLoJmnusB8OKJ5bshSzw+qkMIBAobLrIM48HJvunFva9mOa6aBwh64lBFyNwBbs0xiEFuj4eU/NjCA==
   dependencies:
     "@types/body-parser" "*"
     "@types/express-serve-static-core" "*"
@@ -451,6 +451,11 @@ dashdash@^1.12.0:
   dependencies:
     assert-plus "^1.0.0"
 
+dayjs@^1.8.18:
+  version "1.8.18"
+  resolved "https://registry.yarnpkg.com/dayjs/-/dayjs-1.8.18.tgz#c9b3fcd5a8eca96ed20a907f4491516d6eda15c9"
+  integrity sha512-JBMJZghNK8TtuoPnKNIzW9xavVVigld/zmZNpZSyQbkb2Opp55YIfZUpE4OEqPF/iyUVQTKcn1bC2HtC8B7s3g==
+
 debug@^3.1.0:
   version "3.2.6"
   resolved "https://registry.yarnpkg.com/debug/-/debug-3.2.6.tgz#e83d17de16d8a7efb7717edbe5fb10135eee629b"
@@ -506,11 +511,6 @@ depd@~2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/depd/-/depd-2.0.0.tgz#b696163cc757560d09cf22cc8fad1571b79e76df"
   integrity sha512-g7nH6P6dyDioJogAAGprGpCtVImJhpPk/roCzdb3fIh61/s/nPsfR6onyMwkCAR/OlC3yBC0lESvUoQEAssIrw==
-
-deprecate@1.0.0:
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/deprecate/-/deprecate-1.0.0.tgz#661490ed2428916a6c8883d8834e5646f4e4a4a8"
-  integrity sha1-ZhSQ7SQokWpsiIPYg05WRvTkpKg=
 
 destroy@^1.0.4:
   version "1.0.4"
@@ -1832,7 +1832,7 @@ rimraf@2.6.3:
   dependencies:
     glob "^7.1.3"
 
-rootpath@0.1.2:
+rootpath@^0.1.2:
   version "0.1.2"
   resolved "https://registry.yarnpkg.com/rootpath/-/rootpath-0.1.2.tgz#5b379a87dca906e9b91d690a599439bef267ea6b"
   integrity sha1-Wzeah9ypBum5HWkKWZQ5vvJn6ms=
@@ -1866,7 +1866,7 @@ safe-buffer@^5.0.1, safe-buffer@^5.1.2:
   resolved "https://registry.yarnpkg.com/safer-buffer/-/safer-buffer-2.1.2.tgz#44fa161b0187b9549dd84bb91802f9bd8385cd6a"
   integrity sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==
 
-scmp@2.0.0:
+scmp@^2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/scmp/-/scmp-2.0.0.tgz#247110ef22ccf897b13a3f0abddb52782393cd6a"
   integrity sha1-JHEQ7yLM+JexOj8KvdtSeCOTzWo=
@@ -2143,21 +2143,20 @@ tweetnacl@^1.0.1:
   resolved "https://registry.yarnpkg.com/tweetnacl/-/tweetnacl-1.0.1.tgz#2594d42da73cd036bd0d2a54683dd35a6b55ca17"
   integrity sha512-kcoMoKTPYnoeS50tzoqjPY3Uv9axeuuFAZY9M/9zFnhoVvRfxz9K29IMPD7jGmt2c8SW7i3gT9WqDl2+nV7p4A==
 
-twilio@^3.37.0:
-  version "3.37.0"
-  resolved "https://registry.yarnpkg.com/twilio/-/twilio-3.37.0.tgz#55b1e38de24a03050190a81e0ec9e32f4b514e44"
-  integrity sha512-XnuTpDncrTCU3aj07wrgZMt/LIA3zKJ73U4RX+vWdx9J7Ppmxk1z8XxsSmjinNBZW+N4sYPkChoA7s4PV1CqyA==
+twilio@^3.39.1:
+  version "3.39.1"
+  resolved "https://registry.yarnpkg.com/twilio/-/twilio-3.39.1.tgz#489be42b3d2887affca20b6eaff69b5a9fc4f240"
+  integrity sha512-8u7mkfOwJtR2A4Jm1d7JmlZuVzQzgtUOFBoBxvT3isHQfVs7clRM6IukG9zAZ8D/GA4t9gp40QoNw3G5O65eFA==
   dependencies:
-    "@types/express" "^4.17.1"
-    deprecate "1.0.0"
+    "@types/express" "^4.17.2"
+    dayjs "^1.8.18"
     jsonwebtoken "^8.5.1"
     lodash "^4.17.15"
-    moment "^2.24.0"
     q "2.0.x"
     request "^2.88.0"
-    rootpath "0.1.2"
-    scmp "2.0.0"
-    xmlbuilder "9.0.1"
+    rootpath "^0.1.2"
+    scmp "^2.0.0"
+    xmlbuilder "^13.0.2"
 
 type-check@~0.3.2:
   version "0.3.2"
@@ -2303,10 +2302,10 @@ write@1.0.3:
   dependencies:
     mkdirp "^0.5.1"
 
-xmlbuilder@9.0.1:
-  version "9.0.1"
-  resolved "https://registry.yarnpkg.com/xmlbuilder/-/xmlbuilder-9.0.1.tgz#91cd70897755363eba57c12ddeeab4a341a61f65"
-  integrity sha1-kc1wiXdVNj66V8Et3uq0o0GmH2U=
+xmlbuilder@^13.0.2:
+  version "13.0.2"
+  resolved "https://registry.yarnpkg.com/xmlbuilder/-/xmlbuilder-13.0.2.tgz#02ae33614b6a047d1c32b5389c1fdacb2bce47a7"
+  integrity sha512-Eux0i2QdDYKbdbA6AM6xE4m6ZTZr4G4xF9kahI2ukSEMCzwce2eX9WlTI5J3s+NU7hpasFsr8hWIONae7LluAQ==
 
 xtend@^4.0.0:
   version "4.0.2"
