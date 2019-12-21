@@ -36,7 +36,7 @@
     "uuid": "^3.3.2"
   },
   "devDependencies": {
-    "eslint": "^6.7.2",
+    "eslint": "^6.8.0",
     "sequelize-cli": "^5.4.0",
     "supervisor": "^0.12.0"
   }
