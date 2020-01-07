@@ -62,20 +62,27 @@ const models = require('./models');
 const FROM_PHONE = process.env.TWILIO_FROM_PHONE || '+14086179592';
 const SECURITY_CODE_DIGITS = 6;
 
-const sendMessage = async ({ accountId, phoneNumber, securityCode }) => {
+const sendSms = async ({ to, text }) => {
     if (process.env.NODE_ENV == 'production') {
         const accountSid = process.env.TWILIO_ACCOUNT_SID;
         const authToken = process.env.TWILIO_AUTH_TOKEN;
         const client = require('twilio')(accountSid, authToken);
         await client.messages
             .create({
-                body: `Your NEAR Wallet security code is: ${securityCode}`,
+                body: text,
                 from: FROM_PHONE,
-                to: phoneNumber
+                to
             });
     } else {
-        console.log(`Security code: ${securityCode} for: ${accountId}`);
+        console.log('sendSms:', { to, text });
     }
+};
+
+const sendSecurityCode = async ({ accountId, phoneNumber, securityCode }) => {
+    return sendSms({
+        text: `Your NEAR Wallet security code is: ${securityCode}`,
+        to: phoneNumber
+    });
 };
 
 router.post('/account/:phoneNumber/:accountId/requestCode', async ctx => {
@@ -86,7 +93,7 @@ router.post('/account/:phoneNumber/:accountId/requestCode', async ctx => {
     const [account] = await models.Account.findOrCreate({ where: { accountId, phoneNumber } });
     await account.update({ securityCode });
     // TODO: Add code expiration for improved security
-    await sendMessage(account);
+    await sendSecurityCode(account);
 
     ctx.body = {};
 });
