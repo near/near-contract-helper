@@ -140,6 +140,63 @@ router.post('/account/:phoneNumber/:accountId/validateCode', async ctx => {
     ctx.body = {};
 });
 
+const sendMail = async (options) => {
+    if (process.env.NODE_ENV == 'production') {
+        const nodemailer = require('nodemailer');
+        const transport = nodemailer.createTransport({
+            host: 'smtp.ethereal.email',
+            port: 587,
+            secure: false,
+            auth: {
+                user: 'yutfggtgifd7ixet@ethereal.email',
+                pass: 'tX29P4QNadD7kAG7x5'
+            }
+        });
+        return transport.sendMail({
+            from: 'wallet@nearprotocol.com',
+            ...options
+        });
+    } else {
+        console.log('sendMail:', options);
+    }
+}
+
+const sendRecoveryMessage = async ({ accountId, phoneNumber, email, seedPhrase }) => {
+    if (phoneNumber) {
+        await sendSms({
+            body: `Your NEAR Wallet (${accountId}) backup phrase is: ${seedPhrase}\nSave this message in secure place to allow you to recover account.`,
+            to: phoneNumber
+        });
+    } else if (email) {
+        await sendMail({
+            to: email,
+            subject: `Important: Near Wallet Recovery Email for ${accountId}`,
+            text:
+`Hello ${accountId}!
+
+Use this link to recover account. TODO: Link
+
+${seedPhrase}
+
+Save this message in secure place to allow you to recover account.`
+        });
+    } else {
+        throw new Error(`Account ${accountId} has no contact information`);
+    }
+};
+
+router.post('/account/sendRecoveryMessage', async ctx => {
+    const { accountId, phoneNumber, email, seedPhrase, publicKey } = ctx.request.body;
+
+    // TODO: Validate phone or email
+    // TODO: Verify that seed phrase is added to the account
+
+    const account = await models.Account.create({ accountId, phoneNumber, email, publicKey });
+    await sendRecoveryMessage({ ...account, seedPhrase });
+
+    ctx.body = {};
+});
+
 app
     .use(router.routes())
     .use(router.allowedMethods());
