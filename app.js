@@ -165,7 +165,7 @@ const sendRecoveryMessage = async ({ accountId, phoneNumber, email, seedPhrase }
     const recoverUrl = `${WALLET_URL}/recover-seed-phrase/${encodeURIComponent(accountId)}/${encodeURIComponent(seedPhrase)}`
     if (phoneNumber) {
         await sendSms({
-            body: `Your NEAR Wallet (${accountId}) backup link is: ${recoverUrl}\nSave this message in secure place to allow you to recover account.`,
+            text: `Your NEAR Wallet (${accountId}) backup link is: ${recoverUrl}\nSave this message in secure place to allow you to recover account.`,
             to: phoneNumber
         });
     } else if (email) {
