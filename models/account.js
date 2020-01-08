@@ -3,6 +3,7 @@ module.exports = (sequelize, DataTypes) => {
     const Account = sequelize.define('Account', {
         accountId: DataTypes.STRING,
         phoneNumber: DataTypes.STRING,
+        email: DataTypes.STRING,
         securityCode: DataTypes.STRING,
         confirmed: {
             type: DataTypes.BOOLEAN,

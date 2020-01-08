@@ -191,8 +191,8 @@ router.post('/account/sendRecoveryMessage', async ctx => {
     // TODO: Validate phone or email
     // TODO: Verify that seed phrase is added to the account
 
-    const account = await models.Account.create({ accountId, phoneNumber, email, publicKey });
-    await sendRecoveryMessage({ ...account, seedPhrase });
+    const [account] = await models.Account.findOrCreate({ where: { accountId, phoneNumber, email }});
+    await sendRecoveryMessage({ ...account.dataValues, seedPhrase });
 
     ctx.body = {};
 });
