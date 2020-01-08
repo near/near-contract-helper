@@ -144,12 +144,11 @@ const sendMail = async (options) => {
     if (process.env.NODE_ENV == 'production') {
         const nodemailer = require('nodemailer');
         const transport = nodemailer.createTransport({
-            host: 'smtp.ethereal.email',
-            port: 587,
-            secure: false,
+            host: process.env.MAIL_HOST || 'smtp.ethereal.email',
+            port: process.env.MAIL_PORT || 587,
             auth: {
-                user: 'yutfggtgifd7ixet@ethereal.email',
-                pass: 'tX29P4QNadD7kAG7x5'
+                user: process.env.MAIL_USER || '',
+                pass: process.env.MAIL_PASSWORD || ''
             }
         });
         return transport.sendMail({
