@@ -158,11 +158,11 @@ const sendMail = async (options) => {
     } else {
         console.log('sendMail:', options);
     }
-}
+};
 
 const WALLET_URL = process.env.WALLET_URL ||'https://wallet.nearprotocol.com';
 const sendRecoveryMessage = async ({ accountId, phoneNumber, email, seedPhrase }) => {
-    const recoverUrl = `${WALLET_URL}/recover-seed-phrase/${encodeURIComponent(accountId)}/${encodeURIComponent(seedPhrase)}`
+    const recoverUrl = `${WALLET_URL}/recover-seed-phrase/${encodeURIComponent(accountId)}/${encodeURIComponent(seedPhrase)}`;
     if (phoneNumber) {
         await sendSms({
             text: `Your NEAR Wallet (${accountId}) backup link is: ${recoverUrl}\nSave this message in secure place to allow you to recover account.`,
