@@ -13,7 +13,7 @@ app.use(async function(ctx, next) {
     try {
         await next();
     } catch(e) {
-        console.log('Error: ', e);
+        console.error('Error: ', e);
         if (e.response) {
             ctx.throw(e.response.status, e.response.text);
         }
@@ -193,8 +193,13 @@ router.post('/account/sendRecoveryMessage', async ctx => {
 
     // TODO: Validate phone or email
     // TODO: Verify that seed phrase is added to the account
-
-    const [account] = await models.Account.findOrCreate({ where: { accountId, phoneNumber, email }});
+    const where = { accountId };
+    if (phoneNumber) {
+        where.phoneNumber = phoneNumber;
+    } else if (email) {
+        where.email = email;
+    }
+    const [account] = await models.Account.findOrCreate({ where });
     await sendRecoveryMessage({ ...account.dataValues, seedPhrase });
 
     ctx.body = {};
