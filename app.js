@@ -40,6 +40,7 @@ const { connect, KeyPair } = require('nearlib');
 const nearPromise = (async () => {
     const near = await connect({
         deps: { keyStore },
+        masterAccount: creatorKeyJson.account_id,
         nodeUrl: process.env.NODE_URL || 'https://studio.nearprotocol.com/devnet'
     });
     return near;
@@ -189,7 +190,7 @@ Save this message in secure place to allow you to recover account.`
 };
 
 router.post('/account/sendRecoveryMessage', async ctx => {
-    const { accountId, phoneNumber, email, seedPhrase, publicKey } = ctx.request.body;
+    const { accountId, phoneNumber, email, seedPhrase } = ctx.request.body;
 
     // TODO: Validate phone or email
     // TODO: Verify that seed phrase is added to the account
