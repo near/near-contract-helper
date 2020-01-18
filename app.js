@@ -3,6 +3,7 @@ const app = new Koa();
 
 const body = require('koa-json-body');
 const cors = require('@koa/cors');
+const httpErrors = require('http-errors');
 
 app.use(require('koa-logger')());
 app.use(body({ limit: '500kb', fallback: true }));
@@ -13,10 +14,15 @@ app.use(async function(ctx, next) {
     try {
         await next();
     } catch(e) {
-        console.error('Error: ', e);
+        console.error('Error: ', e, JSON.stringify(e));
         if (e.response) {
             ctx.throw(e.response.status, e.response.text);
         }
+
+        if (e instanceof httpErrors.Forbidden) {
+            ctx.throw(e);
+        }
+
         // TODO: Figure out which errors should be exposed to user
         ctx.throw(400, e.toString());
     }
@@ -79,7 +85,7 @@ const sendSms = async ({ to, text }) => {
     }
 };
 
-const sendSecurityCode = async ({ accountId, phoneNumber, securityCode }) => {
+const sendSecurityCode = async ({ phoneNumber, securityCode }) => {
     return sendSms({
         text: `Your NEAR Wallet security code is: ${securityCode}`,
         to: phoneNumber
@@ -189,11 +195,21 @@ Save this message in secure place to allow you to recover account.`
     }
 };
 
+const { parseSeedPhrase } = require('near-seed-phrase');
+
 router.post('/account/sendRecoveryMessage', async ctx => {
     const { accountId, phoneNumber, email, seedPhrase } = ctx.request.body;
 
     // TODO: Validate phone or email
-    // TODO: Verify that seed phrase is added to the account
+
+    // Verify that seed phrase is added to the account
+    const { publicKey } = parseSeedPhrase(seedPhrase);
+    const nearAccount = await ctx.near.account(accountId);
+    const keys = await nearAccount.getAccessKeys();
+    if (!keys.some(key => key.public_key == publicKey)) {
+        ctx.throw(403, 'seed phrase doesn\'t match any access keys');
+    }
+
     const where = { accountId };
     if (phoneNumber) {
         where.phoneNumber = phoneNumber;
