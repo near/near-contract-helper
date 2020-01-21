@@ -180,15 +180,28 @@ const sendRecoveryMessage = async ({ accountId, phoneNumber, email, seedPhrase }
             to: email,
             subject: `Important: Near Wallet Recovery Email for ${accountId}`,
             text:
-`Hello ${accountId}!
+`Hi ${accountId},
 
-Use this link to recover account:
+This email contains your NEAR account recovery link. 
+
+Keep this email safe, and DO NOT SHARE IT! We cannot resend this email.
+
+Click below to recover your account.
+
 ${recoverUrl}
+`,
+            html:
+`<p>Hi ${accountId},</p>
 
-Alternatively use this backup phrase:
-${seedPhrase}
+<p>This email contains your NEAR account recovery link.</p>
 
-Save this message in secure place to allow you to recover account.`
+<p>Keep this email safe, and DO NOT SHARE IT! We cannot resend this email.</p>
+
+<p>Click below to recover your account.</p>
+
+<a href="${recoverUrl}">Recover Account</a>
+`
+
         });
     } else {
         throw new Error(`Account ${accountId} has no contact information`);
