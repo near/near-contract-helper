@@ -28,7 +28,7 @@
     "koa-logger": "^3.2.0",
     "koa-router": "^7.4.0",
     "near-seed-phrase": "^0.0.2",
-    "nearlib": "^0.19.2",
+    "nearlib": "^0.20.1",
     "nodemailer": "^6.4.2",
     "pg": "^7.17.0",
     "secure-random-password": "^0.2.1",
