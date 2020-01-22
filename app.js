@@ -3,6 +3,7 @@ const app = new Koa();
 
 const body = require('koa-json-body');
 const cors = require('@koa/cors');
+const httpErrors = require('http-errors');
 
 app.use(require('koa-logger')());
 app.use(body({ limit: '500kb', fallback: true }));
@@ -13,10 +14,15 @@ app.use(async function(ctx, next) {
     try {
         await next();
     } catch(e) {
-        console.log('Error: ', e);
+        console.error('Error: ', e, JSON.stringify(e));
         if (e.response) {
             ctx.throw(e.response.status, e.response.text);
         }
+
+        if (e instanceof httpErrors.Forbidden) {
+            ctx.throw(e);
+        }
+
         // TODO: Figure out which errors should be exposed to user
         ctx.throw(400, e.toString());
     }
@@ -40,6 +46,7 @@ const { connect, KeyPair } = require('nearlib');
 const nearPromise = (async () => {
     const near = await connect({
         deps: { keyStore },
+        masterAccount: creatorKeyJson.account_id,
         nodeUrl: process.env.NODE_URL || 'https://studio.nearprotocol.com/devnet'
     });
     return near;
@@ -62,20 +69,27 @@ const models = require('./models');
 const FROM_PHONE = process.env.TWILIO_FROM_PHONE || '+14086179592';
 const SECURITY_CODE_DIGITS = 6;
 
-const sendMessage = async ({ accountId, phoneNumber, securityCode }) => {
+const sendSms = async ({ to, text }) => {
     if (process.env.NODE_ENV == 'production') {
         const accountSid = process.env.TWILIO_ACCOUNT_SID;
         const authToken = process.env.TWILIO_AUTH_TOKEN;
         const client = require('twilio')(accountSid, authToken);
         await client.messages
             .create({
-                body: `Your NEAR Wallet security code is: ${securityCode}`,
+                body: text,
                 from: FROM_PHONE,
-                to: phoneNumber
+                to
             });
     } else {
-        console.log(`Security code: ${securityCode} for: ${accountId}`);
+        console.log('sendSms:', { to, text });
     }
+};
+
+const sendSecurityCode = async ({ phoneNumber, securityCode }) => {
+    return sendSms({
+        text: `Your NEAR Wallet security code is: ${securityCode}`,
+        to: phoneNumber
+    });
 };
 
 router.post('/account/:phoneNumber/:accountId/requestCode', async ctx => {
@@ -86,7 +100,7 @@ router.post('/account/:phoneNumber/:accountId/requestCode', async ctx => {
     const [account] = await models.Account.findOrCreate({ where: { accountId, phoneNumber } });
     await account.update({ securityCode });
     // TODO: Add code expiration for improved security
-    await sendMessage(account);
+    await sendSecurityCode(account);
 
     ctx.body = {};
 });
@@ -129,6 +143,94 @@ router.post('/account/:phoneNumber/:accountId/validateCode', async ctx => {
         await (await ctx.near.account(accountId)).addKey(publicKey);
         await account.update({ securityCode: null });
     }
+
+    ctx.body = {};
+});
+
+const sendMail = async (options) => {
+    if (process.env.NODE_ENV == 'production') {
+        const nodemailer = require('nodemailer');
+        const transport = nodemailer.createTransport({
+            host: process.env.MAIL_HOST || 'smtp.ethereal.email',
+            port: process.env.MAIL_PORT || 587,
+            auth: {
+                user: process.env.MAIL_USER || '',
+                pass: process.env.MAIL_PASSWORD || ''
+            }
+        });
+        return transport.sendMail({
+            from: 'wallet@nearprotocol.com',
+            ...options
+        });
+    } else {
+        console.log('sendMail:', options);
+    }
+};
+
+const WALLET_URL = process.env.WALLET_URL ||'https://wallet.nearprotocol.com';
+const sendRecoveryMessage = async ({ accountId, phoneNumber, email, seedPhrase }) => {
+    const recoverUrl = `${WALLET_URL}/recover-seed-phrase/${encodeURIComponent(accountId)}/${encodeURIComponent(seedPhrase)}`;
+    if (phoneNumber) {
+        await sendSms({
+            text: `Your NEAR Wallet (${accountId}) backup link is: ${recoverUrl}\nSave this message in secure place to allow you to recover account.`,
+            to: phoneNumber
+        });
+    } else if (email) {
+        await sendMail({
+            to: email,
+            subject: `Important: Near Wallet Recovery Email for ${accountId}`,
+            text:
+`Hi ${accountId},
+
+This email contains your NEAR account recovery link. 
+
+Keep this email safe, and DO NOT SHARE IT! We cannot resend this email.
+
+Click below to recover your account.
+
+${recoverUrl}
+`,
+            html:
+`<p>Hi ${accountId},</p>
+
+<p>This email contains your NEAR account recovery link.</p>
+
+<p>Keep this email safe, and DO NOT SHARE IT! We cannot resend this email.</p>
+
+<p>Click below to recover your account.</p>
+
+<a href="${recoverUrl}">Recover Account</a>
+`
+
+        });
+    } else {
+        throw new Error(`Account ${accountId} has no contact information`);
+    }
+};
+
+const { parseSeedPhrase } = require('near-seed-phrase');
+
+router.post('/account/sendRecoveryMessage', async ctx => {
+    const { accountId, phoneNumber, email, seedPhrase } = ctx.request.body;
+
+    // TODO: Validate phone or email
+
+    // Verify that seed phrase is added to the account
+    const { publicKey } = parseSeedPhrase(seedPhrase);
+    const nearAccount = await ctx.near.account(accountId);
+    const keys = await nearAccount.getAccessKeys();
+    if (!keys.some(key => key.public_key == publicKey)) {
+        ctx.throw(403, 'seed phrase doesn\'t match any access keys');
+    }
+
+    const where = { accountId };
+    if (phoneNumber) {
+        where.phoneNumber = phoneNumber;
+    } else if (email) {
+        where.email = email;
+    }
+    const [account] = await models.Account.findOrCreate({ where });
+    await sendRecoveryMessage({ ...account.dataValues, seedPhrase });
 
     ctx.body = {};
 });

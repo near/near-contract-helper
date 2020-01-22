@@ -12,6 +12,7 @@ module.exports = {
         database: 'accounts_test',
         host: '127.0.0.1',
         dialect: 'postgres',
+        logging: false
     },
     production: {
         username: process.env.HELPER_DB_USERNAME || 'helper',
