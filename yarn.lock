@@ -4681,10 +4681,10 @@ tweetnacl@^1.0.1, tweetnacl@^1.0.2:
   resolved "https://registry.yarnpkg.com/tweetnacl/-/tweetnacl-1.0.2.tgz#39fba8d1f7a34706a3fc1fd8c04afcad7bb9e689"
   integrity sha512-+8aPRjmXgf1VqvyxSlBUzKzeYqVS9Ai8vZ28g+mL7dNQl1jlUTCMDZnvNQdAS1xTywMkIXwJsfipsR/6s2+syw==
 
-twilio@^3.39.1:
-  version "3.39.2"
-  resolved "https://registry.yarnpkg.com/twilio/-/twilio-3.39.2.tgz#596850f1fc91c82e6e2d1377ca874dfe725b0ec7"
-  integrity sha512-M0dM6wCaR+YVXQeqldiqXNAqqSeZSuhSL5paRFbFTJDpsq/R6eqqhSPvyoaS9hQIm2PNhaEKq+lvqCELckDWpg==
+twilio@^3.39.3:
+  version "3.39.3"
+  resolved "https://registry.yarnpkg.com/twilio/-/twilio-3.39.3.tgz#519fe68d1df0e25d658e27c4a52cfcca5fb5e02e"
+  integrity sha512-RxVuanhKyjvi6OqbvlKSuvwBIRAhlf5W3A9FkZsDBatVslvLGxxuB5y5SYkEqSZVBREFEt7/HqJpTuK1YUwMwQ==
   dependencies:
     "@types/express" "^4.17.2"
     dayjs "^1.8.19"
