@@ -36,10 +36,10 @@ const recoveryKeyJson = JSON.parse(process.env.ACCOUNT_RECOVERY_KEY);
 const keyStore = {
     async getKey(networkId, accountId) {
         if (accountId == creatorKeyJson.account_id) {
-            return KeyPair.fromString(creatorKeyJson.private_key);
+            return KeyPair.fromString(creatorKeyJson.secret_key);
         }
         // For account recovery purposes use recovery key when updating any account
-        return KeyPair.fromString(recoveryKeyJson.private_key);
+        return KeyPair.fromString(recoveryKeyJson.secret_key);
     }
 };
 const { connect, KeyPair } = require('nearlib');
@@ -47,7 +47,7 @@ const nearPromise = (async () => {
     const near = await connect({
         deps: { keyStore },
         masterAccount: creatorKeyJson.account_id,
-        nodeUrl: process.env.NODE_URL || 'https://studio.nearprotocol.com/devnet'
+        nodeUrl: process.env.NODE_URL
     });
     return near;
 })();
@@ -56,7 +56,7 @@ app.use(async (ctx, next) => {
     await next();
 });
 
-const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT || 10000000000;
+const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT;
 
 router.post('/account', async ctx => {
     const { newAccountId, newAccountPublicKey } = ctx.request.body;
@@ -66,7 +66,7 @@ router.post('/account', async ctx => {
 
 const password = require('secure-random-password');
 const models = require('./models');
-const FROM_PHONE = process.env.TWILIO_FROM_PHONE || '+14086179592';
+const FROM_PHONE = process.env.TWILIO_FROM_PHONE;
 const SECURITY_CODE_DIGITS = 6;
 
 const sendSms = async ({ to, text }) => {
@@ -151,11 +151,11 @@ const sendMail = async (options) => {
     if (process.env.NODE_ENV == 'production') {
         const nodemailer = require('nodemailer');
         const transport = nodemailer.createTransport({
-            host: process.env.MAIL_HOST || 'smtp.ethereal.email',
-            port: process.env.MAIL_PORT || 587,
+            host: process.env.MAIL_HOST,
+            port: process.env.MAIL_PORT,
             auth: {
-                user: process.env.MAIL_USER || '',
-                pass: process.env.MAIL_PASSWORD || ''
+                user: process.env.MAIL_USER,
+                pass: process.env.MAIL_PASSWORD
             }
         });
         return transport.sendMail({
@@ -167,7 +167,7 @@ const sendMail = async (options) => {
     }
 };
 
-const WALLET_URL = process.env.WALLET_URL ||'https://wallet.nearprotocol.com';
+const WALLET_URL = process.env.WALLET_URL;
 const sendRecoveryMessage = async ({ accountId, phoneNumber, email, seedPhrase }) => {
     const recoverUrl = `${WALLET_URL}/recover-seed-phrase/${encodeURIComponent(accountId)}/${encodeURIComponent(seedPhrase)}`;
     if (phoneNumber) {
@@ -182,7 +182,7 @@ const sendRecoveryMessage = async ({ accountId, phoneNumber, email, seedPhrase }
             text:
 `Hi ${accountId},
 
-This email contains your NEAR account recovery link. 
+This email contains your NEAR account recovery link.
 
 Keep this email safe, and DO NOT SHARE IT! We cannot resend this email.
 
@@ -240,7 +240,7 @@ app
     .use(router.allowedMethods());
 
 if (!module.parent) {
-    app.listen(process.env.PORT || 3000);
+    app.listen(process.env.PORT);
 } else {
     module.exports = app;
 }
