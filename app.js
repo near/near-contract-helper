@@ -147,6 +147,23 @@ router.post('/account/:phoneNumber/:accountId/validateCode', async ctx => {
     ctx.body = {};
 });
 
+router.post('/account/:accountId/recoveryMethods', async ctx => {
+    const { accountId } = ctx.params;
+    const { signedStuff } = ctx.request.body;
+
+    console.log(`TODO: verify that person who signed this stuff actually owns ${accountId}`, { signedStuff });
+
+    const account = await models.Account.findOne({ where: { accountId } });
+
+    if (!account) {
+        ctx.throw(401);
+    }
+
+    const { email, phoneNumber, securityCode, confirmed } = account;
+
+    ctx.body = { email, phoneNumber, securityCode, confirmed };
+});
+
 const sendMail = async (options) => {
     if (process.env.NODE_ENV == 'production') {
         const nodemailer = require('nodemailer');
