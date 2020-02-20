@@ -11,6 +11,7 @@ process.env = {
     ...process.env,
     ACCOUNT_CREATOR_KEY: JSON.stringify(MASTER_KEY_INFO),
     ACCOUNT_RECOVERY_KEY: JSON.stringify(MASTER_KEY_INFO),
+    WALLET_URL: 'https://wallet.nearprotocol.com',
     NODE_URL: 'http://shared-test.nearprotocol.com:3030'
 };
 const app = require('../app');
@@ -63,7 +64,7 @@ describe('/account/sendRecoveryMessage', () => {
         const [, { subject, text, to }] = ctx.logs.find(log => log[0].match(/^sendMail.+/));
         expect(subject).toEqual(`Important: Near Wallet Recovery Email for ${ctx.accountId}`);
         expect(to).toEqual('test@dispostable.com');
-        expect(text).toMatch(new RegExp(`https://wallet.nearprotocol.com/recover-seed-phrase/${ctx.accountId}/${SEED_PHRASE.replace(/ /g, '%20')}`));
+        expect(text).toMatch(new RegExp(`https://wallet.nearprotocol.com/recover-with-link/${ctx.accountId}/${SEED_PHRASE.replace(/ /g, '%20')}`));
     });
 
     test('send email (wrong seed phrase)', async () => {
