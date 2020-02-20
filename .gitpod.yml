@@ -1,0 +1,6 @@
+tasks:
+  - init: yarn
+github:
+  prebuilds:
+    addCheck: true
+    addComment: true
