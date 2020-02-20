@@ -169,10 +169,10 @@ const sendMail = async (options) => {
 
 const WALLET_URL = process.env.WALLET_URL;
 const sendRecoveryMessage = async ({ accountId, phoneNumber, email, seedPhrase }) => {
-    const recoverUrl = `${WALLET_URL}/recover-seed-phrase/${encodeURIComponent(accountId)}/${encodeURIComponent(seedPhrase)}`;
+    const recoverUrl = `${WALLET_URL}/recover-with-link/${encodeURIComponent(accountId)}/${encodeURIComponent(seedPhrase)}`;
     if (phoneNumber) {
         await sendSms({
-            text: `Your NEAR Wallet (${accountId}) backup link is: ${recoverUrl}\nSave this message in secure place to allow you to recover account.`,
+            text: `Your NEAR Wallet (${accountId}) recovery link is: ${recoverUrl}\nSave this message in a secure place to allow you to recover account.`,
             to: phoneNumber
         });
     } else if (email) {
@@ -182,7 +182,7 @@ const sendRecoveryMessage = async ({ accountId, phoneNumber, email, seedPhrase }
             text:
 `Hi ${accountId},
 
-This email contains your NEAR account recovery link.
+This email contains your NEAR Wallet account recovery link.
 
 Keep this email safe, and DO NOT SHARE IT! We cannot resend this email.
 
@@ -193,7 +193,7 @@ ${recoverUrl}
             html:
 `<p>Hi ${accountId},</p>
 
-<p>This email contains your NEAR account recovery link.</p>
+<p>This email contains your NEAR Wallet account recovery link.</p>
 
 <p>Keep this email safe, and DO NOT SHARE IT! We cannot resend this email.</p>
 
