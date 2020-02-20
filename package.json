@@ -4,7 +4,7 @@
   "description": "Micro-service used by NEARStudio to deploy smart contracts.",
   "main": "app.js",
   "scripts": {
-    "start": "env $(cat .env) supervisor app",
+    "start": "env $(sed 's/ # .*//' .env) supervisor app",
     "test": "npm run lint && jest test",
     "lint": "eslint .",
     "fix": "eslint . --fix",
