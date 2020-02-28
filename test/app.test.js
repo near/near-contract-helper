@@ -17,6 +17,12 @@ process.env = {
 const app = require('../app');
 
 const { KeyPair } = require('nearlib');
+
+const SEED_PHRASE = 'shoot island position soft burden budget tooth cruel issue economy destroy above';
+const keyPair = KeyPair.fromString(parseSeedPhrase(SEED_PHRASE).secretKey);
+const ctx = {};
+const request = supertest(app.callback());
+
 beforeAll(async () => {
     await models.sequelize.sync({ force: true });
 });
@@ -25,30 +31,30 @@ afterAll(async () => {
     await models.sequelize.close();
 });
 
-let request = supertest(app.callback());
+beforeEach(() => {
+    ctx.savedLog = console.log;
+    ctx.logs = [];
+    console.log = (...args) => ctx.logs.push(args);
+});
 
-const SEED_PHRASE = 'shoot island position soft burden budget tooth cruel issue economy destroy above';
+afterEach(() => {
+    console.log = ctx.savedLog;
+});
+
+async function createNearAccount() {
+    const accountId = `helper-test-${Date.now()}`;
+    const response = await request.post('/account')
+        .send({
+            newAccountId: accountId,
+            newAccountPublicKey: keyPair.publicKey.toString()
+        });
+    assert.equal(response.status, 200);
+    return accountId;
+}
 
 describe('/account/sendRecoveryMessage', () => {
-    let ctx = {};
     beforeEach(async () => {
-        ctx.savedLog = console.log;
-        ctx.logs = [];
-        console.log = (...args) => ctx.logs.push(args);
-
-        ctx.near = await app.nearPromise;
-        ctx.keyPair = KeyPair.fromString(parseSeedPhrase(SEED_PHRASE).secretKey);
-        ctx.accountId = `helper-test-${Date.now()}`;
-        const response =  await request.post('/account')
-            .send({
-                newAccountId: ctx.accountId,
-                newAccountPublicKey: ctx.keyPair.publicKey.toString()
-            });
-        assert.equal(response.status, 200);
-    });
-
-    afterEach(() => {
-        console.log = ctx.savedLog;
+        ctx.accountId = await createNearAccount();
     });
 
     test('send email', async () => {
@@ -76,5 +82,33 @@ describe('/account/sendRecoveryMessage', () => {
             });
 
         assert.equal(response.status, 403);
+    });
+
+});
+
+describe('/account/:accountId/recoveryMethods', () => {
+    test('returns 404 (accountId not found)', async () => {
+        const response = await request.post('/account/illegitimate/recoveryMethods');
+        expect(response.status).toBe(404);
+    });
+
+    test('returns recovery methods (account found, verified ownership)', async () => {
+        const accountId = `account-${Date.now()}`;
+
+        const attributes = {
+            email: 'hello@example.com',
+            emailAddedAt: new Date(),
+            phoneAddedAt: new Date(),
+            phoneNumber: '+180086753098',
+            phraseAddedAt: new Date(),
+        };
+
+        await models.Account.create({ accountId, ...attributes });
+
+        const response = await request.post(`/account/${accountId}/recoveryMethods`)
+            .send({ signedStuff: 'lol' });
+
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual(JSON.parse(JSON.stringify(attributes)));
     });
 });

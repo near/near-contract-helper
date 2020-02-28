@@ -18,7 +18,10 @@ app.use(async function(ctx, next) {
             ctx.throw(e.response.status, e.response.text);
         }
 
-        if (e instanceof httpErrors.Forbidden) {
+        if (
+            e instanceof httpErrors.Forbidden ||
+            e instanceof httpErrors.NotFound
+        ) {
             ctx.throw(e);
         }
 
@@ -151,17 +154,21 @@ router.post('/account/:accountId/recoveryMethods', async ctx => {
     const { accountId } = ctx.params;
     const { signedStuff } = ctx.request.body;
 
-    console.log(`TODO: verify that person who signed this stuff actually owns ${accountId}`, { signedStuff });
-
     const account = await models.Account.findOne({ where: { accountId } });
 
     if (!account) {
-        ctx.throw(401);
+        ctx.throw(404, `Account with id ${accountId} not found`);
     }
 
-    const { email, phoneNumber, securityCode, confirmed } = account;
+    console.log(`TODO: verify that person who signed this stuff actually owns ${accountId}`, { signedStuff });
 
-    ctx.body = { email, phoneNumber, securityCode, confirmed };
+    ctx.body = {
+        email: account.email,
+        emailAddedAt: account.emailAddedAt,
+        phoneAddedAt: account.phoneAddedAt,
+        phoneNumber: account.phoneNumber,
+        phraseAddedAt: account.phraseAddedAt,
+    };
 });
 
 const sendMail = async (options) => {
