@@ -9,7 +9,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.BOOLEAN,
             allowNull: false,
             defaultValue: false
-        }
+        },
+        phoneAddedAt: DataTypes.DATE,
+        emailAddedAt: DataTypes.DATE,
+        phraseAddedAt: DataTypes.DATE,
     }, {});
     // eslint-disable-next-line no-unused-vars
     Account.associate = function(models) {
