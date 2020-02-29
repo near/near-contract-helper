@@ -14,7 +14,6 @@ app.use(async function(ctx, next) {
     try {
         await next();
     } catch(e) {
-        console.error('Error: ', e, JSON.stringify(e));
         if (e.response) {
             ctx.throw(e.response.status, e.response.text);
         }
@@ -24,6 +23,7 @@ app.use(async function(ctx, next) {
         }
 
         // TODO: Figure out which errors should be exposed to user
+        console.error('Error: ', e, JSON.stringify(e));
         ctx.throw(400, e.toString());
     }
 });
