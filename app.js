@@ -38,7 +38,7 @@ const creatorKeyJson = JSON.parse(process.env.ACCOUNT_CREATOR_KEY);
 const recoveryKeyJson = JSON.parse(process.env.ACCOUNT_RECOVERY_KEY);
 const keyStore = {
     async getKey(networkId, accountId) {
-        if (accountId == creatorKeyJson.account_id) {
+        if (accountId === creatorKeyJson.account_id) {
             return KeyPair.fromString(creatorKeyJson.secret_key || creatorKeyJson.private_key);
         }
         // For account recovery purposes use recovery key when updating any account
@@ -112,9 +112,7 @@ const nacl = require('tweetnacl');
 const crypto = require('crypto');
 const bs58 = require('bs58');
 const verifySignature = async (nearAccount, securityCode, signature) => {
-    const hasher = crypto.createHash('sha256');
-    hasher.update(securityCode);
-    const hash = hasher.digest();
+    const hash = crypto.createHash('sha256').update(securityCode).digest();
     const helperPublicKey = (await keyStore.getKey(recoveryKeyJson.account_id)).publicKey;
     const accessKeys = await nearAccount.getAccessKeys();
     if (!accessKeys.find(it => it.public_key == helperPublicKey.toString())) {
