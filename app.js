@@ -59,6 +59,10 @@ app.use(async (ctx, next) => {
     await next();
 });
 
+function verifyAccountOwnership({ accountId, securityCode, signature }) {
+    console.log(`TODO: verify that person who signed this stuff actually owns '${accountId}'`, { securityCode, signature });
+}
+
 const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT;
 
 router.post('/account', async ctx => {
@@ -150,7 +154,7 @@ router.post('/account/:phoneNumber/:accountId/validateCode', async ctx => {
 
 router.post('/account/:accountId/recoveryMethods', async ctx => {
     const { accountId } = ctx.params;
-    const { signedStuff } = ctx.request.body;
+    const { securityCode, signature } = ctx.request.body;
 
     const account = await models.Account.findOne({ where: { accountId } });
 
@@ -158,7 +162,7 @@ router.post('/account/:accountId/recoveryMethods', async ctx => {
         ctx.throw(404, `Account with id ${accountId} not found`);
     }
 
-    console.log(`TODO: verify that person who signed this stuff actually owns ${accountId}`, { signedStuff });
+    verifyAccountOwnership({ accountId, securityCode, signature });
 
     ctx.body = {
         email: account.email,
@@ -232,6 +236,15 @@ ${recoverUrl}
 
 const { parseSeedPhrase } = require('near-seed-phrase');
 
+router.post('/account/seedPhraseAdded', async ctx => {
+    const { accountId, timestamp, securityCode, signature } = ctx.request.body;
+    const [account] = await models.Account.findOrCreate({ where: { accountId } });
+
+    verifyAccountOwnership({ accountId, securityCode, signature });
+
+    account.update({ phraseAddedAt: timestamp });
+});
+
 router.post('/account/sendRecoveryMessage', async ctx => {
     const { accountId, phoneNumber, email, seedPhrase } = ctx.request.body;
 
@@ -241,17 +254,20 @@ router.post('/account/sendRecoveryMessage', async ctx => {
     const { publicKey } = parseSeedPhrase(seedPhrase);
     const nearAccount = await ctx.near.account(accountId);
     const keys = await nearAccount.getAccessKeys();
-    if (!keys.some(key => key.public_key == publicKey)) {
+    if (!keys.some(key => key.public_key === publicKey)) {
         ctx.throw(403, 'seed phrase doesn\'t match any access keys');
     }
 
-    const where = { accountId };
+    const [account] = await models.Account.findOrCreate({ where: { accountId } });
+
     if (phoneNumber) {
-        where.phoneNumber = phoneNumber;
-    } else if (email) {
-        where.email = email;
+        account.update({ phoneNumber, phoneAddedAt: new Date() });
     }
-    const [account] = await models.Account.findOrCreate({ where });
+
+    if (email) {
+        account.update({ email, emailAddedAt: new Date() });
+    }
+
     await sendRecoveryMessage({ ...account.dataValues, seedPhrase });
 
     ctx.body = {};
