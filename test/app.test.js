@@ -117,6 +117,14 @@ describe('/account/sendRecoveryMessage', () => {
 
 });
 
+const recoveryMethods = {
+    email: 'hello@example.com',
+    emailAddedAt: new Date(),
+    phoneAddedAt: new Date(),
+    phoneNumber: '+180086753098',
+    phraseAddedAt: new Date(),
+};
+
 describe('/account/:accountId/recoveryMethods', () => {
     test('returns 404 (accountId not found)', async () => {
         const response = await request.post('/account/illegitimate/recoveryMethods');
@@ -125,21 +133,56 @@ describe('/account/:accountId/recoveryMethods', () => {
 
     test('returns recovery methods (account found, verified ownership)', async () => {
         const accountId = `account-${Date.now()}`;
-
-        const attributes = {
-            email: 'hello@example.com',
-            emailAddedAt: new Date(),
-            phoneAddedAt: new Date(),
-            phoneNumber: '+180086753098',
-            phraseAddedAt: new Date(),
-        };
-
-        await models.Account.create({ accountId, ...attributes });
-
-        const response = await request.post(`/account/${accountId}/recoveryMethods`)
-            .send({ signedStuff: 'lol' });
-
+        await models.Account.create({ accountId, ...recoveryMethods });
+        const response = await request.post(`/account/${accountId}/recoveryMethods`);
         expect(response.status).toBe(200);
-        expect(response.body).toEqual(JSON.parse(JSON.stringify(attributes)));
+        expect(response.body).toEqual(JSON.parse(JSON.stringify(recoveryMethods)));
+    });
+});
+
+describe('DELETE /account/:accountId/:recoveryMethod', () => {
+    test('returns 400 (recoveryMethod invalid)', async () => {
+        const accountId = `account-${Date.now()}`;
+        await models.Account.create({ accountId });
+        const response = await request.delete(`/account/${accountId}/illegitimate`);
+        expect(response.status).toBe(400);
+    });
+
+    test('returns 404 (accountId not found)', async () => {
+        const response = await request.delete('/account/illegitimate/phone');
+        expect(response.status).toBe(404);
+    });
+
+    test('deletes specified recoveryMethod; returns recovery methods (account found, verified ownership, valid recoveryMethod)', async () => {
+        const accountId = `account-${Date.now()}`;
+        await models.Account.create({ accountId, ...recoveryMethods });
+
+        let response = await request.delete(`/account/${accountId}/phone`);
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual(JSON.parse(JSON.stringify({
+            ...recoveryMethods,
+            phoneNumber: null,
+            phoneAddedAt: null,
+        })));
+
+        response = await request.delete(`/account/${accountId}/email`);
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual(JSON.parse(JSON.stringify({
+            ...recoveryMethods,
+            email: null,
+            emailAddedAt: null,
+            phoneNumber: null,
+            phoneAddedAt: null,
+        })));
+
+        response = await request.delete(`/account/${accountId}/phrase`);
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual(JSON.parse(JSON.stringify({
+            email: null,
+            emailAddedAt: null,
+            phoneNumber: null,
+            phoneAddedAt: null,
+            phraseAddedAt: null,
+        })));
     });
 });

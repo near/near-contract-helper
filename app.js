@@ -20,7 +20,8 @@ app.use(async function(ctx, next) {
 
         if (
             e instanceof httpErrors.Forbidden ||
-            e instanceof httpErrors.NotFound
+            e instanceof httpErrors.NotFound ||
+            e instanceof httpErrors.BadRequest
         ) {
             ctx.throw(e);
         }
@@ -152,6 +153,16 @@ router.post('/account/:phoneNumber/:accountId/validateCode', async ctx => {
     ctx.body = {};
 });
 
+function recoveryMethodsFor(account) {
+    return {
+        email: account.email,
+        emailAddedAt: account.emailAddedAt,
+        phoneAddedAt: account.phoneAddedAt,
+        phoneNumber: account.phoneNumber,
+        phraseAddedAt: account.phraseAddedAt,
+    };
+}
+
 router.post('/account/:accountId/recoveryMethods', async ctx => {
     const { accountId } = ctx.params;
     const { securityCode, signature } = ctx.request.body;
@@ -159,18 +170,42 @@ router.post('/account/:accountId/recoveryMethods', async ctx => {
     const account = await models.Account.findOne({ where: { accountId } });
 
     if (!account) {
-        ctx.throw(404, `Account with id ${accountId} not found`);
+        ctx.throw(404, `Account with id '${accountId}' not found`);
     }
 
     verifyAccountOwnership({ accountId, securityCode, signature });
 
-    ctx.body = {
-        email: account.email,
-        emailAddedAt: account.emailAddedAt,
-        phoneAddedAt: account.phoneAddedAt,
-        phoneNumber: account.phoneNumber,
-        phraseAddedAt: account.phraseAddedAt,
-    };
+    ctx.body = recoveryMethodsFor(account);
+});
+
+const recoveryMethods = ['phone', 'email', 'phrase'];
+
+router.delete('/account/:accountId/:recoveryMethod', async ctx => {
+    const { accountId, recoveryMethod } = ctx.params;
+
+    if (!recoveryMethods.includes(recoveryMethod)) {
+        ctx.throw(400, `Given recoveryMethod '${recoveryMethod}' invalid; must be one of: ${recoveryMethods.join(', ')}`);
+    }
+
+    const account = await models.Account.findOne({ where: { accountId } });
+
+    if (!account) {
+        ctx.throw(404, `Could not find account with accountId: '${accountId}'`);
+    }
+
+    verifyAccountOwnership({ accountId });
+
+    if (recoveryMethod === 'phone') {
+        account.update({ phoneNumber: null, phoneAddedAt: null });
+    }
+    if (recoveryMethod === 'email') {
+        account.update({ email: null, emailAddedAt: null });
+    }
+    if (recoveryMethod === 'phrase') {
+        account.update({ phraseAddedAt: null });
+    }
+
+    ctx.body = recoveryMethodsFor(account);
 });
 
 const sendMail = async (options) => {
