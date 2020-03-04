@@ -60,8 +60,17 @@ app.use(async (ctx, next) => {
     await next();
 });
 
-function verifyAccountOwnership({ accountId, securityCode, signature }) {
-    console.log(`TODO: verify that person who signed this stuff actually owns '${accountId}'`, { securityCode, signature });
+async function verifyAccountOwnership({ ctx, accountId, securityCode, signature }) {
+    const nearAccount = await ctx.near.account(accountId);
+    let isSignatureValid;
+    try {
+        isSignatureValid = await verifySignature(nearAccount, securityCode, signature);
+    } catch (e) {
+        ctx.throw(403);
+    }
+    if (!isSignatureValid) {
+        ctx.throw(403);
+    }
 }
 
 const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT;
@@ -118,11 +127,7 @@ const crypto = require('crypto');
 const bs58 = require('bs58');
 const verifySignature = async (nearAccount, securityCode, signature) => {
     const hash = crypto.createHash('sha256').update(securityCode).digest();
-    const helperPublicKey = (await keyStore.getKey(recoveryKeyJson.account_id)).publicKey;
     const accessKeys = await nearAccount.getAccessKeys();
-    if (!accessKeys.find(it => it.public_key == helperPublicKey.toString())) {
-        throw Error(`Account ${nearAccount.accountId} doesn't have helper key`);
-    }
     return accessKeys.some(it => {
         const publicKey = it.public_key.replace('ed25519:', '');
         return nacl.sign.detached.verify(hash, Buffer.from(signature, 'base64'), bs58.decode(publicKey));
@@ -173,15 +178,15 @@ router.post('/account/:accountId/recoveryMethods', async ctx => {
         ctx.throw(404, `Account with id '${accountId}' not found`);
     }
 
-    verifyAccountOwnership({ accountId, securityCode, signature });
+    await verifyAccountOwnership({ ctx, accountId, securityCode, signature });
 
     ctx.body = recoveryMethodsFor(account);
 });
 
 const recoveryMethods = ['phone', 'email', 'phrase'];
 
-router.delete('/account/:accountId/:recoveryMethod', async ctx => {
-    const { accountId, recoveryMethod } = ctx.params;
+router.post('/account/deleteRecoveryMethod', async ctx => {
+    const { accountId, recoveryMethod, securityCode, signature } = ctx.request.body;
 
     if (!recoveryMethods.includes(recoveryMethod)) {
         ctx.throw(400, `Given recoveryMethod '${recoveryMethod}' invalid; must be one of: ${recoveryMethods.join(', ')}`);
@@ -193,7 +198,7 @@ router.delete('/account/:accountId/:recoveryMethod', async ctx => {
         ctx.throw(404, `Could not find account with accountId: '${accountId}'`);
     }
 
-    verifyAccountOwnership({ accountId });
+    await verifyAccountOwnership({ ctx, accountId, securityCode, signature });
 
     if (recoveryMethod === 'phone') {
         account.update({ phoneNumber: null, phoneAddedAt: null });
