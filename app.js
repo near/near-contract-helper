@@ -61,6 +61,16 @@ app.use(async (ctx, next) => {
 });
 
 async function verifyAccountOwnership({ ctx, accountId, securityCode, signature }) {
+    // ensure securityCode is a recent block
+    const givenBlock = Number(securityCode);
+    if (Number.isNaN(givenBlock)) ctx.throw(403);
+
+    const currentBlock = (await ctx.near.connection.provider.status()).sync_info.latest_block_height;
+    if (givenBlock > currentBlock) ctx.throw(403);
+    if (givenBlock < currentBlock - 100) ctx.throw(403);
+
+
+    // ensure signature matches accountId's signing of securityCode
     const nearAccount = await ctx.near.account(accountId);
     let isSignatureValid;
     try {

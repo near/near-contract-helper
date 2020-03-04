@@ -136,7 +136,11 @@ const recoveryMethods = {
 };
 
 async function signatureFor(accountId) {
-    const securityCode = 'some time-sensitive data, like current block number';
+    const near = await nearlib.connect({
+        deps: { keyStore },
+        nodeUrl: process.env.NODE_URL
+    });
+    const securityCode = String((await near.connection.provider.status()).sync_info.latest_block_height);
     const hash = Uint8Array.from(sha256.array(Buffer.from(securityCode)));
     const signedHash = await signHash(hash, accountId, NETWORK_ID);
     const signature = Buffer.from(signedHash.signature).toString('base64');
