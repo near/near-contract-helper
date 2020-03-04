@@ -172,6 +172,32 @@ describe('/account/:accountId/recoveryMethods', () => {
     });
 });
 
+describe('/account/seedPhraseAdded', () => {
+    test('returns 403 Forbidden (signature not from accountId owner)', async () => {
+        const accountId = await createNearAccount();
+
+        const response = await request.post('/account/seedPhraseAdded')
+            .send({ accountId, securityCode: 'lol', signature: 'wut' });
+
+        expect(response.status).toBe(403);
+        const account = await models.Account.findOne({ where: { accountId } });
+        expect(account).toBeFalsy();
+    });
+
+    test('finds/creates account, adds phraseAddedAt; returns recovery methods', async () => {
+        const accountId = await createNearAccount();
+        const { securityCode, signature } = await signatureFor(accountId);
+
+        const response = await request.post('/account/seedPhraseAdded')
+            .send({ accountId, securityCode, signature });
+
+        expect(response.status).toBe(200);
+        expect(response.body.phraseAddedAt).toBeTruthy();
+        const account = await models.Account.findOne({ where: { accountId } });
+        expect(account).toBeTruthy();
+    });
+});
+
 describe('/account/deleteRecoveryMethod', () => {
     test('returns 400 (recoveryMethod invalid)', async () => {
         const accountId = `account-${Date.now()}`;

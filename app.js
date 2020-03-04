@@ -277,12 +277,14 @@ ${recoverUrl}
 const { parseSeedPhrase } = require('near-seed-phrase');
 
 router.post('/account/seedPhraseAdded', async ctx => {
-    const { accountId, timestamp, securityCode, signature } = ctx.request.body;
+    const { accountId, securityCode, signature } = ctx.request.body;
+
+    await verifyAccountOwnership({ accountId, ctx, securityCode, signature });
+
     const [account] = await models.Account.findOrCreate({ where: { accountId } });
+    account.update({ phraseAddedAt: new Date() });
 
-    verifyAccountOwnership({ accountId, securityCode, signature });
-
-    account.update({ phraseAddedAt: timestamp });
+    ctx.body = recoveryMethodsFor(account);
 });
 
 router.post('/account/sendRecoveryMessage', async ctx => {
