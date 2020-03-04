@@ -170,11 +170,11 @@ router.post('/account/:phoneNumber/:accountId/validateCode', async ctx => {
 
 function recoveryMethodsFor(account) {
     return {
-        email: account.email,
-        emailAddedAt: account.emailAddedAt,
-        phoneAddedAt: account.phoneAddedAt,
-        phoneNumber: account.phoneNumber,
-        phraseAddedAt: account.phraseAddedAt,
+        email: account.email || null,
+        emailAddedAt: account.emailAddedAt || null,
+        phoneAddedAt: account.phoneAddedAt || null,
+        phoneNumber: account.phoneNumber || null,
+        phraseAddedAt: account.phraseAddedAt || null,
     };
 }
 
@@ -184,13 +184,9 @@ router.post('/account/:accountId/recoveryMethods', async ctx => {
 
     const account = await models.Account.findOne({ where: { accountId } });
 
-    if (!account) {
-        ctx.throw(404, `Account with id '${accountId}' not found`);
-    }
-
     await verifyAccountOwnership({ ctx, accountId, securityCode, signature });
 
-    ctx.body = recoveryMethodsFor(account);
+    ctx.body = recoveryMethodsFor(account || {});
 });
 
 const recoveryMethods = ['phone', 'email', 'phrase'];

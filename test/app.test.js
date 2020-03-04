@@ -148,9 +148,9 @@ async function signatureFor(accountId) {
 }
 
 describe('/account/:accountId/recoveryMethods', () => {
-    test('returns 404 (accountId not found)', async () => {
+    test('returns 403 Forbidden (accountId not valid NEAR account)', async () => {
         const response = await request.post('/account/illegitimate/recoveryMethods');
-        expect(response.status).toBe(404);
+        expect(response.status).toBe(403);
     });
 
     test('returns 403 Forbidden (signature not from accountId owner)', async () => {
@@ -173,6 +173,18 @@ describe('/account/:accountId/recoveryMethods', () => {
 
         expect(response.status).toBe(200);
         expect(response.body).toEqual(JSON.parse(JSON.stringify(recoveryMethods)));
+    });
+
+    test('returns empty recovery methods if accountId in NEAR but not yet in DB', async () => {
+        const accountId = await createNearAccount();
+        const { securityCode, signature } = await signatureFor(accountId);
+
+        const response = await request.post(`/account/${accountId}/recoveryMethods`)
+            .send({ signature, securityCode });
+
+        expect(response.status).toBe(200);
+        expect(response.body.email).toBeNull();
+        expect(response.body.phoneNumber).toBeNull();
     });
 });
 
