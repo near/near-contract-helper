@@ -3,7 +3,6 @@ const app = new Koa();
 
 const body = require('koa-json-body');
 const cors = require('@koa/cors');
-const httpErrors = require('http-errors');
 
 app.use(require('koa-logger')());
 app.use(body({ limit: '500kb', fallback: true }));
@@ -18,17 +17,17 @@ app.use(async function(ctx, next) {
             ctx.throw(e.response.status, e.response.text);
         }
 
-        if (
-            e instanceof httpErrors.Forbidden ||
-            e instanceof httpErrors.NotFound ||
-            e instanceof httpErrors.BadRequest
-        ) {
+        switch (e.status) {
+        case 400:
+        case 403:
+        case 404:
             ctx.throw(e);
+            break;
+        default:
+            // TODO: Figure out which errors should be exposed to user
+            console.error('Error: ', e, JSON.stringify(e));
+            ctx.throw(400, e.toString());
         }
-
-        // TODO: Figure out which errors should be exposed to user
-        console.error('Error: ', e, JSON.stringify(e));
-        ctx.throw(400, e.toString());
     }
 });
 
