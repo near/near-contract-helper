@@ -207,13 +207,13 @@ router.post('/account/deleteRecoveryMethod', async ctx => {
     await verifyAccountOwnership({ ctx, accountId, securityCode, signature });
 
     if (recoveryMethod === 'phone') {
-        account.update({ phoneNumber: null, phoneAddedAt: null });
+        await account.update({ phoneNumber: null, phoneAddedAt: null });
     }
     if (recoveryMethod === 'email') {
-        account.update({ email: null, emailAddedAt: null });
+        await account.update({ email: null, emailAddedAt: null });
     }
     if (recoveryMethod === 'phrase') {
-        account.update({ phraseAddedAt: null });
+        await account.update({ phraseAddedAt: null });
     }
 
     ctx.body = recoveryMethodsFor(account);
@@ -288,7 +288,7 @@ router.post('/account/seedPhraseAdded', async ctx => {
     await verifyAccountOwnership({ accountId, ctx, securityCode, signature });
 
     const [account] = await models.Account.findOrCreate({ where: { accountId } });
-    account.update({ phraseAddedAt: new Date() });
+    await account.update({ phraseAddedAt: new Date() });
 
     ctx.body = recoveryMethodsFor(account);
 });
@@ -309,11 +309,11 @@ router.post('/account/sendRecoveryMessage', async ctx => {
     const [account] = await models.Account.findOrCreate({ where: { accountId } });
 
     if (phoneNumber) {
-        account.update({ phoneNumber, phoneAddedAt: new Date() });
+        await account.update({ phoneNumber, phoneAddedAt: new Date() });
     }
 
     if (email) {
-        account.update({ email, emailAddedAt: new Date() });
+        await account.update({ email, emailAddedAt: new Date() });
     }
 
     await sendRecoveryMessage({ ...account.dataValues, seedPhrase });

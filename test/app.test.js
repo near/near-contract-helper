@@ -94,7 +94,6 @@ describe('/account/sendRecoveryMessage', () => {
         let account = await models.Account.findOne({
             where: { accountId: ctx.accountId }
         });
-        await account.reload();
         expect(account.email).toBe(email);
         expect(account.emailAddedAt).toBeTruthy();
 
@@ -109,7 +108,6 @@ describe('/account/sendRecoveryMessage', () => {
         account = await models.Account.findOne({
             where: { accountId: ctx.accountId }
         });
-        await account.reload();
         expect(account.phoneNumber).toBe(phoneNumber);
         expect(account.phoneAddedAt).toBeTruthy();
     });
