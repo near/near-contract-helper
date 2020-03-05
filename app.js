@@ -1,3 +1,4 @@
+const nearlib = require('nearlib');
 const Koa = require('koa');
 const app = new Koa();
 
@@ -35,19 +36,12 @@ const Router = require('koa-router');
 const router = new Router();
 
 const creatorKeyJson = JSON.parse(process.env.ACCOUNT_CREATOR_KEY);
-const recoveryKeyJson = JSON.parse(process.env.ACCOUNT_RECOVERY_KEY);
-const keyStore = {
-    async getKey(networkId, accountId) {
-        if (accountId === creatorKeyJson.account_id) {
-            return KeyPair.fromString(creatorKeyJson.secret_key || creatorKeyJson.private_key);
-        }
-        // For account recovery purposes use recovery key when updating any account
-        return KeyPair.fromString(recoveryKeyJson.secret_key || creatorKeyJson.private_key);
-    }
-};
-const { connect, KeyPair } = require('nearlib');
+const keyStore = new nearlib.keyStores.InMemoryKeyStore();
+const keyPair = nearlib.KeyPair.fromString(creatorKeyJson.secret_key);
+keyStore.setKey(process.env.NETWORK_ID, creatorKeyJson.account_id, keyPair);
+
 const nearPromise = (async () => {
-    const near = await connect({
+    const near = await nearlib.connect({
         deps: { keyStore },
         masterAccount: creatorKeyJson.account_id,
         nodeUrl: process.env.NODE_URL
@@ -139,30 +133,6 @@ const verifySignature = async (nearAccount, data, signedData) => {
         return false;
     }
 };
-
-// TODO: Different endpoints for setup and recovery
-router.post('/account/:phoneNumber/:accountId/validateCode', async ctx => {
-    const { phoneNumber, accountId } = ctx.params;
-    const { securityCode, signature, publicKey } = ctx.request.body;
-
-    const account = await models.Account.findOne({ where: { accountId, phoneNumber } });
-    if (!account || !account.securityCode || account.securityCode != securityCode) {
-        ctx.throw(401);
-    }
-    if (!account.confirmed) {
-        const nearAccount = await ctx.near.account(accountId);
-        const isSignatureValid = await verifySignature(nearAccount, securityCode, signature);
-        if (!isSignatureValid) {
-            ctx.throw(401);
-        }
-        await account.update({ securityCode: null, confirmed: true });
-    } else {
-        await (await ctx.near.account(accountId)).addKey(publicKey);
-        await account.update({ securityCode: null });
-    }
-
-    ctx.body = {};
-});
 
 function recoveryMethodsFor(account) {
     return {

@@ -19,7 +19,7 @@ const app = require('../app');
 
 const nearlib = require('nearlib');
 
-const NETWORK_ID = 'default'; // TODO: should this be set in .env?
+const NETWORK_ID = process.env.NETWORK_ID;
 const SEED_PHRASE = 'shoot island position soft burden budget tooth cruel issue economy destroy above';
 const keyPair = nearlib.KeyPair.fromString(parseSeedPhrase(SEED_PHRASE).secretKey);
 const ctx = {};
