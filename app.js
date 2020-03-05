@@ -60,27 +60,19 @@ app.use(async (ctx, next) => {
     await next();
 });
 
-async function verifyAccountOwnership({ ctx, accountId, securityCode, signature }) {
-    // ensure securityCode is a recent block
-    const givenBlock = Number(securityCode);
-    if (Number.isNaN(givenBlock)) ctx.throw(403);
-
+async function checkAccountOwnership(ctx, next) {
+    const { accountId, blockNumber, blockNumberSigned } = ctx.request.body;
     const currentBlock = (await ctx.near.connection.provider.status()).sync_info.latest_block_height;
-    if (givenBlock > currentBlock) ctx.throw(403);
-    if (givenBlock < currentBlock - 100) ctx.throw(403);
+    const givenBlock = Number(blockNumber);
 
-
-    // ensure signature matches accountId's signing of securityCode
-    const nearAccount = await ctx.near.account(accountId);
-    let isSignatureValid;
-    try {
-        isSignatureValid = await verifySignature(nearAccount, securityCode, signature);
-    } catch (e) {
-        ctx.throw(403);
+    if (givenBlock > currentBlock - 100 && givenBlock <= currentBlock) {
+        const nearAccount = await ctx.near.account(accountId);
+        if (await verifySignature(nearAccount, blockNumber, blockNumberSigned)) {
+            await next();
+            return;
+        }
     }
-    if (!isSignatureValid) {
-        ctx.throw(403);
-    }
+    ctx.throw(403);
 }
 
 const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT;
@@ -135,13 +127,18 @@ router.post('/account/:phoneNumber/:accountId/requestCode', async ctx => {
 const nacl = require('tweetnacl');
 const crypto = require('crypto');
 const bs58 = require('bs58');
-const verifySignature = async (nearAccount, securityCode, signature) => {
-    const hash = crypto.createHash('sha256').update(securityCode).digest();
-    const accessKeys = await nearAccount.getAccessKeys();
-    return accessKeys.some(it => {
-        const publicKey = it.public_key.replace('ed25519:', '');
-        return nacl.sign.detached.verify(hash, Buffer.from(signature, 'base64'), bs58.decode(publicKey));
-    });
+const verifySignature = async (nearAccount, data, signedData) => {
+    try {
+        const hash = crypto.createHash('sha256').update(data).digest();
+        const accessKeys = await nearAccount.getAccessKeys();
+        return accessKeys.some(it => {
+            const publicKey = it.public_key.replace('ed25519:', '');
+            return nacl.sign.detached.verify(hash, Buffer.from(signedData, 'base64'), bs58.decode(publicKey));
+        });
+    } catch (e) {
+        console.error(e);
+        return false;
+    }
 };
 
 // TODO: Different endpoints for setup and recovery
@@ -178,33 +175,37 @@ function recoveryMethodsFor(account) {
     };
 }
 
-router.post('/account/:accountId/recoveryMethods', async ctx => {
-    const { accountId } = ctx.params;
-    const { securityCode, signature } = ctx.request.body;
-
+router.post('/account/recoveryMethods', checkAccountOwnership, async ctx => {
+    const { accountId } = ctx.request.body;
     const account = await models.Account.findOne({ where: { accountId } });
-
-    await verifyAccountOwnership({ ctx, accountId, securityCode, signature });
-
     ctx.body = recoveryMethodsFor(account || {});
 });
 
 const recoveryMethods = ['phone', 'email', 'phrase'];
 
-router.post('/account/deleteRecoveryMethod', async ctx => {
-    const { accountId, recoveryMethod, securityCode, signature } = ctx.request.body;
-
-    if (!recoveryMethods.includes(recoveryMethod)) {
-        ctx.throw(400, `Given recoveryMethod '${recoveryMethod}' invalid; must be one of: ${recoveryMethods.join(', ')}`);
+async function checkRecoveryMethod(ctx, next) {
+    const { recoveryMethod } = ctx.request.body;
+    if (recoveryMethods.includes(recoveryMethod)) {
+        await next();
+        return;
     }
+    ctx.throw(400, `Given recoveryMethod '${recoveryMethod}' invalid; must be one of: ${recoveryMethods.join(', ')}`);
+}
+
+async function checkAccountInDB(ctx, next) {
+    const { accountId } = ctx.request.body;
+    const account = await models.Account.findOne({ where: { accountId } });
+    if (account) {
+        await next();
+        return;
+    }
+    ctx.throw(404, `Could not find account with accountId: '${accountId}'`);
+}
+
+router.post('/account/deleteRecoveryMethod', checkRecoveryMethod, checkAccountInDB, checkAccountOwnership, async ctx => {
+    const { accountId, recoveryMethod } = ctx.request.body;
 
     const account = await models.Account.findOne({ where: { accountId } });
-
-    if (!account) {
-        ctx.throw(404, `Could not find account with accountId: '${accountId}'`);
-    }
-
-    await verifyAccountOwnership({ ctx, accountId, securityCode, signature });
 
     if (recoveryMethod === 'phone') {
         await account.update({ phoneNumber: null, phoneAddedAt: null });
@@ -282,14 +283,10 @@ ${recoverUrl}
 
 const { parseSeedPhrase } = require('near-seed-phrase');
 
-router.post('/account/seedPhraseAdded', async ctx => {
-    const { accountId, securityCode, signature } = ctx.request.body;
-
-    await verifyAccountOwnership({ accountId, ctx, securityCode, signature });
-
-    const [account] = await models.Account.findOrCreate({ where: { accountId } });
+router.post('/account/seedPhraseAdded', checkAccountOwnership, async ctx => {
+    const { accountId } = ctx.request.body;
+    const [ account ] = await models.Account.findOrCreate({ where: { accountId } });
     await account.update({ phraseAddedAt: new Date() });
-
     ctx.body = recoveryMethodsFor(account);
 });
 
