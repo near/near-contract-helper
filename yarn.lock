@@ -357,10 +357,10 @@
     "@types/node" "*"
     "@types/range-parser" "*"
 
-"@types/express@^4.17.2":
-  version "4.17.2"
-  resolved "https://registry.yarnpkg.com/@types/express/-/express-4.17.2.tgz#a0fb7a23d8855bac31bc01d5a58cadd9b2173e6c"
-  integrity sha512-5mHFNyavtLoJmnusB8OKJ5bshSzw+qkMIBAobLrIM48HJvunFva9mOa6aBwh64lBFyNwBbs0xiEFuj4eU/NjCA==
+"@types/express@^4.17.3":
+  version "4.17.3"
+  resolved "https://registry.yarnpkg.com/@types/express/-/express-4.17.3.tgz#38e4458ce2067873b09a73908df488870c303bd9"
+  integrity sha512-I8cGRJj3pyOLs/HndoP+25vOqhqWkAZsWMEmq1qXy/b/M3ppufecUwaK2/TVDVxcV61/iSdhykUjQQ2DLSrTdg==
   dependencies:
     "@types/body-parser" "*"
     "@types/express-serve-static-core" "*"
@@ -1129,10 +1129,10 @@ data-urls@^1.0.0:
     whatwg-mimetype "^2.2.0"
     whatwg-url "^7.0.0"
 
-dayjs@^1.8.20:
-  version "1.8.20"
-  resolved "https://registry.yarnpkg.com/dayjs/-/dayjs-1.8.20.tgz#724a5cb6ad1f6fc066b0bd9a800dedcc7886f19e"
-  integrity sha512-mH0MCDxw6UCGJYxVN78h8ugWycZAO8thkj3bW6vApL5tS0hQplIDdAQcmbvl7n35H0AKdCJQaArTrIQw2xt4Qg==
+dayjs@^1.8.21:
+  version "1.8.21"
+  resolved "https://registry.yarnpkg.com/dayjs/-/dayjs-1.8.21.tgz#98299185b72b9b679f31c7ed987b63923c961552"
+  integrity sha512-1kbWK0hziklUHkGgiKr7xm59KwAg/K3Tp7H/8X+f58DnNCwY3pKYjOCJpIlVs125FRBukGVZdKZojC073D0IeQ==
 
 debug@^2.2.0, debug@^2.3.3:
   version "2.6.9"
@@ -4668,13 +4668,13 @@ tweetnacl@^1.0.1, tweetnacl@^1.0.2, tweetnacl@^1.0.3:
   resolved "https://registry.yarnpkg.com/tweetnacl/-/tweetnacl-1.0.3.tgz#ac0af71680458d8a6378d0d0d050ab1407d35596"
   integrity sha512-6rt+RN7aOi1nGMyC4Xa5DdYiukl2UWCbcJft7YhxReBGQD7OAM8Pbxw6YMo4r2diNEA8FEmu32YOn9rhaiE5yw==
 
-twilio@^3.39.5:
-  version "3.39.5"
-  resolved "https://registry.yarnpkg.com/twilio/-/twilio-3.39.5.tgz#1512ae1de83441609acf7328a75442c439e6c3af"
-  integrity sha512-IuiHFRuq7e+rXMNRDqwXo16ITefPsPh1reI/rRKFVbvRNRY88LnnN5Qdjyw90UWqWxqMwGqYXt253tAvt1pI3g==
+twilio@^3.40.0:
+  version "3.40.0"
+  resolved "https://registry.yarnpkg.com/twilio/-/twilio-3.40.0.tgz#0a231a2b82b93aad0ac6c2b13d538a68bf0de119"
+  integrity sha512-aXDhmEm5RWMd+5kVbfMp1WTZIGiDwzuLewkzqhWE0eww2T6/PvK4Q4NoPJXDGh7LbcUjRhaS/8PzioSURAqDPw==
   dependencies:
-    "@types/express" "^4.17.2"
-    dayjs "^1.8.20"
+    "@types/express" "^4.17.3"
+    dayjs "^1.8.21"
     jsonwebtoken "^8.5.1"
     lodash "^4.17.15"
     q "2.0.x"
