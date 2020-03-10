@@ -150,7 +150,17 @@ router.post('/account/recoveryMethods', checkAccountOwnership, async ctx => {
     ctx.body = recoveryMethodsFor(account || {});
 });
 
-const recoveryMethodUpdaters = {
+async function withAccount(ctx, next) {
+    const { accountId } = ctx.request.body;
+    ctx.account = await models.Account.findOne({ where: { accountId } });
+    if (ctx.account) {
+        await next();
+        return;
+    }
+    ctx.throw(404, `Could not find account with accountId: '${accountId}'`);
+}
+
+const recoveryMethodDeleters = {
     phone: account => account.update({ phoneNumber: null, phoneAddedAt: null }),
     email: account => account.update({ email: null, emailAddedAt: null }),
     phrase: account => account.update({ phraseAddedAt: null })
@@ -158,7 +168,7 @@ const recoveryMethodUpdaters = {
 
 async function checkRecoveryMethod(ctx, next) {
     const { recoveryMethod } = ctx.request.body;
-    const allRecoveryMethods = Object.keys(recoveryMethodUpdaters);
+    const allRecoveryMethods = Object.keys(recoveryMethodDeleters);
     if (allRecoveryMethods.includes(recoveryMethod)) {
         await next();
         return;
@@ -166,22 +176,17 @@ async function checkRecoveryMethod(ctx, next) {
     ctx.throw(400, `Given recoveryMethod '${recoveryMethod}' invalid; must be one of: ${allRecoveryMethods.join(', ')}`);
 }
 
-async function checkAccountInDB(ctx, next) {
-    const { accountId } = ctx.request.body;
-    const account = await models.Account.findOne({ where: { accountId } });
-    if (account) {
-        await next();
-        return;
+router.post(
+    '/account/deleteRecoveryMethod',
+    withAccount,
+    checkRecoveryMethod,
+    checkAccountOwnership,
+    async ctx => {
+        const { recoveryMethod } = ctx.request.body;
+        await recoveryMethodDeleters[recoveryMethod](ctx.account);
+        ctx.body = recoveryMethodsFor(ctx.account);
     }
-    ctx.throw(404, `Could not find account with accountId: '${accountId}'`);
-}
-
-router.post('/account/deleteRecoveryMethod', checkRecoveryMethod, checkAccountInDB, checkAccountOwnership, async ctx => {
-    const { accountId, recoveryMethod } = ctx.request.body;
-    const account = await models.Account.findOne({ where: { accountId } });
-    await recoveryMethodUpdaters[recoveryMethod](account);
-    ctx.body = recoveryMethodsFor(account);
-});
+);
 
 const sendMail = async (options) => {
     if (process.env.NODE_ENV == 'production') {
