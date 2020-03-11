@@ -36,10 +36,10 @@ const recoveryKeyJson = JSON.parse(process.env.ACCOUNT_RECOVERY_KEY);
 const keyStore = {
     async getKey(networkId, accountId) {
         if (accountId == creatorKeyJson.account_id) {
-            return KeyPair.fromString(creatorKeyJson.secret_key);
+            return KeyPair.fromString(creatorKeyJson.secret_key || creatorKeyJson.private_key);
         }
         // For account recovery purposes use recovery key when updating any account
-        return KeyPair.fromString(recoveryKeyJson.secret_key);
+        return KeyPair.fromString(recoveryKeyJson.secret_key || creatorKeyJson.private_key);
     }
 };
 const { connect, KeyPair } = require('nearlib');
