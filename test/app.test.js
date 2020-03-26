@@ -94,8 +94,9 @@ describe('/account/sendRecoveryMessage', () => {
         let account = await models.Account.findOne({
             where: { accountId: ctx.accountId }
         });
-        expect(account.email).toBe(email);
-        expect(account.emailAddedAt).toBeTruthy();
+        let recoveryMethods = await account.getRecoveryMethods();
+        expect(recoveryMethods.length).toBe(1);
+        expect(recoveryMethods[0].kind).toBe('email');
 
 
         const phoneNumber = '+1.800.867.5309';
@@ -105,11 +106,10 @@ describe('/account/sendRecoveryMessage', () => {
                 phoneNumber,
                 seedPhrase: SEED_PHRASE
             });
-        account = await models.Account.findOne({
-            where: { accountId: ctx.accountId }
-        });
-        expect(account.phoneNumber).toBe(phoneNumber);
-        expect(account.phoneAddedAt).toBeTruthy();
+        await account.reload();
+        recoveryMethods = await account.getRecoveryMethods();
+        expect(recoveryMethods.length).toBe(2);
+        expect(recoveryMethods[1].kind).toBe('phone');
     });
 
     test('send email (wrong seed phrase)', async () => {
@@ -125,13 +125,11 @@ describe('/account/sendRecoveryMessage', () => {
 
 });
 
-const recoveryMethods = {
-    email: 'hello@example.com',
-    emailAddedAt: new Date(),
-    phoneAddedAt: new Date(),
-    phoneNumber: '+180086753098',
-    phraseAddedAt: new Date(),
-};
+const recoveryMethods = [
+    { kind: 'email', detail: 'hello@example.com', publicKey: 'pk' },
+    { kind: 'phone', detail: '+1 717 555 0101', publicKey: 'pk' },
+    { kind: 'phrase', publicKey: 'pk' },
+];
 
 async function signatureFor(accountId, valid = true) {
     const near = await nearlib.connect({
@@ -156,7 +154,7 @@ describe('/account/recoveryMethods', () => {
 
     test('returns 403 Forbidden (signature not from accountId owner)', async () => {
         const accountId = await createNearAccount();
-        await models.Account.create({ accountId, ...recoveryMethods });
+        await models.Account.create({ accountId });
 
         const response = await request.post('/account/recoveryMethods')
             .send({ accountId, ...(await signatureFor(accountId, false)) });
@@ -166,13 +164,29 @@ describe('/account/recoveryMethods', () => {
 
     test('returns recovery methods (account found, verified ownership)', async () => {
         const accountId = await createNearAccount();
-        await models.Account.create({ accountId, ...recoveryMethods });
+        const account = await models.Account.create({ accountId });
+        await Promise.all(recoveryMethods.map(m =>
+            account.createRecoveryMethod(m)
+        ));
 
         const response = await request.post('/account/recoveryMethods')
             .send({ accountId, ...(await signatureFor(accountId)) });
 
         expect(response.status).toBe(200);
-        expect(response.body).toEqual(JSON.parse(JSON.stringify(recoveryMethods)));
+
+        expect(response.body.email).toBeTruthy();
+        expect(response.body.email.createdAt).toBeTruthy();
+        expect(response.body.email.detail).toBeTruthy();
+        expect(response.body.email.publicKey).toBeTruthy();
+
+        expect(response.body.phone).toBeTruthy();
+        expect(response.body.phone.createdAt).toBeTruthy();
+        expect(response.body.phone.detail).toBeTruthy();
+        expect(response.body.phone.publicKey).toBeTruthy();
+
+        expect(response.body.phrase).toBeTruthy();
+        expect(response.body.phone.createdAt).toBeTruthy();
+        expect(response.body.phone.publicKey).toBeTruthy();
     });
 
     test('returns empty recovery methods if accountId in NEAR but not yet in DB', async () => {
@@ -182,8 +196,8 @@ describe('/account/recoveryMethods', () => {
             .send({ accountId, ...(await signatureFor(accountId)) });
 
         expect(response.status).toBe(200);
-        expect(response.body.email).toBeNull();
-        expect(response.body.phoneNumber).toBeNull();
+        expect(response.body.email).toBe(undefined);
+        expect(response.body.phoneNumber).toBe(undefined);
     });
 });
 
@@ -199,14 +213,24 @@ describe('/account/seedPhraseAdded', () => {
         expect(account).toBeFalsy();
     });
 
-    test('finds/creates account, adds phraseAddedAt; returns recovery methods', async () => {
+    test('requires a publicKey', async () => {
         const accountId = await createNearAccount();
 
         const response = await request.post('/account/seedPhraseAdded')
             .send({ accountId, ...(await signatureFor(accountId)) });
 
+        expect(response.status).toBe(400);
+    });
+
+    test('finds/creates account, adds phraseAddedAt; returns recovery methods', async () => {
+        const accountId = await createNearAccount();
+        const publicKey = nearlib.KeyPair.fromRandom('ED25519').publicKey.toString();
+
+        const response = await request.post('/account/seedPhraseAdded')
+            .send({ accountId, publicKey, ...(await signatureFor(accountId)) });
+
         expect(response.status).toBe(200);
-        expect(response.body.phraseAddedAt).toBeTruthy();
+        expect(response.body.phrase).toBeTruthy();
         const account = await models.Account.findOne({ where: { accountId } });
         expect(account).toBeTruthy();
     });
@@ -235,7 +259,7 @@ describe('/account/deleteRecoveryMethod', () => {
 
     test('returns 403 Forbidden (signature not from accountId owner)', async () => {
         const accountId = await createNearAccount();
-        await models.Account.create({ accountId, ...recoveryMethods });
+        await models.Account.create({ accountId });
 
         let response = await request.post('/account/deleteRecoveryMethod')
             .send({
@@ -249,29 +273,30 @@ describe('/account/deleteRecoveryMethod', () => {
 
     test('deletes specified recoveryMethod; returns recovery methods (account found, verified ownership, valid recoveryMethod)', async () => {
         const accountId = await createNearAccount();
-        const account = await models.Account.create({ accountId, ...recoveryMethods });
+        const account = await models.Account.create({ accountId });
+        await Promise.all(recoveryMethods.map(m =>
+            account.createRecoveryMethod(m)
+        ));
         const signature = await signatureFor(accountId);
 
         let response = await request.post('/account/deleteRecoveryMethod')
             .send({ accountId, recoveryMethod: 'phone', ...signature });
         expect(response.status).toBe(200);
         await account.reload();
-        expect(response.body.phoneNumber).toBeNull();
-        expect(response.body.phoneAddedAt).toBeNull();
+        expect(response.body.phone).toBe(undefined);
         expect(response.body.email).toBeTruthy();
 
         response = await request.post('/account/deleteRecoveryMethod')
             .send({ accountId, recoveryMethod: 'email', ...signature });
         expect(response.status).toBe(200);
         await account.reload();
-        expect(response.body.email).toBeNull();
-        expect(response.body.emailAddedAt).toBeNull();
-        expect(response.body.phraseAddedAt).toBeTruthy();
+        expect(response.body.email).toBe(undefined);
+        expect(response.body.phrase).toBeTruthy();
 
         response = await request.post('/account/deleteRecoveryMethod')
             .send({ accountId, recoveryMethod: 'phrase', ...signature });
         expect(response.status).toBe(200);
         await account.reload();
-        expect(response.body.phraseAddedAt).toBeNull();
+        expect(response.body.phrase).toBe(undefined);
     });
 });

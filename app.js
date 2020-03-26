@@ -134,20 +134,26 @@ const verifySignature = async (nearAccount, data, signedData) => {
     }
 };
 
-function recoveryMethodsFor(account) {
-    return {
-        email: account.email || null,
-        emailAddedAt: account.emailAddedAt || null,
-        phoneAddedAt: account.phoneAddedAt || null,
-        phoneNumber: account.phoneNumber || null,
-        phraseAddedAt: account.phraseAddedAt || null,
-    };
+async function recoveryMethodsFor(account) {
+    if (!account) return {};
+
+    return await account.getRecoveryMethods().reduce(
+        (acc, recoveryMethod) => {
+            acc[recoveryMethod.kind] = {
+                createdAt: recoveryMethod.createdAt,
+                detail: recoveryMethod.detail,
+                publicKey: recoveryMethod.publicKey
+            };
+            return acc;
+        },
+        {}
+    );
 }
 
 router.post('/account/recoveryMethods', checkAccountOwnership, async ctx => {
     const { accountId } = ctx.request.body;
     const account = await models.Account.findOne({ where: { accountId } });
-    ctx.body = recoveryMethodsFor(account || {});
+    ctx.body = await recoveryMethodsFor(account);
 });
 
 async function withAccount(ctx, next) {
@@ -160,20 +166,15 @@ async function withAccount(ctx, next) {
     ctx.throw(404, `Could not find account with accountId: '${accountId}'`);
 }
 
-const recoveryMethodDeleters = {
-    phone: account => account.update({ phoneNumber: null, phoneAddedAt: null }),
-    email: account => account.update({ email: null, emailAddedAt: null }),
-    phrase: account => account.update({ phraseAddedAt: null })
-};
+const recoveryMethods = ['email', 'phone', 'phrase'];
 
 async function checkRecoveryMethod(ctx, next) {
     const { recoveryMethod } = ctx.request.body;
-    const allRecoveryMethods = Object.keys(recoveryMethodDeleters);
-    if (allRecoveryMethods.includes(recoveryMethod)) {
+    if (recoveryMethods.includes(recoveryMethod)) {
         await next();
         return;
     }
-    ctx.throw(400, `Given recoveryMethod '${recoveryMethod}' invalid; must be one of: ${allRecoveryMethods.join(', ')}`);
+    ctx.throw(400, `Given recoveryMethod '${recoveryMethod}' invalid; must be one of: ${recoveryMethods.join(', ')}`);
 }
 
 router.post(
@@ -182,9 +183,11 @@ router.post(
     checkRecoveryMethod,
     checkAccountOwnership,
     async ctx => {
-        const { recoveryMethod } = ctx.request.body;
-        await recoveryMethodDeleters[recoveryMethod](ctx.account);
-        ctx.body = recoveryMethodsFor(ctx.account);
+        const [recoveryMethod] = await ctx.account.getRecoveryMethods({
+            where: { kind: ctx.request.body.recoveryMethod }
+        });
+        await ctx.account.removeRecoveryMethod(recoveryMethod);
+        ctx.body = await recoveryMethodsFor(ctx.account);
     }
 );
 
@@ -251,12 +254,26 @@ ${recoverUrl}
 
 const { parseSeedPhrase } = require('near-seed-phrase');
 
-router.post('/account/seedPhraseAdded', checkAccountOwnership, async ctx => {
-    const { accountId } = ctx.request.body;
-    const [ account ] = await models.Account.findOrCreate({ where: { accountId } });
-    await account.update({ phraseAddedAt: new Date() });
-    ctx.body = recoveryMethodsFor(account);
-});
+async function withPublicKey(ctx, next) {
+    ctx.publicKey = ctx.request.body.publicKey;
+    if (ctx.publicKey) {
+        await next();
+        return;
+    }
+    ctx.throw(400, 'Must provide valid publicKey');
+}
+
+router.post(
+    '/account/seedPhraseAdded',
+    checkAccountOwnership,
+    withPublicKey,
+    async ctx => {
+        const { accountId } = ctx.request.body;
+        const [ account ] = await models.Account.findOrCreate({ where: { accountId } });
+        await account.createRecoveryMethod({ kind: 'phrase', publicKey: ctx.publicKey });
+        ctx.body = await recoveryMethodsFor(account);
+    }
+);
 
 router.post('/account/sendRecoveryMessage', async ctx => {
     const { accountId, phoneNumber, email, seedPhrase } = ctx.request.body;
@@ -272,16 +289,18 @@ router.post('/account/sendRecoveryMessage', async ctx => {
     }
 
     const [account] = await models.Account.findOrCreate({ where: { accountId } });
+    account.createRecoveryMethod({
+        kind: phoneNumber ? 'phone' : 'email',
+        detail: phoneNumber || email,
+        publicKey,
+    });
 
-    if (phoneNumber) {
-        await account.update({ phoneNumber, phoneAddedAt: new Date() });
-    }
-
-    if (email) {
-        await account.update({ email, emailAddedAt: new Date() });
-    }
-
-    await sendRecoveryMessage({ ...account.dataValues, seedPhrase });
+    await sendRecoveryMessage({
+        accountId: account.accountId,
+        email,
+        phoneNumber,
+        seedPhrase,
+    });
 
     ctx.body = {};
 });
