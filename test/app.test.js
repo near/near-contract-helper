@@ -1,7 +1,6 @@
 const assert = require('assert');
 const supertest = require('supertest');
 const { parseSeedPhrase } = require('near-seed-phrase');
-const sha256 = require('js-sha256');
 const models = require('../models');
 
 const MASTER_KEY_INFO = {
@@ -19,7 +18,6 @@ const app = require('../app');
 
 const nearlib = require('nearlib');
 
-const NETWORK_ID = process.env.NETWORK_ID;
 const SEED_PHRASE = 'shoot island position soft burden budget tooth cruel issue economy destroy above';
 const keyPair = nearlib.KeyPair.fromString(parseSeedPhrase(SEED_PHRASE).secretKey);
 const ctx = {};
@@ -46,10 +44,6 @@ afterEach(() => {
 const keyStore = new nearlib.keyStores.InMemoryKeyStore();
 const inMemorySigner = new nearlib.InMemorySigner(keyStore);
 
-async function signHash(hash, accountId, networkId) {
-    return inMemorySigner.signHash(hash, accountId, networkId);
-}
-
 async function createNearAccount() {
     const accountId = `helper-test-${Date.now()}`;
     const response = await request.post('/account')
@@ -57,7 +51,7 @@ async function createNearAccount() {
             newAccountId: accountId,
             newAccountPublicKey: keyPair.publicKey.toString()
         });
-    keyStore.setKey(NETWORK_ID, accountId, keyPair);
+    keyStore.setKey(undefined, accountId, keyPair);
     assert.equal(response.status, 200);
     return accountId;
 }
@@ -139,8 +133,8 @@ async function signatureFor(accountId, valid = true) {
     let blockNumber = (await near.connection.provider.status()).sync_info.latest_block_height;
     if (!valid) blockNumber = blockNumber - 101;
     blockNumber = String(blockNumber);
-    const hash = Uint8Array.from(sha256.array(Buffer.from(blockNumber)));
-    const signedHash = await signHash(hash, accountId, NETWORK_ID);
+    const message = Buffer.from(blockNumber);
+    const signedHash = await inMemorySigner.signMessage(message, accountId);
     const blockNumberSigned = Buffer.from(signedHash.signature).toString('base64');
     return { blockNumber, blockNumberSigned };
 }
