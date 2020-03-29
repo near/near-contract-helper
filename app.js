@@ -36,9 +36,11 @@ const Router = require('koa-router');
 const router = new Router();
 
 const creatorKeyJson = JSON.parse(process.env.ACCOUNT_CREATOR_KEY);
-const keyStore = new nearlib.keyStores.InMemoryKeyStore();
-const keyPair = nearlib.KeyPair.fromString(creatorKeyJson.secret_key || creatorKeyJson.private_key);
-keyStore.setKey(process.env.NETWORK_ID, creatorKeyJson.account_id, keyPair);
+const keyStore = {
+    async getKey() {
+        return nearlib.KeyPair.fromString(creatorKeyJson.secret_key || creatorKeyJson.private_key);
+    }
+};
 
 const nearPromise = (async () => {
     const near = await nearlib.connect({
