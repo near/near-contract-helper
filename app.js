@@ -55,19 +55,28 @@ app.use(async (ctx, next) => {
     await next();
 });
 
+const VALID_BLOCK_AGE = 100;
+
 async function checkAccountOwnership(ctx, next) {
     const { accountId, blockNumber, blockNumberSigned } = ctx.request.body;
+    if (!accountId || !blockNumber || !blockNumberSigned) {
+        ctx.throw(403, 'You must provide an accountId, blockNumber, and blockNumberSigned');
+    }
+
+
     const currentBlock = (await ctx.near.connection.provider.status()).sync_info.latest_block_height;
     const givenBlock = Number(blockNumber);
 
-    if (givenBlock > currentBlock - 100 && givenBlock <= currentBlock) {
-        const nearAccount = await ctx.near.account(accountId);
-        if (await verifySignature(nearAccount, blockNumber, blockNumberSigned)) {
-            await next();
-            return;
-        }
+    if (givenBlock <= currentBlock - VALID_BLOCK_AGE || givenBlock > currentBlock) {
+        ctx.throw(403, `You must provide a blockNumber within ${VALID_BLOCK_AGE} of the most recent block; provided: ${blockNumber}, current: ${currentBlock}`);
     }
-    ctx.throw(403);
+
+    const nearAccount = await ctx.near.account(accountId);
+    if (!(await verifySignature(nearAccount, blockNumber, blockNumberSigned))) {
+        ctx.throw(403, `blockNumberSigned did not match a signature of blockNumber=${blockNumber} from accountId=${accountId}`);
+    }
+
+    return await next();
 }
 
 const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT;
