@@ -146,19 +146,14 @@ const verifySignature = async (nearAccount, data, signedData) => {
 };
 
 async function recoveryMethodsFor(account) {
-    if (!account) return {};
+    if (!account) return [];
 
-    return await account.getRecoveryMethods().reduce(
-        (acc, recoveryMethod) => {
-            acc[recoveryMethod.kind] = {
-                createdAt: recoveryMethod.createdAt,
-                detail: recoveryMethod.detail,
-                publicKey: recoveryMethod.publicKey
-            };
-            return acc;
-        },
-        {}
-    );
+    return await account.getRecoveryMethods().map(recoveryMethod => ({
+        kind: recoveryMethod.kind,
+        createdAt: recoveryMethod.createdAt,
+        detail: recoveryMethod.detail,
+        publicKey: recoveryMethod.publicKey
+    }));
 }
 
 router.post('/account/recoveryMethods', checkAccountOwnership, async ctx => {

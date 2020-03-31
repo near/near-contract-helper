@@ -168,19 +168,23 @@ describe('/account/recoveryMethods', () => {
 
         expect(response.status).toBe(200);
 
-        expect(response.body.email).toBeTruthy();
-        expect(response.body.email.createdAt).toBeTruthy();
-        expect(response.body.email.detail).toBeTruthy();
-        expect(response.body.email.publicKey).toBeTruthy();
+        const email = response.body.find(m => m.kind === 'email');
+        const phone = response.body.find(m => m.kind === 'phone');
+        const phrase = response.body.find(m => m.kind === 'phrase');
 
-        expect(response.body.phone).toBeTruthy();
-        expect(response.body.phone.createdAt).toBeTruthy();
-        expect(response.body.phone.detail).toBeTruthy();
-        expect(response.body.phone.publicKey).toBeTruthy();
+        expect(email).toBeTruthy();
+        expect(email.createdAt).toBeTruthy();
+        expect(email.detail).toBeTruthy();
+        expect(email.publicKey).toBeTruthy();
 
-        expect(response.body.phrase).toBeTruthy();
-        expect(response.body.phone.createdAt).toBeTruthy();
-        expect(response.body.phone.publicKey).toBeTruthy();
+        expect(phone).toBeTruthy();
+        expect(phone.createdAt).toBeTruthy();
+        expect(phone.detail).toBeTruthy();
+        expect(phone.publicKey).toBeTruthy();
+
+        expect(phrase).toBeTruthy();
+        expect(phone.createdAt).toBeTruthy();
+        expect(phone.publicKey).toBeTruthy();
     });
 
     test('returns empty recovery methods if accountId in NEAR but not yet in DB', async () => {
@@ -190,8 +194,7 @@ describe('/account/recoveryMethods', () => {
             .send({ accountId, ...(await signatureFor(accountId)) });
 
         expect(response.status).toBe(200);
-        expect(response.body.email).toBe(undefined);
-        expect(response.body.phoneNumber).toBe(undefined);
+        expect(response.body.length).toBe(0);
     });
 });
 
@@ -224,7 +227,8 @@ describe('/account/seedPhraseAdded', () => {
             .send({ accountId, publicKey, ...(await signatureFor(accountId)) });
 
         expect(response.status).toBe(200);
-        expect(response.body.phrase).toBeTruthy();
+        expect(response.body.length).toBe(1);
+        expect(response.body[0].kind).toBe('phrase');
         const account = await models.Account.findOne({ where: { accountId } });
         expect(account).toBeTruthy();
     });
@@ -277,20 +281,20 @@ describe('/account/deleteRecoveryMethod', () => {
             .send({ accountId, recoveryMethod: 'phone', ...signature });
         expect(response.status).toBe(200);
         await account.reload();
-        expect(response.body.phone).toBe(undefined);
-        expect(response.body.email).toBeTruthy();
+        expect(response.body.length).toBe(2);
+        expect(response.body.map(m => m.kind)).toEqual(['email', 'phrase']);
 
         response = await request.post('/account/deleteRecoveryMethod')
             .send({ accountId, recoveryMethod: 'email', ...signature });
         expect(response.status).toBe(200);
         await account.reload();
-        expect(response.body.email).toBe(undefined);
-        expect(response.body.phrase).toBeTruthy();
+        expect(response.body.length).toBe(1);
+        expect(response.body.map(m => m.kind)).toEqual(['phrase']);
 
         response = await request.post('/account/deleteRecoveryMethod')
             .send({ accountId, recoveryMethod: 'phrase', ...signature });
         expect(response.status).toBe(200);
         await account.reload();
-        expect(response.body.phrase).toBe(undefined);
+        expect(response.body.length).toBe(0);
     });
 });
