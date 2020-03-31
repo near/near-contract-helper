@@ -15,7 +15,7 @@ module.exports = {
                     )
                 ]).then(([[phoneRecords], [emailRecords]]) => {
                     Promise.all([
-                        queryInterface.bulkInsert(
+                        phoneRecords.length && queryInterface.bulkInsert(
                             'RecoveryMethods',
                             phoneRecords.map(account => ({
                                 AccountId: account.id,
@@ -26,7 +26,7 @@ module.exports = {
                             })),
                             { transaction }
                         ),
-                        queryInterface.bulkInsert(
+                        emailRecords.length && queryInterface.bulkInsert(
                             'RecoveryMethods',
                             emailRecords.map(account => ({
                                 AccountId: account.id,
