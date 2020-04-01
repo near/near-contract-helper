@@ -58,9 +58,9 @@ app.use(async (ctx, next) => {
 const VALID_BLOCK_AGE = 100;
 
 async function checkAccountOwnership(ctx, next) {
-    const { accountId, blockNumber, blockNumberSigned } = ctx.request.body;
-    if (!accountId || !blockNumber || !blockNumberSigned) {
-        ctx.throw(403, 'You must provide an accountId, blockNumber, and blockNumberSigned');
+    const { accountId, blockNumber, blockNumberSignature } = ctx.request.body;
+    if (!accountId || !blockNumber || !blockNumberSignature) {
+        ctx.throw(403, 'You must provide an accountId, blockNumber, and blockNumberSignature');
     }
 
 
@@ -72,8 +72,8 @@ async function checkAccountOwnership(ctx, next) {
     }
 
     const nearAccount = await ctx.near.account(accountId);
-    if (!(await verifySignature(nearAccount, blockNumber, blockNumberSigned))) {
-        ctx.throw(403, `blockNumberSigned did not match a signature of blockNumber=${blockNumber} from accountId=${accountId}`);
+    if (!(await verifySignature(nearAccount, blockNumber, blockNumberSignature))) {
+        ctx.throw(403, `blockNumberSignature did not match a signature of blockNumber=${blockNumber} from accountId=${accountId}`);
     }
 
     return await next();
@@ -131,13 +131,13 @@ router.post('/account/:phoneNumber/:accountId/requestCode', async ctx => {
 const nacl = require('tweetnacl');
 const crypto = require('crypto');
 const bs58 = require('bs58');
-const verifySignature = async (nearAccount, data, signedData) => {
+const verifySignature = async (nearAccount, data, signature) => {
     try {
         const hash = crypto.createHash('sha256').update(data).digest();
         const accessKeys = await nearAccount.getAccessKeys();
         return accessKeys.some(it => {
             const publicKey = it.public_key.replace('ed25519:', '');
-            return nacl.sign.detached.verify(hash, Buffer.from(signedData, 'base64'), bs58.decode(publicKey));
+            return nacl.sign.detached.verify(hash, Buffer.from(signature, 'base64'), bs58.decode(publicKey));
         });
     } catch (e) {
         console.error(e);

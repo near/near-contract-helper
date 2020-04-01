@@ -135,8 +135,8 @@ async function signatureFor(accountId, valid = true) {
     blockNumber = String(blockNumber);
     const message = Buffer.from(blockNumber);
     const signedHash = await inMemorySigner.signMessage(message, accountId);
-    const blockNumberSigned = Buffer.from(signedHash.signature).toString('base64');
-    return { blockNumber, blockNumberSigned };
+    const blockNumberSignature = Buffer.from(signedHash.signature).toString('base64');
+    return { blockNumber, blockNumberSignature };
 }
 
 describe('/account/recoveryMethods', () => {
