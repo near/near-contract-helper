@@ -148,12 +148,9 @@ const verifySignature = async (nearAccount, data, signature) => {
 async function recoveryMethodsFor(account) {
     if (!account) return [];
 
-    return await account.getRecoveryMethods().map(recoveryMethod => ({
-        kind: recoveryMethod.kind,
-        createdAt: recoveryMethod.createdAt,
-        detail: recoveryMethod.detail,
-        publicKey: recoveryMethod.publicKey
-    }));
+    return await account.getRecoveryMethods({
+        attributes: ['createdAt', 'detail', 'kind', 'publicKey']
+    }).map(m => m.toJSON());
 }
 
 router.post('/account/recoveryMethods', checkAccountOwnership, async ctx => {
