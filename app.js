@@ -299,7 +299,7 @@ router.post('/account/sendRecoveryMessage', async ctx => {
     });
 
     await sendRecoveryMessage({
-        accountId: account.accountId,
+        accountId,
         email,
         phoneNumber,
         seedPhrase,
