@@ -1,9 +1,9 @@
+const nearlib = require('nearlib');
 const Koa = require('koa');
 const app = new Koa();
 
 const body = require('koa-json-body');
 const cors = require('@koa/cors');
-const httpErrors = require('http-errors');
 
 app.use(require('koa-logger')());
 app.use(body({ limit: '500kb', fallback: true }));
@@ -18,13 +18,17 @@ app.use(async function(ctx, next) {
             ctx.throw(e.response.status, e.response.text);
         }
 
-        if (e instanceof httpErrors.Forbidden) {
+        switch (e.status) {
+        case 400:
+        case 403:
+        case 404:
             ctx.throw(e);
+            break;
+        default:
+            // TODO: Figure out which errors should be exposed to user
+            console.error('Error: ', e, JSON.stringify(e));
+            ctx.throw(400, e.toString());
         }
-
-        // TODO: Figure out which errors should be exposed to user
-        console.error('Error: ', e, JSON.stringify(e));
-        ctx.throw(400, e.toString());
     }
 });
 
@@ -32,19 +36,14 @@ const Router = require('koa-router');
 const router = new Router();
 
 const creatorKeyJson = JSON.parse(process.env.ACCOUNT_CREATOR_KEY);
-const recoveryKeyJson = JSON.parse(process.env.ACCOUNT_RECOVERY_KEY);
 const keyStore = {
-    async getKey(networkId, accountId) {
-        if (accountId == creatorKeyJson.account_id) {
-            return KeyPair.fromString(creatorKeyJson.secret_key || creatorKeyJson.private_key);
-        }
-        // For account recovery purposes use recovery key when updating any account
-        return KeyPair.fromString(recoveryKeyJson.secret_key || creatorKeyJson.private_key);
+    async getKey() {
+        return nearlib.KeyPair.fromString(creatorKeyJson.secret_key || creatorKeyJson.private_key);
     }
 };
-const { connect, KeyPair } = require('nearlib');
+
 const nearPromise = (async () => {
-    const near = await connect({
+    const near = await nearlib.connect({
         deps: { keyStore },
         masterAccount: creatorKeyJson.account_id,
         nodeUrl: process.env.NODE_URL
@@ -55,6 +54,30 @@ app.use(async (ctx, next) => {
     ctx.near = await nearPromise;
     await next();
 });
+
+const VALID_BLOCK_AGE = 100;
+
+async function checkAccountOwnership(ctx, next) {
+    const { accountId, blockNumber, blockNumberSignature } = ctx.request.body;
+    if (!accountId || !blockNumber || !blockNumberSignature) {
+        ctx.throw(403, 'You must provide an accountId, blockNumber, and blockNumberSignature');
+    }
+
+
+    const currentBlock = (await ctx.near.connection.provider.status()).sync_info.latest_block_height;
+    const givenBlock = Number(blockNumber);
+
+    if (givenBlock <= currentBlock - VALID_BLOCK_AGE || givenBlock > currentBlock) {
+        ctx.throw(403, `You must provide a blockNumber within ${VALID_BLOCK_AGE} of the most recent block; provided: ${blockNumber}, current: ${currentBlock}`);
+    }
+
+    const nearAccount = await ctx.near.account(accountId);
+    if (!(await verifySignature(nearAccount, blockNumber, blockNumberSignature))) {
+        ctx.throw(403, `blockNumberSignature did not match a signature of blockNumber=${blockNumber} from accountId=${accountId}`);
+    }
+
+    return await next();
+}
 
 const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT;
 
@@ -108,44 +131,68 @@ router.post('/account/:phoneNumber/:accountId/requestCode', async ctx => {
 const nacl = require('tweetnacl');
 const crypto = require('crypto');
 const bs58 = require('bs58');
-const verifySignature = async (nearAccount, securityCode, signature) => {
-    const hasher = crypto.createHash('sha256');
-    hasher.update(securityCode);
-    const hash = hasher.digest();
-    const helperPublicKey = (await keyStore.getKey(recoveryKeyJson.account_id)).publicKey;
-    const accessKeys = await nearAccount.getAccessKeys();
-    if (!accessKeys.find(it => it.public_key == helperPublicKey.toString())) {
-        throw Error(`Account ${nearAccount.accountId} doesn't have helper key`);
+const verifySignature = async (nearAccount, data, signature) => {
+    try {
+        const hash = crypto.createHash('sha256').update(data).digest();
+        const accessKeys = await nearAccount.getAccessKeys();
+        return accessKeys.some(it => {
+            const publicKey = it.public_key.replace('ed25519:', '');
+            return nacl.sign.detached.verify(hash, Buffer.from(signature, 'base64'), bs58.decode(publicKey));
+        });
+    } catch (e) {
+        console.error(e);
+        return false;
     }
-    return accessKeys.some(it => {
-        const publicKey = it.public_key.replace('ed25519:', '');
-        return nacl.sign.detached.verify(hash, Buffer.from(signature, 'base64'), bs58.decode(publicKey));
-    });
 };
 
-// TODO: Different endpoints for setup and recovery
-router.post('/account/:phoneNumber/:accountId/validateCode', async ctx => {
-    const { phoneNumber, accountId } = ctx.params;
-    const { securityCode, signature, publicKey } = ctx.request.body;
+async function recoveryMethodsFor(account) {
+    if (!account) return [];
 
-    const account = await models.Account.findOne({ where: { accountId, phoneNumber } });
-    if (!account || !account.securityCode || account.securityCode != securityCode) {
-        ctx.throw(401);
-    }
-    if (!account.confirmed) {
-        const nearAccount = await ctx.near.account(accountId);
-        const isSignatureValid = await verifySignature(nearAccount, securityCode, signature);
-        if (!isSignatureValid) {
-            ctx.throw(401);
-        }
-        await account.update({ securityCode: null, confirmed: true });
-    } else {
-        await (await ctx.near.account(accountId)).addKey(publicKey);
-        await account.update({ securityCode: null });
-    }
+    return await account.getRecoveryMethods({
+        attributes: ['createdAt', 'detail', 'kind', 'publicKey']
+    }).map(m => m.toJSON());
+}
 
-    ctx.body = {};
+router.post('/account/recoveryMethods', checkAccountOwnership, async ctx => {
+    const { accountId } = ctx.request.body;
+    const account = await models.Account.findOne({ where: { accountId } });
+    ctx.body = await recoveryMethodsFor(account);
 });
+
+async function withAccount(ctx, next) {
+    const { accountId } = ctx.request.body;
+    ctx.account = await models.Account.findOne({ where: { accountId } });
+    if (ctx.account) {
+        await next();
+        return;
+    }
+    ctx.throw(404, `Could not find account with accountId: '${accountId}'`);
+}
+
+const recoveryMethods = ['email', 'phone', 'phrase'];
+
+async function checkRecoveryMethod(ctx, next) {
+    const { recoveryMethod } = ctx.request.body;
+    if (recoveryMethods.includes(recoveryMethod)) {
+        await next();
+        return;
+    }
+    ctx.throw(400, `Given recoveryMethod '${recoveryMethod}' invalid; must be one of: ${recoveryMethods.join(', ')}`);
+}
+
+router.post(
+    '/account/deleteRecoveryMethod',
+    withAccount,
+    checkRecoveryMethod,
+    checkAccountOwnership,
+    async ctx => {
+        const [recoveryMethod] = await ctx.account.getRecoveryMethods({
+            where: { kind: ctx.request.body.recoveryMethod }
+        });
+        await ctx.account.removeRecoveryMethod(recoveryMethod);
+        ctx.body = await recoveryMethodsFor(ctx.account);
+    }
+);
 
 const sendMail = async (options) => {
     if (process.env.NODE_ENV == 'production') {
@@ -210,6 +257,27 @@ ${recoverUrl}
 
 const { parseSeedPhrase } = require('near-seed-phrase');
 
+async function withPublicKey(ctx, next) {
+    ctx.publicKey = ctx.request.body.publicKey;
+    if (ctx.publicKey) {
+        await next();
+        return;
+    }
+    ctx.throw(400, 'Must provide valid publicKey');
+}
+
+router.post(
+    '/account/seedPhraseAdded',
+    checkAccountOwnership,
+    withPublicKey,
+    async ctx => {
+        const { accountId } = ctx.request.body;
+        const [ account ] = await models.Account.findOrCreate({ where: { accountId } });
+        await account.createRecoveryMethod({ kind: 'phrase', publicKey: ctx.publicKey });
+        ctx.body = await recoveryMethodsFor(account);
+    }
+);
+
 router.post('/account/sendRecoveryMessage', async ctx => {
     const { accountId, phoneNumber, email, seedPhrase } = ctx.request.body;
 
@@ -219,18 +287,23 @@ router.post('/account/sendRecoveryMessage', async ctx => {
     const { publicKey } = parseSeedPhrase(seedPhrase);
     const nearAccount = await ctx.near.account(accountId);
     const keys = await nearAccount.getAccessKeys();
-    if (!keys.some(key => key.public_key == publicKey)) {
+    if (!keys.some(key => key.public_key === publicKey)) {
         ctx.throw(403, 'seed phrase doesn\'t match any access keys');
     }
 
-    const where = { accountId };
-    if (phoneNumber) {
-        where.phoneNumber = phoneNumber;
-    } else if (email) {
-        where.email = email;
-    }
-    const [account] = await models.Account.findOrCreate({ where });
-    await sendRecoveryMessage({ ...account.dataValues, seedPhrase });
+    const [account] = await models.Account.findOrCreate({ where: { accountId } });
+    await account.createRecoveryMethod({
+        kind: phoneNumber ? 'phone' : 'email',
+        detail: phoneNumber || email,
+        publicKey,
+    });
+
+    await sendRecoveryMessage({
+        accountId: account.accountId,
+        email,
+        phoneNumber,
+        seedPhrase,
+    });
 
     ctx.body = {};
 });
