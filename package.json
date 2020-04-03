@@ -39,7 +39,7 @@
   },
   "devDependencies": {
     "eslint": "^6.8.0",
-    "jest": "^24.9.0",
+    "jest": "^25.2.7",
     "sequelize-cli": "^5.4.0",
     "supertest": "^4.0.2",
     "supervisor": "^0.12.0"
