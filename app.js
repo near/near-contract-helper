@@ -189,7 +189,7 @@ router.post(
         const [recoveryMethod] = await ctx.account.getRecoveryMethods({
             where: { kind: ctx.request.body.recoveryMethod }
         });
-        await ctx.account.removeRecoveryMethod(recoveryMethod);
+        await recoveryMethod.destroy();
         ctx.body = await recoveryMethodsFor(ctx.account);
     }
 );
