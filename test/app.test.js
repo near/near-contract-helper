@@ -120,9 +120,9 @@ describe('/account/sendRecoveryMessage', () => {
 });
 
 const recoveryMethods = [
-    { kind: 'email', detail: 'hello@example.com', publicKey: 'pk' },
-    { kind: 'phone', detail: '+1 717 555 0101', publicKey: 'pk' },
-    { kind: 'phrase', publicKey: 'pk' },
+    { kind: 'email', detail: 'hello@example.com', publicKey: 'pkemail' },
+    { kind: 'phone', detail: '+1 717 555 0101', publicKey: 'pkphone' },
+    { kind: 'phrase', publicKey: 'pkphrase' },
 ];
 
 async function signatureFor(accountId, valid = true) {
@@ -269,7 +269,7 @@ describe('/account/deleteRecoveryMethod', () => {
         expect(response.status).toBe(403);
     });
 
-    test('deletes specified recoveryMethod; returns recovery methods (account found, verified ownership, valid recoveryMethod)', async () => {
+    test('returns 400 (public key not specified)', async () => {
         const accountId = await createNearAccount();
         const account = await models.Account.create({ accountId });
         await Promise.all(recoveryMethods.map(m =>
@@ -279,22 +279,37 @@ describe('/account/deleteRecoveryMethod', () => {
 
         let response = await request.post('/account/deleteRecoveryMethod')
             .send({ accountId, recoveryMethod: 'phone', ...signature });
+        expect(response.status).toBe(400);
+    });
+
+    test('deletes specified recoveryMethod; returns recovery methods (account found, verified ownership, valid recoveryMethod)', async () => {
+        const accountId = await createNearAccount();
+        const account = await models.Account.create({ accountId });
+        await Promise.all(recoveryMethods.map(m =>
+            account.createRecoveryMethod(m)
+        ));
+        await account.createRecoveryMethod({ kind: 'email', detail: 'hello@example.com', publicKey: 'pkemail2' });
+        const signature = await signatureFor(accountId);
+
+        let response = await request.post('/account/deleteRecoveryMethod')
+            .send({ accountId, recoveryMethod: 'phone', publicKey: 'pkphone', ...signature });
+        expect(response.status).toBe(200);
+        await account.reload();
+        expect(response.body.length).toBe(3);
+        expect(response.body.map(m => m.kind).sort()).toEqual(['email', 'email', 'phrase']);
+
+        response = await request.post('/account/deleteRecoveryMethod')
+            .send({ accountId, recoveryMethod: 'email', publicKey: 'pkemail', ...signature });
         expect(response.status).toBe(200);
         await account.reload();
         expect(response.body.length).toBe(2);
-        expect(response.body.map(m => m.kind)).toEqual(['email', 'phrase']);
+        expect(response.body.map(m => m.kind).sort()).toEqual(['email', 'phrase']);
 
         response = await request.post('/account/deleteRecoveryMethod')
-            .send({ accountId, recoveryMethod: 'email', ...signature });
+            .send({ accountId, recoveryMethod: 'phrase', publicKey: 'pkphrase', ...signature });
         expect(response.status).toBe(200);
         await account.reload();
         expect(response.body.length).toBe(1);
-        expect(response.body.map(m => m.kind)).toEqual(['phrase']);
-
-        response = await request.post('/account/deleteRecoveryMethod')
-            .send({ accountId, recoveryMethod: 'phrase', ...signature });
-        expect(response.status).toBe(200);
-        await account.reload();
-        expect(response.body.length).toBe(0);
+        expect(response.body.map(m => m.kind)).toEqual(['email']);
     });
 });

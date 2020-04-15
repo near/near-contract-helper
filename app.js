@@ -185,9 +185,13 @@ router.post(
     withAccount,
     checkRecoveryMethod,
     checkAccountOwnership,
+    withPublicKey,
     async ctx => {
         const [recoveryMethod] = await ctx.account.getRecoveryMethods({
-            where: { kind: ctx.request.body.recoveryMethod }
+            where: { 
+                kind: ctx.request.body.recoveryMethod,
+                publicKey: ctx.publicKey, 
+            }
         });
         await ctx.account.removeRecoveryMethod(recoveryMethod);
         ctx.body = await recoveryMethodsFor(ctx.account);
