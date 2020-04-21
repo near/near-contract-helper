@@ -27,6 +27,10 @@ const request = supertest(app.callback());
 
 beforeAll(async () => {
     await models.sequelize.sync({ force: true });
+    ctx.near = await nearAPI.connect({
+        deps: { keyStore },
+        nodeUrl: process.env.NODE_URL
+    });
 });
 
 afterAll(async () => {
@@ -128,11 +132,7 @@ const recoveryMethods = [
 ];
 
 async function signatureFor(accountId, valid = true) {
-    const near = await nearAPI.connect({
-        deps: { keyStore },
-        nodeUrl: process.env.NODE_URL
-    });
-    let blockNumber = (await near.connection.provider.status()).sync_info.latest_block_height;
+    let blockNumber = (await ctx.near.connection.provider.status()).sync_info.latest_block_height;
     if (!valid) blockNumber = blockNumber - 101;
     blockNumber = String(blockNumber);
     const message = Buffer.from(blockNumber);
@@ -154,6 +154,20 @@ describe('/account/recoveryMethods', () => {
 
         const response = await request.post('/account/recoveryMethods')
             .send({ accountId, ...(await signatureFor(accountId, false)) });
+
+        expect(response.status).toBe(403);
+    });
+
+    test('returns 403 Forbidden (signature from a key without FullAccess)', async () => {
+        const accountId = await createNearAccount();
+        const nearAccount = await ctx.near.account(accountId);
+        const newKeyPair = nearAPI.KeyPair.fromRandom('ED25519');
+        const publicKey = newKeyPair.publicKey.toString();
+        await nearAccount.addKey(publicKey, 'fake-contract');
+        keyStore.setKey(undefined, accountId, newKeyPair);
+
+        const response = await request.post('/account/recoveryMethods')
+            .send({ accountId, ...(await signatureFor(accountId)) });
 
         expect(response.status).toBe(403);
     });

@@ -63,7 +63,6 @@ async function checkAccountOwnership(ctx, next) {
         ctx.throw(403, 'You must provide an accountId, blockNumber, and blockNumberSignature');
     }
 
-
     const currentBlock = (await ctx.near.connection.provider.status()).sync_info.latest_block_height;
     const givenBlock = Number(blockNumber);
 
@@ -134,7 +133,8 @@ const bs58 = require('bs58');
 const verifySignature = async (nearAccount, data, signature) => {
     try {
         const hash = crypto.createHash('sha256').update(data).digest();
-        const accessKeys = await nearAccount.getAccessKeys();
+        const accessKeys = (await nearAccount.getAccessKeys())
+            .filter(k => k.access_key.permission === 'FullAccess');
         return accessKeys.some(it => {
             const publicKey = it.public_key.replace('ed25519:', '');
             return nacl.sign.detached.verify(hash, Buffer.from(signature, 'base64'), bs58.decode(publicKey));
