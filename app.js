@@ -1,4 +1,4 @@
-const nearlib = require('nearlib');
+const nearAPI = require('near-api-js');
 const Koa = require('koa');
 const app = new Koa();
 
@@ -38,12 +38,12 @@ const router = new Router();
 const creatorKeyJson = JSON.parse(process.env.ACCOUNT_CREATOR_KEY);
 const keyStore = {
     async getKey() {
-        return nearlib.KeyPair.fromString(creatorKeyJson.secret_key || creatorKeyJson.private_key);
+        return nearAPI.KeyPair.fromString(creatorKeyJson.secret_key || creatorKeyJson.private_key);
     }
 };
 
 const nearPromise = (async () => {
-    const near = await nearlib.connect({
+    const near = await nearAPI.connect({
         deps: { keyStore },
         masterAccount: creatorKeyJson.account_id,
         nodeUrl: process.env.NODE_URL
@@ -188,9 +188,9 @@ router.post(
     withPublicKey,
     async ctx => {
         const [recoveryMethod] = await ctx.account.getRecoveryMethods({
-            where: { 
+            where: {
                 kind: ctx.request.body.recoveryMethod,
-                publicKey: ctx.publicKey, 
+                publicKey: ctx.publicKey,
             }
         });
         await recoveryMethod.destroy();
