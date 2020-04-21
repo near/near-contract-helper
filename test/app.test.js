@@ -337,6 +337,9 @@ describe('/account/deleteRecoveryMethod', () => {
 
         let response = await request.post('/account/deleteRecoveryMethod')
             .send({ accountId, recoveryMethod: 'phrase', publicKey: null, ...signature });
+
         expect(response.status).toBe(200);
+        await account.reload();
+        expect(response.body.length).toBe(0);
     });
 });
