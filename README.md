@@ -34,7 +34,7 @@ Create a `.env` file, copy in the default values from `.env.sample`. Read this f
 
 By default, it assumes that you're running a local node and local network. To do this:
 
-* clone [nearcore](https://github.com/nearprotocol/nearcore)
+* clone [nearcore]
 * in your nearcore directory, get a local network running (at the time of writing, the command was `./scripts/start_localnet.py`)
 
 Note that you need to add an `ACCOUNT_CREATOR_KEY` to your `.env`. Running `nearcore` locally created a `~/.near/validator_key.json` file for you. Copy the contents of this file and paste them as a single line for the `*_KEY` value in your `.env`.
@@ -56,6 +56,14 @@ Follow the instructions above for creating the development database and `helper`
 
     create database accounts_test with owner=helper;
 
-### TODO
+### Ensure [nearcore] is running
 
-How to get the tests running?
+As mentioned in the "Environment Variables" section above, make sure you are running a local blockchain
+
+### Run `yarn test`
+
+This will run the tests using [jest]
+
+
+  [nearcore]: https://github.com/nearprotocol/nearcore
+  [jest]: https://jestjs.io/

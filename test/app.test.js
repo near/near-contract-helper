@@ -1,3 +1,5 @@
+const dotenv = require('dotenv');
+dotenv.config('../.env');
 const assert = require('assert');
 const supertest = require('supertest');
 const { parseSeedPhrase } = require('near-seed-phrase');
@@ -16,10 +18,10 @@ process.env = {
 };
 const app = require('../app');
 
-const nearlib = require('nearlib');
+const nearAPI = require('near-api-js');
 
 const SEED_PHRASE = 'shoot island position soft burden budget tooth cruel issue economy destroy above';
-const keyPair = nearlib.KeyPair.fromString(parseSeedPhrase(SEED_PHRASE).secretKey);
+const keyPair = nearAPI.KeyPair.fromString(parseSeedPhrase(SEED_PHRASE).secretKey);
 const ctx = {};
 const request = supertest(app.callback());
 
@@ -41,8 +43,8 @@ afterEach(() => {
     console.log = ctx.savedLog;
 });
 
-const keyStore = new nearlib.keyStores.InMemoryKeyStore();
-const inMemorySigner = new nearlib.InMemorySigner(keyStore);
+const keyStore = new nearAPI.keyStores.InMemoryKeyStore();
+const inMemorySigner = new nearAPI.InMemorySigner(keyStore);
 
 async function createNearAccount() {
     const accountId = `helper-test-${Date.now()}`;
@@ -126,7 +128,7 @@ const recoveryMethods = [
 ];
 
 async function signatureFor(accountId, valid = true) {
-    const near = await nearlib.connect({
+    const near = await nearAPI.connect({
         deps: { keyStore },
         nodeUrl: process.env.NODE_URL
     });
@@ -221,7 +223,7 @@ describe('/account/seedPhraseAdded', () => {
 
     test('finds/creates account, adds phraseAddedAt; returns recovery methods', async () => {
         const accountId = await createNearAccount();
-        const publicKey = nearlib.KeyPair.fromRandom('ED25519').publicKey.toString();
+        const publicKey = nearAPI.KeyPair.fromRandom('ED25519').publicKey.toString();
 
         const response = await request.post('/account/seedPhraseAdded')
             .send({ accountId, publicKey, ...(await signatureFor(accountId)) });
