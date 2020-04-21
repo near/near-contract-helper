@@ -314,4 +314,15 @@ describe('/account/deleteRecoveryMethod', () => {
         expect(response.body.length).toBe(1);
         expect(response.body.map(m => m.kind)).toEqual(['email']);
     });
+
+    test('does not return 400 for old accounts with publicKey=NULL', async () => {
+        const accountId = await createNearAccount();
+        const account = await models.Account.create({ accountId });
+        await account.createRecoveryMethod({ kind: 'phrase', publicKey: null });
+        const signature = await signatureFor(accountId);
+
+        let response = await request.post('/account/deleteRecoveryMethod')
+            .send({ accountId, recoveryMethod: 'phrase', publicKey: null, ...signature });
+        expect(response.status).toBe(200);
+    });
 });

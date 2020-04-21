@@ -263,7 +263,7 @@ const { parseSeedPhrase } = require('near-seed-phrase');
 
 async function withPublicKey(ctx, next) {
     ctx.publicKey = ctx.request.body.publicKey;
-    if (ctx.publicKey) {
+    if (ctx.publicKey !== undefined) {
         await next();
         return;
     }
