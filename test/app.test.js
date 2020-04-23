@@ -12,7 +12,6 @@ const MASTER_KEY_INFO = {
 process.env = {
     ...process.env,
     ACCOUNT_CREATOR_KEY: JSON.stringify(MASTER_KEY_INFO),
-    ACCOUNT_RECOVERY_KEY: JSON.stringify(MASTER_KEY_INFO),
     WALLET_URL: 'https://wallet.nearprotocol.com',
     NODE_URL: 'http://shared-test.nearprotocol.com:3030'
 };
