@@ -107,26 +107,6 @@ const sendSms = async ({ to, text }) => {
     }
 };
 
-const sendSecurityCode = async ({ phoneNumber, securityCode }) => {
-    return sendSms({
-        text: `Your NEAR Wallet security code is: ${securityCode}`,
-        to: phoneNumber
-    });
-};
-
-router.post('/account/:phoneNumber/:accountId/requestCode', async ctx => {
-    const accountId = ctx.params.accountId;
-    const phoneNumber = ctx.params.phoneNumber;
-
-    const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
-    const [account] = await models.Account.findOrCreate({ where: { accountId, phoneNumber } });
-    await account.update({ securityCode });
-    // TODO: Add code expiration for improved security
-    await sendSecurityCode(account);
-
-    ctx.body = {};
-});
-
 const nacl = require('tweetnacl');
 const crypto = require('crypto');
 const bs58 = require('bs58');
@@ -149,8 +129,13 @@ async function recoveryMethodsFor(account) {
     if (!account) return [];
 
     return await account.getRecoveryMethods({
-        attributes: ['createdAt', 'detail', 'kind', 'publicKey']
-    }).map(m => m.toJSON());
+        attributes: ['createdAt', 'detail', 'kind', 'publicKey', 'securityCode']
+    }).map(method => {
+        const json = method.toJSON();
+        json.confirmed = !method.securityCode;
+        delete json.securityCode;
+        return json;
+    });
 }
 
 router.post('/account/recoveryMethods', checkAccountOwnership, async ctx => {
@@ -195,6 +180,40 @@ router.post(
         });
         await recoveryMethod.destroy();
         ctx.body = await recoveryMethodsFor(ctx.account);
+    }
+);
+
+router.post(
+    '/account/resendRecoveryLink',
+    checkAccountOwnership,
+    async ctx => {
+        const { accountId, seedPhrase, publicKey, method } = ctx.request.body;
+        const [account] = await models.Account.findOrCreate({ where: { accountId } });
+        let email, phoneNumber;
+
+        if (method.kind === 'email') {
+            email = method.detail;
+        } else if (method.kind === 'phone') {
+            phoneNumber = method.detail;
+        }
+
+        const where = {
+            kind: method.kind,
+            detail: method.detail
+        };
+
+        const [recoveryMethod] = await account.getRecoveryMethods({ where });
+
+        await recoveryMethod.update({ publicKey });
+
+        await sendRecoveryMessage({
+            accountId,
+            email,
+            phoneNumber,
+            seedPhrase
+        });
+
+        ctx.body = await recoveryMethodsFor(account);
     }
 );
 
@@ -282,10 +301,75 @@ router.post(
     }
 );
 
+const sendSecurityCode = async ({securityCode, phoneNumber, email}) => {
+
+    if (phoneNumber) {
+        await sendSms({
+            text: `Your NEAR Wallet security code is: ${securityCode}`,
+            to: phoneNumber
+        });
+    } else if (email) {
+        await sendMail({
+            to: email,
+            subject: `Your NEAR Wallet security code is: ${securityCode}`,
+            text: `Use this code to confirm your email address: ${securityCode}`
+        });
+    }
+};
+
+router.post('/account/initializeRecoveryMethod',
+    checkAccountOwnership,
+    async ctx => {
+        const { accountId, email, phoneNumber, test } = ctx.request.body;
+        const [account] = await models.Account.findOrCreate({ where: { accountId } });
+        const where = {
+            kind: phoneNumber ? 'phone' : 'email',
+            detail: phoneNumber || email
+        };
+
+        let [recoveryMethod] = await account.getRecoveryMethods({ where });
+
+        if (!recoveryMethod) {
+            recoveryMethod = await account.createRecoveryMethod(where);
+        }
+
+        const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
+        await recoveryMethod.update({ securityCode });
+        await sendSecurityCode({ securityCode, phoneNumber, email });
+
+        if (test) {
+            return ctx.body = securityCode;
+        }
+
+        ctx.body = await recoveryMethodsFor(account);
+    }
+);
+
+router.post('/account/validateSecurityCode',
+    checkAccountOwnership,
+    async ctx => {
+        const { accountId, phoneNumber, email, securityCode } = ctx.request.body;
+
+        const [account] = await models.Account.findOrCreate({ where: { accountId } });
+
+        const where = {
+            kind: phoneNumber ? 'phone' : 'email',
+            detail: phoneNumber || email,
+            securityCode: securityCode
+        };
+
+        let [recoveryMethod] = await account.getRecoveryMethods({ where });
+
+        if (!recoveryMethod) {
+            ctx.throw(401);
+        }
+
+        ctx.body = await recoveryMethodsFor(account);
+    }
+);
+
 router.post('/account/sendRecoveryMessage', async ctx => {
     const { accountId, phoneNumber, email, seedPhrase } = ctx.request.body;
-
-    // TODO: Validate phone or email
 
     // Verify that seed phrase is added to the account
     const { publicKey } = parseSeedPhrase(seedPhrase);
@@ -295,24 +379,22 @@ router.post('/account/sendRecoveryMessage', async ctx => {
         ctx.throw(403, 'seed phrase doesn\'t match any access keys');
     }
 
-    const [account] = await models.Account.findOrCreate({ where: { accountId } });
-    await models.RecoveryMethod.findOrCreate({
-        where: {
-            AccountId: account.id,
-            kind: phoneNumber ? 'phone' : 'email',
-            detail: phoneNumber || email,
-            publicKey,
-        }
-    });
+    const account = await models.Account.findOne({ where: { accountId } });
+    const [recoveryMethod] = await account.getRecoveryMethods({ where: {
+        kind: phoneNumber ? 'phone' : 'email',
+        detail: phoneNumber || email
+    }});
+
+    await recoveryMethod.update({ publicKey, securityCode: null });
 
     await sendRecoveryMessage({
         accountId,
         email,
         phoneNumber,
-        seedPhrase,
+        seedPhrase
     });
 
-    ctx.body = {};
+    ctx.body = await recoveryMethodsFor(account);
 });
 
 app

@@ -4,7 +4,6 @@ const assert = require('assert');
 const supertest = require('supertest');
 const { parseSeedPhrase } = require('near-seed-phrase');
 const models = require('../models');
-
 const MASTER_KEY_INFO = {
     account_id: 'test.near',
     secret_key: 'ed25519:2wyRcSwSuHtRVmkMCGjPwnzZmQLeXLzLLyED1NDMt4BjnKgQL6tF85yBx6Jr26D2dUNeC716RBoTxntVHsegogYw'
@@ -62,79 +61,54 @@ async function createNearAccount() {
     return accountId;
 }
 
-describe('/account/sendRecoveryMessage', () => {
-    beforeEach(async () => {
-        ctx.accountId = await createNearAccount();
+describe('/account/initializeRecoveryMethod', () => {
+
+    let savedSecurityCode = '';
+    let savedAccountId = '';
+
+    test('send security code', async () => {
+        savedAccountId = await createNearAccount();
+        const response = await request.post('/account/initializeRecoveryMethod')
+            .send({
+                accountId: savedAccountId,
+                email: 'test@dispostable.com',
+                test: true,
+                ...(await signatureFor(savedAccountId))
+            });
+
+        savedSecurityCode = response.text;
+        assert.equal(response.status, 200);
+        assert.equal(savedSecurityCode, response.text);
     });
 
-    test('send email', async () => {
-        const response = await request.post('/account/sendRecoveryMessage')
+    test('validate security code (wrong code)', async () => {
+        const response = await request.post('/account/validateSecurityCode')
             .send({
-                accountId: ctx.accountId,
+                accountId: savedAccountId,
                 email: 'test@dispostable.com',
-                seedPhrase: SEED_PHRASE
+                securityCode: '123123',
+                ...(await signatureFor(savedAccountId))
+            });
+
+        assert.equal(response.status, 400);
+    });
+
+    test('validate security code', async () => {
+        const response = await request.post('/account/validateSecurityCode')
+            .send({
+                accountId: savedAccountId,
+                email: 'test@dispostable.com',
+                securityCode: savedSecurityCode,
+                ...(await signatureFor(savedAccountId))
             });
 
         assert.equal(response.status, 200);
-
-        const [, { subject, text, to }] = ctx.logs.find(log => log[0].match(/^sendMail.+/));
-        expect(subject).toEqual(`Important: Near Wallet Recovery Email for ${ctx.accountId}`);
-        expect(to).toEqual('test@dispostable.com');
-        expect(text).toMatch(new RegExp(`https://wallet.nearprotocol.com/recover-with-link/${ctx.accountId}/${SEED_PHRASE.replace(/ /g, '%20')}`));
-    });
-
-    test('allows to set multiple recovery methods', async () => {
-        const email = 'test@dispostable.com';
-        await request.post('/account/sendRecoveryMessage')
-            .send({
-                accountId: ctx.accountId,
-                email,
-                seedPhrase: SEED_PHRASE
-            });
-        let account = await models.Account.findOne({
-            where: { accountId: ctx.accountId }
-        });
-        let recoveryMethods = await account.getRecoveryMethods();
-        expect(recoveryMethods.length).toBe(1);
-        expect(recoveryMethods[0].kind).toBe('email');
-
-
-        const phoneNumber = '+1.800.867.5309';
-        await request.post('/account/sendRecoveryMessage')
-            .send({
-                accountId: ctx.accountId,
-                phoneNumber,
-                seedPhrase: SEED_PHRASE
-            });
-        await account.reload();
-        recoveryMethods = await account.getRecoveryMethods();
-        expect(recoveryMethods.length).toBe(2);
-        expect(recoveryMethods[1].kind).toBe('phone');
-    });
-
-    test('allows to set same recovery method multiple times', async () => {
-        const email = 'test@dispostable.com';
-        for (let i = 0; i < 3; i++) {
-            await request.post('/account/sendRecoveryMessage')
-                .send({
-                    accountId: ctx.accountId,
-                    email,
-                    seedPhrase: SEED_PHRASE
-                });
-        }
-
-        let account = await models.Account.findOne({
-            where: { accountId: ctx.accountId }
-        });
-        let recoveryMethods = await account.getRecoveryMethods();
-        expect(recoveryMethods.length).toBe(1);
-        expect(recoveryMethods[0].kind).toBe('email');
     });
 
     test('send email (wrong seed phrase)', async () => {
         const response = await request.post('/account/sendRecoveryMessage')
             .send({
-                accountId: ctx.accountId,
+                accountId: savedAccountId,
                 email: 'test@dispostable.com',
                 seedPhrase: 'seed-phrase'
             });
@@ -142,7 +116,47 @@ describe('/account/sendRecoveryMessage', () => {
         assert.equal(response.status, 403);
     });
 
+    test('send email (wrong accountId)', async () => {
+        const response = await request.post('/account/sendRecoveryMessage')
+            .send({
+                accountId: 'wrong-id',
+                email: 'test@dispostable.com',
+                seedPhrase: SEED_PHRASE
+            });
+
+        assert.equal(response.status, 400);
+    });
+
+    test('send email (wrong email)', async () => {
+        const response = await request.post('/account/sendRecoveryMessage')
+            .send({
+                accountId: savedAccountId,
+                email: 'wrong-email@dispostable.com',
+                seedPhrase: SEED_PHRASE
+            });
+
+        assert.equal(response.status, 400);
+    });
+
+    test('send email', async () => {
+        const response = await request.post('/account/sendRecoveryMessage')
+            .send({
+                accountId: savedAccountId,
+                email: 'test@dispostable.com',
+                seedPhrase: SEED_PHRASE
+            });
+
+        assert.equal(response.status, 200);
+
+        const [, { subject, text, to }] = ctx.logs.find(log => log[0].match(/^sendMail.+/));
+        expect(subject).toEqual(`Important: Near Wallet Recovery Email for ${savedAccountId}`);
+        expect(to).toEqual('test@dispostable.com');
+        expect(text).toMatch(new RegExp(`https://wallet.nearprotocol.com/recover-with-link/${savedAccountId}/${SEED_PHRASE.replace(/ /g, '%20')}`));
+    });
+
 });
+
+// ALL OTHER TESTS
 
 const recoveryMethods = [
     { kind: 'email', detail: 'hello@example.com', publicKey: 'pkemail' },
