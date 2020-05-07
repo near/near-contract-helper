@@ -64,16 +64,19 @@ async function createNearAccount() {
 describe('/account/initializeRecoveryMethod', () => {
 
     let savedSecurityCode = '';
-    let savedAccountId = '';
+    let accountId = '';
+    let testing = true;
+    const method = { kind: 'email', detail: 'test@dispostable.com' };
 
     test('send security code', async () => {
-        savedAccountId = await createNearAccount();
+        accountId = await createNearAccount();
+
         const response = await request.post('/account/initializeRecoveryMethod')
             .send({
-                accountId: savedAccountId,
-                email: 'test@dispostable.com',
-                test: true,
-                ...(await signatureFor(savedAccountId))
+                accountId,
+                method,
+                testing,
+                ...(await signatureFor(accountId))
             });
 
         savedSecurityCode = response.text;
@@ -84,10 +87,10 @@ describe('/account/initializeRecoveryMethod', () => {
     test('validate security code (wrong code)', async () => {
         const response = await request.post('/account/validateSecurityCode')
             .send({
-                accountId: savedAccountId,
-                email: 'test@dispostable.com',
+                accountId,
+                method,
                 securityCode: '123123',
-                ...(await signatureFor(savedAccountId))
+                ...(await signatureFor(accountId))
             });
 
         assert.equal(response.status, 400);
@@ -96,10 +99,10 @@ describe('/account/initializeRecoveryMethod', () => {
     test('validate security code', async () => {
         const response = await request.post('/account/validateSecurityCode')
             .send({
-                accountId: savedAccountId,
-                email: 'test@dispostable.com',
+                accountId,
+                method,
                 securityCode: savedSecurityCode,
-                ...(await signatureFor(savedAccountId))
+                ...(await signatureFor(accountId))
             });
 
         assert.equal(response.status, 200);
@@ -108,8 +111,8 @@ describe('/account/initializeRecoveryMethod', () => {
     test('send email (wrong seed phrase)', async () => {
         const response = await request.post('/account/sendRecoveryMessage')
             .send({
-                accountId: savedAccountId,
-                email: 'test@dispostable.com',
+                accountId,
+                method,
                 seedPhrase: 'seed-phrase'
             });
 
@@ -120,7 +123,7 @@ describe('/account/initializeRecoveryMethod', () => {
         const response = await request.post('/account/sendRecoveryMessage')
             .send({
                 accountId: 'wrong-id',
-                email: 'test@dispostable.com',
+                method,
                 seedPhrase: SEED_PHRASE
             });
 
@@ -130,8 +133,8 @@ describe('/account/initializeRecoveryMethod', () => {
     test('send email (wrong email)', async () => {
         const response = await request.post('/account/sendRecoveryMessage')
             .send({
-                accountId: savedAccountId,
-                email: 'wrong-email@dispostable.com',
+                accountId,
+                method: {kind: 'email', detail: 'asdada@g.com'},
                 seedPhrase: SEED_PHRASE
             });
 
@@ -141,22 +144,20 @@ describe('/account/initializeRecoveryMethod', () => {
     test('send email', async () => {
         const response = await request.post('/account/sendRecoveryMessage')
             .send({
-                accountId: savedAccountId,
-                email: 'test@dispostable.com',
+                accountId,
+                method,
                 seedPhrase: SEED_PHRASE
             });
 
         assert.equal(response.status, 200);
 
         const [, { subject, text, to }] = ctx.logs.find(log => log[0].match(/^sendMail.+/));
-        expect(subject).toEqual(`Important: Near Wallet Recovery Email for ${savedAccountId}`);
+        expect(subject).toEqual(`Important: Near Wallet Recovery Email for ${accountId}`);
         expect(to).toEqual('test@dispostable.com');
-        expect(text).toMatch(new RegExp(`https://wallet.nearprotocol.com/recover-with-link/${savedAccountId}/${SEED_PHRASE.replace(/ /g, '%20')}`));
+        expect(text).toMatch(new RegExp(`https://wallet.nearprotocol.com/recover-with-link/${accountId}/${SEED_PHRASE.replace(/ /g, '%20')}`));
     });
 
 });
-
-// ALL OTHER TESTS
 
 const recoveryMethods = [
     { kind: 'email', detail: 'hello@example.com', publicKey: 'pkemail' },
@@ -290,7 +291,7 @@ describe('/account/deleteRecoveryMethod', () => {
         const response = await request.post('/account/deleteRecoveryMethod')
             .send({
                 accountId,
-                recoveryMethod: 'illegitimate',
+                kind: 'illegitimate',
             });
         expect(response.status).toBe(400);
     });
@@ -299,7 +300,7 @@ describe('/account/deleteRecoveryMethod', () => {
         const response = await request.post('/account/deleteRecoveryMethod')
             .send({
                 accountId: 'illegitimate',
-                recoveryMethod: 'phone',
+                kind: 'phone',
             });
         expect(response.status).toBe(404);
     });
@@ -311,7 +312,7 @@ describe('/account/deleteRecoveryMethod', () => {
         let response = await request.post('/account/deleteRecoveryMethod')
             .send({
                 accountId,
-                recoveryMethod: 'phone',
+                kind: 'phone',
                 ...(await signatureFor(accountId, false))
             });
 
@@ -327,7 +328,7 @@ describe('/account/deleteRecoveryMethod', () => {
         const signature = await signatureFor(accountId);
 
         let response = await request.post('/account/deleteRecoveryMethod')
-            .send({ accountId, recoveryMethod: 'phone', ...signature });
+            .send({ accountId, kind: 'phone', ...signature });
         expect(response.status).toBe(400);
     });
 
@@ -341,21 +342,21 @@ describe('/account/deleteRecoveryMethod', () => {
         const signature = await signatureFor(accountId);
 
         let response = await request.post('/account/deleteRecoveryMethod')
-            .send({ accountId, recoveryMethod: 'phone', publicKey: 'pkphone', ...signature });
+            .send({ accountId, kind: 'phone', publicKey: 'pkphone', ...signature });
         expect(response.status).toBe(200);
         await account.reload();
         expect(response.body.length).toBe(3);
         expect(response.body.map(m => m.kind).sort()).toEqual(['email', 'email', 'phrase']);
 
         response = await request.post('/account/deleteRecoveryMethod')
-            .send({ accountId, recoveryMethod: 'email', publicKey: 'pkemail', ...signature });
+            .send({ accountId, kind: 'email', publicKey: 'pkemail', ...signature });
         expect(response.status).toBe(200);
         await account.reload();
         expect(response.body.length).toBe(2);
         expect(response.body.map(m => m.kind).sort()).toEqual(['email', 'phrase']);
 
         response = await request.post('/account/deleteRecoveryMethod')
-            .send({ accountId, recoveryMethod: 'phrase', publicKey: 'pkphrase', ...signature });
+            .send({ accountId, kind: 'phrase', publicKey: 'pkphrase', ...signature });
         expect(response.status).toBe(200);
         await account.reload();
         expect(response.body.length).toBe(1);
@@ -369,7 +370,7 @@ describe('/account/deleteRecoveryMethod', () => {
         const signature = await signatureFor(accountId);
 
         let response = await request.post('/account/deleteRecoveryMethod')
-            .send({ accountId, recoveryMethod: 'phrase', publicKey: null, ...signature });
+            .send({ accountId, kind: 'phrase', publicKey: null, ...signature });
         expect(response.status).toBe(200);
     });
 });
