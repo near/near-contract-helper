@@ -187,7 +187,7 @@ router.post(
     checkAccountOwnership,
     async ctx => {
         const { accountId, seedPhrase, publicKey, method } = ctx.request.body;
-        const [account] = await models.Account.findOrCreate({ where: { accountId } });
+        const account = await models.Account.findOne({ where: { accountId } });
 
         const [recoveryMethod] = await account.getRecoveryMethods({ where: {
             kind: method.kind,
@@ -310,21 +310,26 @@ const sendSecurityCode = async (securityCode, method) => {
 router.post('/account/initializeRecoveryMethod',
     checkAccountOwnership,
     async ctx => {
-        const { accountId, method, test } = ctx.request.body;
+        const { accountId, method, testing } = ctx.request.body;
         const [account] = await models.Account.findOrCreate({ where: { accountId } });
-        const where = { kind: method.kind, detail: method.detail };
 
-        let [recoveryMethod] = await account.getRecoveryMethods({ where });
+        let [recoveryMethod] = await account.getRecoveryMethods({ where: {
+            kind: method.kind,
+            detail: method.detail
+        }});
 
         if (!recoveryMethod) {
-            recoveryMethod = await account.createRecoveryMethod(where);
+            recoveryMethod = await account.createRecoveryMethod({
+                kind: method.kind,
+                detail: method.detail
+            });
         }
 
         const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
         await recoveryMethod.update({ securityCode });
         await sendSecurityCode(securityCode, method);
 
-        if (test) {
+        if (testing) {
             return ctx.body = securityCode;
         }
 
@@ -337,18 +342,18 @@ router.post('/account/validateSecurityCode',
     async ctx => {
         const { accountId, method, securityCode } = ctx.request.body;
 
-        const [account] = await models.Account.findOrCreate({ where: { accountId } });
+        const account = await models.Account.findOne({ where: { accountId } });
 
-        let [recoveryMethod] = await account.getRecoveryMethods({ 
+        const [recoveryMethod] = await account.getRecoveryMethods({ where: {
             kind: method.kind,
             detail: method.detail,
             securityCode: securityCode
-        });
+        }});
 
         if (!recoveryMethod) {
             ctx.throw(401);
         }
-
+        console.log(securityCode);
         ctx.body = await recoveryMethodsFor(account);
     }
 );
