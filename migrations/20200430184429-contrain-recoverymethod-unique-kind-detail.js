@@ -4,9 +4,9 @@ module.exports = {
     up: (queryInterface) => {
         return queryInterface.addConstraint(
             'RecoveryMethods',
-            ['AccountId', 'kind', 'detail'],
+            ['AccountId', 'publicKey', 'kind', 'detail'],
             {
-                name: 'constraint_kind_detail',
+                name: 'constraint_publicKey_kind_detail',
                 type: 'unique',
             }
         );
@@ -15,7 +15,7 @@ module.exports = {
     down: (queryInterface) => {
         return queryInterface.removeConstraint(
             'RecoveryMethods',
-            'constraint_kind_detail'
+            'constraint_publicKey_kind_detail'
         );
     }
 };
