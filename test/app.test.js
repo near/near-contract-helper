@@ -13,6 +13,7 @@ process.env = {
     ...process.env,
     ACCOUNT_CREATOR_KEY: JSON.stringify(MASTER_KEY_INFO),
     WALLET_URL: 'https://wallet.nearprotocol.com',
+    NEW_ACCOUNT_AMOUNT: '500000001000000000000000000',
     NODE_URL: 'http://shared-test.nearprotocol.com:3030'
 };
 const app = require('../app');
