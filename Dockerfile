@@ -1,6 +1,6 @@
 FROM phusion/baseimage:0.11
 
-RUN curl -o /tmp/node_setup.sh "https://deb.nodesource.com/setup_11.x"
+RUN curl -o /tmp/node_setup.sh "https://deb.nodesource.com/setup_12.x"
 RUN bash /tmp/node_setup.sh
 RUN apt-get update -qq && apt-get install -y \
     jq \
