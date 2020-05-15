@@ -15,5 +15,5 @@ COPY /scripts/init_postgres.sh /etc/my_init.d/
 COPY . /near-contract-helper/
 WORKDIR /near-contract-helper
 RUN yarn
-RUN mkdir /etc/service/contract-helper
+RUN mkdir -p /etc/service/contract-helper
 COPY /scripts/run.sh /etc/service/contract-helper/run
