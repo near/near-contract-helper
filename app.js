@@ -80,11 +80,19 @@ async function checkAccountOwnership(ctx, next) {
 
 const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT;
 
+/********************************
+Routes
+********************************/
+const { sendcode } = require('./routes/2fa.js')
+// http post http://localhost:3000/sendcode tx=test
+router.post('/sendcode', sendcode)
+
 router.post('/account', async ctx => {
     const { newAccountId, newAccountPublicKey } = ctx.request.body;
     const masterAccount = await ctx.near.account(creatorKeyJson.account_id);
     ctx.body = await masterAccount.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT);
 });
+
 
 const password = require('secure-random-password');
 const models = require('./models');
