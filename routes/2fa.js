@@ -8,12 +8,15 @@
 Try this from the wallet side and make sure it works end to end
 ********************************/
 
-console.log(sendSms)
+const { sendSms } = require('./../providers/sms');
+
+console.log(sendSms);
+
 const sendcode = async ctx => {
     const { tx } = ctx.request.body;
-    ctx.body = { tx }
-}
+    ctx.body = { tx };
+};
 
 module.exports = {
     sendcode
-}
+};
