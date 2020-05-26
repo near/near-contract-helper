@@ -296,10 +296,13 @@ router.post('/account/sendRecoveryMessage', async ctx => {
     }
 
     const [account] = await models.Account.findOrCreate({ where: { accountId } });
-    await account.createRecoveryMethod({
-        kind: phoneNumber ? 'phone' : 'email',
-        detail: phoneNumber || email,
-        publicKey,
+    await models.RecoveryMethod.findOrCreate({
+        where: {
+            AccountId: account.id,
+            kind: phoneNumber ? 'phone' : 'email',
+            detail: phoneNumber || email,
+            publicKey,
+        }
     });
 
     await sendRecoveryMessage({

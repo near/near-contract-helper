@@ -83,7 +83,7 @@ describe('/account/sendRecoveryMessage', () => {
         expect(text).toMatch(new RegExp(`https://wallet.nearprotocol.com/recover-with-link/${ctx.accountId}/${SEED_PHRASE.replace(/ /g, '%20')}`));
     });
 
-    test('setting multiple recovery methods', async () => {
+    test('allows to set multiple recovery methods', async () => {
         const email = 'test@dispostable.com';
         await request.post('/account/sendRecoveryMessage')
             .send({
@@ -110,6 +110,25 @@ describe('/account/sendRecoveryMessage', () => {
         recoveryMethods = await account.getRecoveryMethods();
         expect(recoveryMethods.length).toBe(2);
         expect(recoveryMethods[1].kind).toBe('phone');
+    });
+
+    test('allows to set same recovery method multiple times', async () => {
+        const email = 'test@dispostable.com';
+        for (let i = 0; i < 3; i++) {
+            await request.post('/account/sendRecoveryMessage')
+                .send({
+                    accountId: ctx.accountId,
+                    email,
+                    seedPhrase: SEED_PHRASE
+                });
+        }
+
+        let account = await models.Account.findOne({
+            where: { accountId: ctx.accountId }
+        });
+        let recoveryMethods = await account.getRecoveryMethods();
+        expect(recoveryMethods.length).toBe(1);
+        expect(recoveryMethods[0].kind).toBe('email');
     });
 
     test('send email (wrong seed phrase)', async () => {
