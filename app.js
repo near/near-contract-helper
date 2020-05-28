@@ -54,6 +54,25 @@ app.use(async (ctx, next) => {
     ctx.near = await nearPromise;
     await next();
 });
+const SECURITY_CODE_DIGITS = 6;
+const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT;
+const password = require('secure-random-password');
+const models = require('./models');
+/********************************
+Routes
+********************************/
+const { sendcode } = require('./middleware/2fa.js');
+const {
+    sendRecoveryMessage,
+    sendSecurityCode,
+    recoveryMethodsFor,
+    checkRecoveryMethod
+} = require('./middleware/recovery.js');
+const {
+    withAccount,
+    withPublicKey,
+    checkAccountOwnership
+} = require('./middleware/account.js');
 
 const VALID_BLOCK_AGE = 100;
 
