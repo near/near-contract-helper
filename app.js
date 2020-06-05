@@ -219,7 +219,7 @@ const sendMail = async (options) => {
             }
         });
         return transport.sendMail({
-            from: 'wallet@nearprotocol.com',
+            from: process.env.WALLET_EMAIL || 'wallet@near.org',
             ...options
         });
     } else {
