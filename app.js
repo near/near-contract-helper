@@ -36,7 +36,14 @@ NearAPI
 ********************************/
 const nearAPI = require('near-api-js');
 const { parseSeedPhrase } = require('near-seed-phrase');
-const creatorKeyJson = JSON.parse(process.env.ACCOUNT_CREATOR_KEY);
+const creatorKeyJson = (() => {
+    try {
+        return JSON.parse(process.env.ACCOUNT_CREATOR_KEY);
+    } catch (e) {
+        console.warn(`Account creation not available.\nError parsing ACCOUNT_CREATOR_KEY='${process.env.ACCOUNT_CREATOR_KEY}':`, e);
+        return null;
+    }
+})();
 const keyStore = {
     async getKey() {
         return nearAPI.KeyPair.fromString(creatorKeyJson.secret_key || creatorKeyJson.private_key);
@@ -45,7 +52,7 @@ const keyStore = {
 const nearPromise = (async () => {
     const near = await nearAPI.connect({
         deps: { keyStore },
-        masterAccount: creatorKeyJson.account_id,
+        masterAccount: creatorKeyJson && creatorKeyJson.account_id,
         nodeUrl: process.env.NODE_URL
     });
     return near;
@@ -78,6 +85,10 @@ Routes
 router.post('/sendcode', sendcode);
 
 router.post('/account', async ctx => {
+    if (!creatorKeyJson) {
+        console.warn('ACCOUNT_CREATOR_KEY is not set up, cannot create accounts.');
+        ctx.throw(404);
+    }
     const { newAccountId, newAccountPublicKey } = ctx.request.body;
     const masterAccount = await ctx.near.account(creatorKeyJson.account_id);
     ctx.body = await masterAccount.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT);
