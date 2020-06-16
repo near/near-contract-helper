@@ -36,27 +36,12 @@ NearAPI
 ********************************/
 const nearAPI = require('near-api-js');
 const { parseSeedPhrase } = require('near-seed-phrase');
-const creatorKeyJson = (() => {
-    try {
-        return JSON.parse(process.env.ACCOUNT_CREATOR_KEY);
-    } catch (e) {
-        console.warn(`Account creation not available.\nError parsing ACCOUNT_CREATOR_KEY='${process.env.ACCOUNT_CREATOR_KEY}':`, e);
-        return null;
-    }
-})();
-const keyStore = {
-    async getKey() {
-        return nearAPI.KeyPair.fromString(creatorKeyJson.secret_key || creatorKeyJson.private_key);
-    }
-};
-const nearPromise = (async () => {
-    const near = await nearAPI.connect({
-        deps: { keyStore },
-        masterAccount: creatorKeyJson && creatorKeyJson.account_id,
-        nodeUrl: process.env.NODE_URL
-    });
-    return near;
-})();
+const {
+    creatorKeyJson,
+    keyStore,
+    nearPromise
+} = require('./utils/near')
+
 app.use(async (ctx, next) => {
     ctx.near = await nearPromise;
     await next();
@@ -65,7 +50,7 @@ const SECURITY_CODE_DIGITS = 6;
 const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT;
 const password = require('secure-random-password');
 const models = require('./models');
-const { sendcode } = require('./middleware/2fa.js');
+const { sendcode, getWalletAccessKey } = require('./middleware/2fa.js');
 const {
     sendRecoveryMessage,
     sendSecurityCode,
@@ -83,6 +68,7 @@ Routes
 ********************************/
 
 router.post('/sendcode', sendcode);
+router.post('/2fa/getWalletAccessKey', getWalletAccessKey);
 
 router.post('/account', async ctx => {
     if (!creatorKeyJson) {
@@ -241,6 +227,7 @@ app
     .use(router.allowedMethods());
 
 if (!module.parent) {
+    console.log(process.env.PORT)
     app.listen(process.env.PORT);
 } else {
     module.exports = app;
