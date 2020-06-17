@@ -8,6 +8,7 @@ const creatorKeyJson = (() => {
         return null;
     }
 })();
+
 const keyStore = {
     async getKey() {
         return nearAPI.KeyPair.fromString(creatorKeyJson.secret_key || creatorKeyJson.private_key);
