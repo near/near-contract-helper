@@ -13,10 +13,8 @@ const keyStore = {
     async getKey() {
         return nearAPI.KeyPair.fromString(creatorKeyJson.secret_key || creatorKeyJson.private_key);
     },
-    async setKey(secretKey) {
-        return nearAPI.KeyPair.fromString(secretKey || creatorKeyJson.secret_key || creatorKeyJson.private_key);
-    }
 };
+
 const nearPromise = (async () => {
     const near = await nearAPI.connect({
         deps: { keyStore },
@@ -26,16 +24,25 @@ const nearPromise = (async () => {
     return near;
 })();
 
+
+
+
+
 const getContract = async (contractName, viewMethods, changeMethods, secretKey) => {
-    if (secretKey) {
-        keyStore.setKey(secretKey)
-    }
-    const near = await nearPromise()
-	const contractAccount = new nearApi.Account(near.connection, contractName)
+    const keyStore = {
+        async getKey() {
+            return nearAPI.KeyPair.fromString(secretKey);
+        },
+    };
+    const near = await nearAPI.connect({
+        deps: { keyStore },
+        masterAccount: creatorKeyJson && creatorKeyJson.account_id,
+        nodeUrl: process.env.NODE_URL
+    });
+	const contractAccount = new nearAPI.Account(near.connection, contractName)
     const contract = new nearAPI.Contract(contractAccount, contractName, {
         viewMethods,
         changeMethods,
-        sender: contractName
     })
     return contract
 } 

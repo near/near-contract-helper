@@ -46,11 +46,14 @@ app.use(async (ctx, next) => {
     ctx.near = await nearPromise;
     await next();
 });
+
+/********************************
+Models and Middleware
+********************************/
 const SECURITY_CODE_DIGITS = 6;
 const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT;
 const password = require('secure-random-password');
 const models = require('./models');
-const { sendcode, getWalletAccessKey } = require('./middleware/2fa.js');
 const {
     sendRecoveryMessage,
     sendSecurityCode,
@@ -62,14 +65,21 @@ const {
     withPublicKey,
     checkAccountOwnership
 } = require('./middleware/account.js');
-
+const {
+    sendConfirmationCode,
+    getWalletAccessKey,
+    verifyConfirmationCode
+} = require('./middleware/2fa.js');
 /********************************
-Routes
+2FA Routes
 ********************************/
-
-router.post('/sendcode', sendcode);
+router.post('/2fa/verifyConfirmationCode', verifyConfirmationCode);
+router.post('/2fa/sendConfirmationCode', sendConfirmationCode);
 router.post('/2fa/getWalletAccessKey', getWalletAccessKey);
 
+/********************************
+Other routes
+********************************/
 router.post('/account', async ctx => {
     if (!creatorKeyJson) {
         console.warn('ACCOUNT_CREATOR_KEY is not set up, cannot create accounts.');
