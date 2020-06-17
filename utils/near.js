@@ -1,4 +1,3 @@
-
 const nearAPI = require('near-api-js');
 
 const creatorKeyJson = (() => {
@@ -9,6 +8,7 @@ const creatorKeyJson = (() => {
         return null;
     }
 })();
+
 const keyStore = {
     async getKey() {
         return nearAPI.KeyPair.fromString(creatorKeyJson.secret_key || creatorKeyJson.private_key);
@@ -23,10 +23,6 @@ const nearPromise = (async () => {
     });
     return near;
 })();
-
-
-
-
 
 const getContract = async (contractName, viewMethods, changeMethods, secretKey) => {
     const keyStore = {
