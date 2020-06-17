@@ -35,28 +35,11 @@ app.use(async function(ctx, next) {
 const Router = require('koa-router');
 const router = new Router();
 
-const creatorKeyJson = (() => {
-    try {
-        return JSON.parse(process.env.ACCOUNT_CREATOR_KEY);
-    } catch (e) {
-        console.warn(`Account creation not available.\nError parsing ACCOUNT_CREATOR_KEY='${process.env.ACCOUNT_CREATOR_KEY}':`, e);
-        return null;
-    }
-})();
-const keyStore = {
-    async getKey() {
-        return nearAPI.KeyPair.fromString(creatorKeyJson.secret_key || creatorKeyJson.private_key);
-    }
-};
+const {
+    creatorKeyJson,
+    nearPromise,
+} = require('./utils/near')
 
-const nearPromise = (async () => {
-    const near = await nearAPI.connect({
-        deps: { keyStore },
-        masterAccount: creatorKeyJson && creatorKeyJson.account_id,
-        nodeUrl: process.env.NODE_URL
-    });
-    return near;
-})();
 app.use(async (ctx, next) => {
     ctx.near = await nearPromise;
     await next();
@@ -100,24 +83,9 @@ router.post('/account', async ctx => {
 
 const password = require('secure-random-password');
 const models = require('./models');
-const FROM_PHONE = process.env.TWILIO_FROM_PHONE;
 const SECURITY_CODE_DIGITS = 6;
 
-const sendSms = async ({ to, text }) => {
-    if (process.env.NODE_ENV == 'production') {
-        const accountSid = process.env.TWILIO_ACCOUNT_SID;
-        const authToken = process.env.TWILIO_AUTH_TOKEN;
-        const client = require('twilio')(accountSid, authToken);
-        await client.messages
-            .create({
-                body: text,
-                from: FROM_PHONE,
-                to
-            });
-    } else {
-        console.log('sendSms:', { to, text });
-    }
-};
+const sendSms = require('./utils/sms')
 
 const nacl = require('tweetnacl');
 const crypto = require('crypto');
@@ -222,25 +190,7 @@ router.post(
     }
 );
 
-const sendMail = async (options) => {
-    if (process.env.NODE_ENV == 'production') {
-        const nodemailer = require('nodemailer');
-        const transport = nodemailer.createTransport({
-            host: process.env.MAIL_HOST,
-            port: process.env.MAIL_PORT,
-            auth: {
-                user: process.env.MAIL_USER,
-                pass: process.env.MAIL_PASSWORD
-            }
-        });
-        return transport.sendMail({
-            from: process.env.WALLET_EMAIL || 'wallet@near.org',
-            ...options
-        });
-    } else {
-        console.log('sendMail:', options);
-    }
-};
+const { sendMail } = require('./utils/email')
 
 const WALLET_URL = process.env.WALLET_URL;
 const sendRecoveryMessage = async ({ accountId, method, seedPhrase }) => {
