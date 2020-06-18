@@ -325,7 +325,7 @@ const sendSecurityCode = async (securityCode, method) => {
 router.post('/account/initializeRecoveryMethod',
     checkAccountOwnership,
     async ctx => {
-        const { accountId, method, testing } = ctx.request.body;
+        const { accountId, method} = ctx.request.body;
         const [account] = await models.Account.findOrCreate({ where: { accountId } });
 
         let [recoveryMethod] = await account.getRecoveryMethods({ where: {
@@ -343,10 +343,6 @@ router.post('/account/initializeRecoveryMethod',
         const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
         await recoveryMethod.update({ securityCode });
         await sendSecurityCode(securityCode, method);
-
-        if (testing) {
-            return ctx.body = securityCode;
-        }
 
         ctx.body = await recoveryMethodsFor(account);
     }

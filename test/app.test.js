@@ -81,9 +81,9 @@ describe('/account/initializeRecoveryMethod', () => {
                 ...(await signatureFor(accountId))
             });
 
-        savedSecurityCode = response.text;
+        const [, { subject }] = ctx.logs.find(log => log[0].match(/^sendMail.+/));
+        savedSecurityCode = /Your NEAR Wallet security code is:\s+(\d+)/.exec(subject)[1];
         assert.equal(response.status, 200);
-        assert.equal(savedSecurityCode, response.text);
     });
 
     test('validate security code (wrong code)', async () => {
