@@ -58,7 +58,7 @@ async function createNearAccount() {
             newAccountId: accountId,
             newAccountPublicKey: keyPair.publicKey.toString()
         });
-    keyStore.setKey(undefined, accountId, keyPair);
+    await keyStore.setKey(undefined, accountId, keyPair);
     assert.equal(response.status, 200);
     return accountId;
 }
@@ -200,7 +200,7 @@ describe('/account/recoveryMethods', () => {
         const newKeyPair = nearAPI.KeyPair.fromRandom('ED25519');
         const publicKey = newKeyPair.publicKey.toString();
         await nearAccount.addKey(publicKey, 'fake-contract');
-        keyStore.setKey(undefined, accountId, newKeyPair);
+        await keyStore.setKey(undefined, accountId, newKeyPair);
 
         const response = await request.post('/account/recoveryMethods')
             .send({ accountId, ...(await signatureFor(accountId)) });
