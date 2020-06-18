@@ -1,4 +1,3 @@
-const nearAPI = require('near-api-js');
 const Koa = require('koa');
 const app = new Koa();
 
@@ -38,7 +37,7 @@ const router = new Router();
 const {
     creatorKeyJson,
     nearPromise,
-} = require('./utils/near')
+} = require('./utils/near');
 
 app.use(async (ctx, next) => {
     ctx.near = await nearPromise;
@@ -85,7 +84,7 @@ const password = require('secure-random-password');
 const models = require('./models');
 const SECURITY_CODE_DIGITS = 6;
 
-const sendSms = require('./utils/sms')
+const sendSms = require('./utils/sms');
 
 const nacl = require('tweetnacl');
 const crypto = require('crypto');
@@ -190,7 +189,7 @@ router.post(
     }
 );
 
-const { sendMail } = require('./utils/email')
+const { sendMail } = require('./utils/email');
 
 const WALLET_URL = process.env.WALLET_URL;
 const sendRecoveryMessage = async ({ accountId, method, seedPhrase }) => {
