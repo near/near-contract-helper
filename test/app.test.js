@@ -24,6 +24,8 @@ const keyPair = nearAPI.KeyPair.fromString(parseSeedPhrase(SEED_PHRASE).secretKe
 const ctx = {};
 const request = supertest(app.callback());
 
+jest.setTimeout(15000);
+
 beforeAll(async () => {
     await models.sequelize.sync({ force: true });
     ctx.near = await nearAPI.connect({
