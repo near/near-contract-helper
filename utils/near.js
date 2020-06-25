@@ -48,8 +48,4 @@ module.exports = {
     keyStore,
     nearPromise,
     getContract,
-<<<<<<< HEAD
 };
-=======
-};
->>>>>>> linted
