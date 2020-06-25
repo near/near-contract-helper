@@ -36,13 +36,10 @@ const router = new Router();
 
 const {
     creatorKeyJson,
-    nearPromise,
-} = require('./utils/near');
+    withNear,
+} = require('./middleware/near');
 
-app.use(async (ctx, next) => {
-    ctx.near = await nearPromise;
-    await next();
-});
+app.use(withNear);
 
 const VALID_BLOCK_AGE = 100;
 
