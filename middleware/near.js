@@ -24,6 +24,7 @@ const nearPromise = (async () => {
     return near;
 })();
 
+<<<<<<< HEAD:middleware/near.js
 const withNear = async (ctx, next) => {
     ctx.near = await nearPromise;
     await next();
@@ -33,3 +34,30 @@ module.exports = {
     creatorKeyJson,
     withNear,
 };
+=======
+const getContract = async (contractName, viewMethods, changeMethods, secretKey) => {
+    const keyStore = {
+        async getKey() {
+            return nearAPI.KeyPair.fromString(secretKey);
+        },
+    };
+    const near = await nearAPI.connect({
+        deps: { keyStore },
+        masterAccount: creatorKeyJson && creatorKeyJson.account_id,
+        nodeUrl: process.env.NODE_URL
+    });
+    const contractAccount = new nearAPI.Account(near.connection, contractName);
+    const contract = new nearAPI.Contract(contractAccount, contractName, {
+        viewMethods,
+        changeMethods,
+    });
+    return contract;
+};
+
+module.exports = {
+    creatorKeyJson,
+    keyStore,
+    nearPromise,
+    getContract,
+};
+>>>>>>> 2d89a5fcd4161cf3d81048988221a7bb0fe69e86:utils/near.js
