@@ -41,6 +41,14 @@ const {
 
 app.use(withNear);
 
+/********************************
+2fa routes
+********************************/
+const {
+    getAccessKey,
+} = require('./middleware/2fa');
+router.post('/2fa/getAccessKey', getAccessKey);
+
 const VALID_BLOCK_AGE = 100;
 
 async function checkAccountOwnership(ctx, next) {

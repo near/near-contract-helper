@@ -1,7 +1,7 @@
 const nearAPI = require('near-api-js');
 const crypto = require('crypto');
 const nacl = require('tweetnacl');
-const { creatorKeyJson } = require('../utils/near');
+const { creatorKeyJson } = require('./near');
 const { sendSms } = require('../utils/sms');
 const { sendMail } = require('../utils/email');
 /********************************
@@ -46,7 +46,7 @@ const getDetermKey = async (accountId) => {
 @warning when you add this key to the account it will need an allowance to spend gas in order to confirm txs
 ********************************/
 // http post http://localhost:3000/2fa/getWalletAccessKey accountId=mattlock
-const getWalletAccessKey = async (ctx) => {
+const getAccessKey = async (ctx) => {
     const { accountId } = ctx.request.body;
     const keyPair = await getDetermKey(accountId);
     ctx.body = keyPair.publicKey;
@@ -98,7 +98,7 @@ const verifyConfirmationCode = async (ctx) => {
 
 module.exports = {
     // done
-    getWalletAccessKey,
+    getAccessKey,
     // WIP
     sendConfirmationCode,
     verifyConfirmationCode,

@@ -27,7 +27,7 @@ const nearPromise = (async () => {
 const withNear = async (ctx, next) => {
     ctx.near = await nearPromise;
     await next();
-}
+};
 
 module.exports = {
     creatorKeyJson,
