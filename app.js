@@ -46,8 +46,14 @@ app.use(withNear);
 ********************************/
 const {
     getAccessKey,
+    initCode,
+    sendNewCode,
+    verifyCode,
 } = require('./middleware/2fa');
 router.post('/2fa/getAccessKey', getAccessKey);
+router.post('/2fa/init', initCode);
+router.post('/2fa/send', sendNewCode);
+router.post('/2fa/verify', verifyCode);
 
 const VALID_BLOCK_AGE = 100;
 
