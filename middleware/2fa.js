@@ -78,6 +78,7 @@ const getAccessKey = async (ctx) => {
     ctx.body = keyPair.publicKey;
 };
 // http post http://localhost:3000/2fa/init accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
+// http post https://helper.testnet.near.org/2fa/init accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
 // Call ONCE to enable 2fa on this account. Adds a recovery method (passed in body) where kind should start with '2fa-'
 // This WILL send the initial code to the method specified ['2fa-email', '2fa-phone']
 const initCode = async (ctx) => {
@@ -109,6 +110,7 @@ const initCode = async (ctx) => {
     }
 };
 // http post http://localhost:3000/2fa/send accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
+// http post https://helper.testnet.near.org/2fa/send accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
 // Call anytime after calling initCode to resend a new code, the new code will overwrite the old code
 const sendNewCode = async (ctx) => {
     const { accountId, method } = ctx.request.body;
@@ -132,6 +134,7 @@ const sendNewCode = async (ctx) => {
     }
 };
 // http post http://localhost:3000/2fa/verify accountId=mattlock securityCode=430888
+// http post https://helper.testnet.near.org/2fa/verify accountId=mattlock securityCode=430888
 // call when you want to verify the "current" securityCode
 const verifyCode = async (ctx) => {
     const { accountId, securityCode } = ctx.request.body

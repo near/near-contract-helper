@@ -78,6 +78,19 @@ async function checkAccountOwnership(ctx, next) {
     return await next();
 }
 
+async function checkAccountDoesNotExist(ctx, next) {
+    const { accountId } = ctx.request.body;
+    let remoteAccount = null
+    try {
+        remoteAccount = await this.getAccount(accountId).state()
+    } catch (e) {
+        return await next();
+    }
+    if (!!remoteAccount) {
+        ctx.throw(403, 'Account ' + accountId + ' already exists.')
+    }
+}
+
 const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT;
 
 router.post('/account', async ctx => {
@@ -131,6 +144,9 @@ async function recoveryMethodsFor(account) {
     });
 }
 
+/********************************
+
+********************************/
 router.post('/account/recoveryMethods', checkAccountOwnership, async ctx => {
     const { accountId } = ctx.request.body;
     const account = await models.Account.findOne({ where: { accountId } });
@@ -281,6 +297,32 @@ const sendSecurityCode = async (securityCode, method) => {
         });
     }
 };
+
+router.post('/account/initializeRecoveryMethodForTempAccount',
+    checkAccountDoesNotExist,
+    async ctx => {
+        const { accountId, method} = ctx.request.body;
+        const [account] = await models.Account.findOrCreate({ where: { accountId } });
+
+        let [recoveryMethod] = await account.getRecoveryMethods({ where: {
+            kind: method.kind,
+            detail: method.detail
+        }});
+
+        if (!recoveryMethod) {
+            recoveryMethod = await account.createRecoveryMethod({
+                kind: method.kind,
+                detail: method.detail
+            });
+        }
+
+        const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
+        await recoveryMethod.update({ securityCode });
+        await sendSecurityCode(securityCode, method);
+
+        ctx.body = await recoveryMethodsFor(account);
+    }
+);
 
 router.post('/account/initializeRecoveryMethod',
     checkAccountOwnership,
