@@ -44,6 +44,33 @@ const sendCode = async (method, recoveryMethod) => {
     }
     return securityCode;
 };
+
+/********************************
+Checking code_hash (is multisig deployed)
+********************************/
+const isContractDeployed = async(accountId) => {
+    const keyStore = {
+        async getKey() {
+            return nearAPI.KeyPair.fromString('bs');
+        },
+    };
+    // check account code_hash
+    const near = await nearAPI.connect({
+        deps: { keyStore },
+        masterAccount: creatorKeyJson && creatorKeyJson.account_id,
+        nodeUrl: process.env.NODE_URL
+    });
+    const nearAccount = new nearAPI.Account(near.connection, accountId);
+    const state = await nearAccount.state();
+    console.log(state)
+    return state.code_hash !== '11111111111111111111111111111111'
+}
+
+/********************************
+@warn protect these routes using checkAccountOwnership middleware from app.js
+@warn Requires refactor
+********************************/
+
 /********************************
 Routes
 ********************************/
@@ -68,18 +95,33 @@ const initCode = async (ctx) => {
     if (!account) {
         console.warn('account should be created');
         ctx.throw(401);
+        return;
     }
-    let [recoveryMethod] = await account.getRecoveryMethods({ where: {
-        kind: {
-            [Op.startsWith]: '2fa-'
-        },
-    }});
-    if (recoveryMethod) {
-        console.warn('account should not have 2fa method yet');
-        ctx.throw(401);
-    }
-    console.log(method);
-    if (!recoveryMethod) {
+    const hasContractDeployed = await isContractDeployed(accountId)
+    // check recover methods
+    let recoveryMethod
+    // multisig contract is already deployed
+    if (hasContractDeployed) {
+        // check to see if they already have at least 1 2fa recovery method
+        let [rm] = await account.getRecoveryMethods({ where: {
+            kind: {
+                [Op.startsWith]: '2fa-'
+            },
+        }});
+        recoveryMethod = rm
+        if (recoveryMethod) {
+            console.warn('account with multisig contract already has 2fa method');
+            ctx.throw(401);
+            return;
+        } else {
+            // unlikely
+            recoveryMethod = await account.createRecoveryMethod({
+                kind: method.kind,
+                detail: method.detail
+            });
+        }
+    } else {
+        // as long as the multisig is not deployed, can keep adding 2fa- methods 
         recoveryMethod = await account.createRecoveryMethod({
             kind: method.kind,
             detail: method.detail
