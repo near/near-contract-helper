@@ -298,77 +298,65 @@ const sendSecurityCode = async (securityCode, method) => {
     }
 };
 
-router.post('/account/initializeRecoveryMethodForTempAccount',
-    checkAccountDoesNotExist,
-    async ctx => {
-        const { accountId, method} = ctx.request.body;
-        const [account] = await models.Account.findOrCreate({ where: { accountId } });
+const completeRecoveryInit = async ctx => {
+    const { accountId, method} = ctx.request.body;
+    const [account] = await models.Account.findOrCreate({ where: { accountId } });
 
-        let [recoveryMethod] = await account.getRecoveryMethods({ where: {
+    let [recoveryMethod] = await account.getRecoveryMethods({ where: {
+        kind: method.kind,
+        detail: method.detail
+    }});
+
+    if (!recoveryMethod) {
+        recoveryMethod = await account.createRecoveryMethod({
             kind: method.kind,
             detail: method.detail
-        }});
-
-        if (!recoveryMethod) {
-            recoveryMethod = await account.createRecoveryMethod({
-                kind: method.kind,
-                detail: method.detail
-            });
-        }
-
-        const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
-        await recoveryMethod.update({ securityCode });
-        await sendSecurityCode(securityCode, method);
-
-        ctx.body = await recoveryMethodsFor(account);
+        });
     }
+
+    const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
+    await recoveryMethod.update({ securityCode });
+    await sendSecurityCode(securityCode, method);
+
+    ctx.body = await recoveryMethodsFor(account);
+}
+
+router.post('/account/initializeRecoveryMethodForTempAccount',
+    checkAccountDoesNotExist,
+    completeRecoveryInit
 );
 
 router.post('/account/initializeRecoveryMethod',
     checkAccountOwnership,
-    async ctx => {
-        const { accountId, method} = ctx.request.body;
-        const [account] = await models.Account.findOrCreate({ where: { accountId } });
-
-        let [recoveryMethod] = await account.getRecoveryMethods({ where: {
-            kind: method.kind,
-            detail: method.detail
-        }});
-
-        if (!recoveryMethod) {
-            recoveryMethod = await account.createRecoveryMethod({
-                kind: method.kind,
-                detail: method.detail
-            });
-        }
-
-        const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
-        await recoveryMethod.update({ securityCode });
-        await sendSecurityCode(securityCode, method);
-
-        ctx.body = await recoveryMethodsFor(account);
-    }
+    completeRecoveryInit
 );
+
+const completeRecoveryValidation = async ctx => {
+    const { accountId, method, securityCode } = ctx.request.body;
+
+    const account = await models.Account.findOne({ where: { accountId } });
+
+    const [recoveryMethod] = await account.getRecoveryMethods({ where: {
+        kind: method.kind,
+        detail: method.detail,
+        securityCode: securityCode
+    }});
+
+    if (!recoveryMethod) {
+        ctx.throw(401);
+    }
+    console.log(securityCode);
+    ctx.body = await recoveryMethodsFor(account);
+}
 
 router.post('/account/validateSecurityCode',
     checkAccountOwnership,
-    async ctx => {
-        const { accountId, method, securityCode } = ctx.request.body;
+    completeRecoveryValidation
+);
 
-        const account = await models.Account.findOne({ where: { accountId } });
-
-        const [recoveryMethod] = await account.getRecoveryMethods({ where: {
-            kind: method.kind,
-            detail: method.detail,
-            securityCode: securityCode
-        }});
-
-        if (!recoveryMethod) {
-            ctx.throw(401);
-        }
-        console.log(securityCode);
-        ctx.body = await recoveryMethodsFor(account);
-    }
+router.post('/account/validateSecurityCodeForTempAccount',
+    checkAccountDoesNotExist,
+    completeRecoveryValidation
 );
 
 router.post('/account/sendRecoveryMessage', async ctx => {
