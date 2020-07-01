@@ -80,14 +80,14 @@ async function checkAccountOwnership(ctx, next) {
 
 async function checkAccountDoesNotExist(ctx, next) {
     const { accountId } = ctx.request.body;
-    let remoteAccount = null
+    let remoteAccount = null;
     try {
-        remoteAccount = await this.getAccount(accountId).state()
+        remoteAccount = await this.getAccount(accountId).state();
     } catch (e) {
         return await next();
     }
-    if (!!remoteAccount) {
-        ctx.throw(403, 'Account ' + accountId + ' already exists.')
+    if (remoteAccount) {
+        ctx.throw(403, 'Account ' + accountId + ' already exists.');
     }
 }
 
@@ -319,7 +319,7 @@ const completeRecoveryInit = async ctx => {
     await sendSecurityCode(securityCode, method);
 
     ctx.body = await recoveryMethodsFor(account);
-}
+};
 
 router.post('/account/initializeRecoveryMethodForTempAccount',
     checkAccountDoesNotExist,
@@ -347,7 +347,7 @@ const completeRecoveryValidation = async ctx => {
     }
     console.log(securityCode);
     ctx.body = await recoveryMethodsFor(account);
-}
+};
 
 router.post('/account/validateSecurityCode',
     checkAccountOwnership,

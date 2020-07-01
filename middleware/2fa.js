@@ -10,29 +10,7 @@ const Op = Sequelize.Op;
 //lots of repetition from app.js
 const password = require('secure-random-password');
 const SECURITY_CODE_DIGITS = 6;
-/********************************
-Contract Helper
-********************************/
-const viewMethods = [];
-const changeMethods = ['confirm'];
-const getContract = async (contractName, viewMethods, changeMethods, secretKey) => {
-    const keyStore = {
-        async getKey() {
-            return nearAPI.KeyPair.fromString(secretKey);
-        },
-    };
-    const near = await nearAPI.connect({
-        deps: { keyStore },
-        masterAccount: creatorKeyJson && creatorKeyJson.account_id,
-        nodeUrl: process.env.NODE_URL
-    });
-    const contractAccount = new nearAPI.Account(near.connection, contractName);
-    const contract = new nearAPI.Contract(contractAccount, contractName, {
-        viewMethods,
-        changeMethods,
-    });
-    return contract;
-};
+
 /********************************
 2FA Key
 ********************************/
@@ -60,7 +38,7 @@ const sendCode = async (method, recoveryMethod) => {
     } else if (method.kind === '2fa-email') {
         await sendMail({
             to: method.detail,
-            subject: `Near Wallet - Confirm Your Transaction`,
+            subject: 'Near Wallet - Confirm Your Transaction',
             text: `Use this code to confirm your transaction: ${securityCode}`
         });
     }
@@ -74,8 +52,11 @@ Routes
 // Call this to get the public key of the access key that contract-helper will be using to confirm multisig requests
 const getAccessKey = async (ctx) => {
     const { accountId } = ctx.request.body;
-    const keyPair = await getDetermKey(accountId);
-    ctx.body = keyPair.publicKey;
+    const { publicKey } = await getDetermKey(accountId);
+    ctx.body = {
+        success: true,
+        publicKey
+    };
 };
 // http post http://localhost:3000/2fa/init accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
 // http post https://helper.testnet.near.org/2fa/init accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
@@ -104,10 +85,10 @@ const initCode = async (ctx) => {
             detail: method.detail
         });
     }
-    sendCode(method, recoveryMethod)
+    sendCode(method, recoveryMethod);
     ctx.body = {
         success: true, message: '2fa initialized and first code sent'
-    }
+    };
 };
 // http post http://localhost:3000/2fa/send accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
 // http post https://helper.testnet.near.org/2fa/send accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
@@ -128,16 +109,16 @@ const sendNewCode = async (ctx) => {
         console.warn('2fa not enabled');
         ctx.throw(401);
     }
-    const code = await sendCode(method, recoveryMethod)
+    const code = await sendCode(method, recoveryMethod);
     ctx.body = {
         success: true, code, message: '2fa code sent'
-    }
+    };
 };
 // http post http://localhost:3000/2fa/verify accountId=mattlock securityCode=430888
 // http post https://helper.testnet.near.org/2fa/verify accountId=mattlock securityCode=430888
 // call when you want to verify the "current" securityCode
 const verifyCode = async (ctx) => {
-    const { accountId, securityCode } = ctx.request.body
+    const { accountId, securityCode } = ctx.request.body;
     const account = await models.Account.findOne({ where: { accountId } });
     const [recoveryMethod] = await account.getRecoveryMethods({ where: {
         kind: {
@@ -152,7 +133,7 @@ const verifyCode = async (ctx) => {
     await recoveryMethod.update({ securityCode: null });
     ctx.body = {
         success: true, message: '2fa code verified'
-    }
+    };
 };
 
 module.exports = {
@@ -167,15 +148,38 @@ module.exports = {
 /********************************
 WIP
 ********************************/
-const confirmTransaction = async (ctx) => {
-    const { code: userCode, accountId, requestId } = ctx.request.body;
-    if (code !== userCode) {
-        ctx.body = { success: false, message: 'codes is invalid' };
-    }
-    const key = await getDetermKey(accountId);
-    const contract = await getContract(accountId, viewMethods, changeMethods, key.secretKey);
-    const res = await contract.confirm({ request_id: parseInt(requestId) }).catch((e) => {
-        ctx.body = { success: false, error: e };
-    });
-    ctx.body = { success: !!res };
-};
+// const confirmTransaction = async (ctx) => {
+//     const { code: userCode, accountId, requestId } = ctx.request.body;
+//     if (code !== userCode) {
+//         ctx.body = { success: false, message: 'codes is invalid' };
+//     }
+//     const key = await getDetermKey(accountId);
+//     const contract = await getContract(accountId, viewMethods, changeMethods, key.secretKey);
+//     const res = await contract.confirm({ request_id: parseInt(requestId) }).catch((e) => {
+//         ctx.body = { success: false, error: e };
+//     });
+//     ctx.body = { success: !!res };
+// };
+/********************************
+Contract Helper
+********************************/
+// const viewMethods = [];
+// const changeMethods = ['confirm'];
+// const getContract = async (contractName, viewMethods, changeMethods, secretKey) => {
+//     const keyStore = {
+//         async getKey() {
+//             return nearAPI.KeyPair.fromString(secretKey);
+//         },
+//     };
+//     const near = await nearAPI.connect({
+//         deps: { keyStore },
+//         masterAccount: creatorKeyJson && creatorKeyJson.account_id,
+//         nodeUrl: process.env.NODE_URL
+//     });
+//     const contractAccount = new nearAPI.Account(near.connection, contractName);
+//     const contract = new nearAPI.Contract(contractAccount, contractName, {
+//         viewMethods,
+//         changeMethods,
+//     });
+//     return contract;
+// };
