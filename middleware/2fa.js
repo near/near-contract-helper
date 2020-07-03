@@ -70,10 +70,6 @@ const isContractDeployed = async(accountId) => {
 @warn protect these routes using checkAccountOwnership middleware from app.js
 @warn Requires refactor
 ********************************/
-
-/********************************
-Routes
-********************************/
 // http post http://localhost:3000/2fa/getAccessKey accountId=mattlock
 // http post https://helper.testnet.near.org/2fa/getAccessKey accountId=mattlock
 // Call this to get the public key of the access key that contract-helper will be using to confirm multisig requests
@@ -157,7 +153,7 @@ const sendNewCode = async (ctx) => {
     };
 };
 // http post http://localhost:3000/2fa/verify accountId=mattlock securityCode=430888
-// http post https://helper.testnet.near.org/2fa/verify accountId=mattlock securityCode=430888
+// http post https://helper.testnet.near.org/2fa/verify accountId=mattlock securityCode=437543
 // call when you want to verify the "current" securityCode
 const verifyCode = async (ctx) => {
     const { accountId, securityCode } = ctx.request.body;
