@@ -28,6 +28,13 @@ After that:
 
 You can also modify DB config in `config/config.js` to use different connection settings, etc.
 
+### Adding Migrations
+
+Follow existing migrations as examples. To generate a migration file use the following:
+```
+npx sequelize-cli migration:generate --name migration-skeleton
+```
+
 ### Environment Variables
 
 Create a `.env` file, copy in the default values from `.env.sample`. Read this file for information about how to change configuration settings to suit your needs.
