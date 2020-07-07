@@ -40,6 +40,7 @@ WIP
 const confirmRequest = async (accountId, request_id) => {
     const key = await getDetermKey(accountId);
     const contract = await getContract(accountId, key.secretKey);
+    // always parseInt on requestId. requestId is string in db because it could come from url params etc...
     const res = await contract.confirm({ request_id: parseInt(request_id) }).catch((e) => {
         return { success: false, error: e };
     });
@@ -61,9 +62,9 @@ const getDetermKey = async (accountId) => {
 Sending Codes
 method.kind = ['2fa-email', '2fa-phone']
 ********************************/
-const sendCode = async (method, recoveryMethod, data) => {
+const sendCode = async (method, recoveryMethod, requestId = '-1', data = {}) => {
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
-    await recoveryMethod.update({ securityCode });
+    await recoveryMethod.update({ securityCode, requestId });
     if (method.kind === '2fa-phone') {
         await sendSms({
             text: `Near Wallet\n\n
@@ -171,7 +172,7 @@ const initCode = async (ctx) => {
 // http post https://helper.testnet.near.org/2fa/send accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
 // Call anytime after calling initCode to resend a new code, the new code will overwrite the old code
 const sendNewCode = async (ctx) => {
-    const { accountId, method, data } = ctx.request.body;
+    const { accountId, method, requestId, data } = ctx.request.body;
     const [account] = await models.Account.findOrCreate({ where: { accountId } });
     if (!account) {
         console.warn('account should be created');
@@ -186,7 +187,7 @@ const sendNewCode = async (ctx) => {
         console.warn('2fa not enabled');
         ctx.throw(401);
     }
-    const code = await sendCode(method, recoveryMethod, data);
+    const code = await sendCode(method, recoveryMethod, requestId, data);
     ctx.body = {
         success: true, code, message: '2fa code sent'
     };
@@ -201,16 +202,18 @@ const verifyCode = async (ctx) => {
         kind: {
             [Op.startsWith]: '2fa-'
         },
-        securityCode
+        requestId,
+        securityCode,
     }});
     if (!recoveryMethod) {
         console.warn('2fa code invalid');
         ctx.throw(401);
     }
     //security code was valid, remove it and if there was a request, confirm it, otherwise just return success: true
-    await recoveryMethod.update({ securityCode: null });
-    if (requestId) {
-        ctx.body = await confirmRequest(accountId, requestId);
+    await recoveryMethod.update({ requestId: '-1', securityCode: null });
+    // requestId already matched recoveryMethod record and if it's not -1 we will attempt to confirm the request
+    if (requestId !== '-1') {
+        ctx.body = await confirmRequest(accountId, parseInt(requestId));
     } else {
         ctx.body = {
             success: true, message: '2fa code verified'
