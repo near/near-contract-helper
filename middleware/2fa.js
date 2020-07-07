@@ -62,23 +62,30 @@ const getDetermKey = async (accountId) => {
 Sending Codes
 method.kind = ['2fa-email', '2fa-phone']
 ********************************/
-const sendCode = async (method, recoveryMethod, requestId = '-1', data = {}) => {
+const nearTo = (value = '0', to = 2) => nearAPI.utils.BN(value).div(10 ** 24).toFixed(to === 0 ? undefined : to)
+const prettyRequestInfo = ({ request_id, request }) => `
+    Recipient: ${ request.receiver_id }
+    Actions:\n${ request.actions.map((r) => r.type + (r.amount ? ': ' + nearTo(r.amount) : '')).join(', ') }
+    
+`
+
+const sendCode = async (method, recoveryMethod, requestId = -1, data = {}) => {
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
     await recoveryMethod.update({ securityCode, requestId });
     if (method.kind === '2fa-phone') {
         await sendSms({
-            text: `Near Wallet\n\n
-            Use this code to confirm your transaction: ${securityCode}\n\n
-            ${data ? JSON.stringify(data) : data}
+            text: `NEAR Wallet\n\n
+            Enter this code to confirm the following NEAR Wallet transaction: ${securityCode}\n\n
+            ${data ? prettyRequestInfo(data) : ``}
             `,
             to: method.detail
         });
     } else if (method.kind === '2fa-email') {
         await sendMail({
             to: method.detail,
-            subject: 'Near Wallet Transaction Confirmation',
-            text: `Use this code to confirm your transaction: ${securityCode}\n\n
-            ${data ? JSON.stringify(data) : data}
+            subject: 'NEAR Wallet Transaction Confirmation',
+            text: `Enter this code to confirm the following NEAR Wallet transaction: ${securityCode}\n\n
+            ${data ? prettyRequestInfo(data) : ``}
             `,
         });
     }
@@ -210,9 +217,9 @@ const verifyCode = async (ctx) => {
         ctx.throw(401);
     }
     //security code was valid, remove it and if there was a request, confirm it, otherwise just return success: true
-    await recoveryMethod.update({ requestId: '-1', securityCode: null });
+    await recoveryMethod.update({ requestId: -1, securityCode: null });
     // requestId already matched recoveryMethod record and if it's not -1 we will attempt to confirm the request
-    if (requestId !== '-1') {
+    if (requestId !== -1) {
         ctx.body = await confirmRequest(accountId, parseInt(requestId));
     } else {
         ctx.body = {
