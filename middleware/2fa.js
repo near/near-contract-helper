@@ -62,11 +62,10 @@ const getDetermKey = async (accountId) => {
 Sending Codes
 method.kind = ['2fa-email', '2fa-phone']
 ********************************/
-const nearTo = (value = '0', to = 2) => nearAPI.utils.BN(value).div(10 ** 24).toFixed(to === 0 ? undefined : to)
 const prettyRequestInfo = ({ request_id, request }) => `
     Recipient: ${ request.receiver_id }
-    Actions:\n${ request.actions.map((r) => r.type + (r.amount ? ': ' + nearTo(r.amount) : '')).join(', ') }
-    
+    Actions:\n${ request.actions.map((r) => r.type + (r.amount ? ': ' + nearAPI.utils.format.formatNearAmount(r.amount, 4) : '')).join(', ') }
+
 `
 
 const sendCode = async (method, recoveryMethod, requestId = -1, data = {}) => {
