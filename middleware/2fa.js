@@ -142,16 +142,14 @@ const initCode = async (ctx) => {
     }
     const hasContractDeployed = await isContractDeployed(accountId);
     // check recover methods
-    let recoveryMethod;
+    let recoveryMethod = await account.getRecoveryMethods({ where: {
+        kind: {
+            [Op.startsWith]: '2fa-'
+        },
+    }});
     // multisig contract is already deployed
     if (hasContractDeployed) {
         // check to see if they already have at least 1 2fa recovery method
-        let [rm] = await account.getRecoveryMethods({ where: {
-            kind: {
-                [Op.startsWith]: '2fa-'
-            },
-        }});
-        recoveryMethod = rm;
         if (recoveryMethod) {
             console.warn('account with multisig contract already has 2fa method');
             ctx.throw(401);
@@ -165,12 +163,20 @@ const initCode = async (ctx) => {
             });
         }
     } else {
-        // as long as the multisig is not deployed, can keep adding 2fa- methods 
-        recoveryMethod = await account.createRecoveryMethod({
-            kind: method.kind,
-            detail: method.detail,
-            requestId: -1
-        });
+        // as long as the multisig is not deployed, can keep updating (or create new, recovery method)
+        if (recoveryMethod) {
+            await recoveryMethod.update({
+                kind: method.kind,
+                detail: method.detail,
+                requestId: -1
+            });
+        } else {
+            recoveryMethod = await account.createRecoveryMethod({
+                kind: method.kind,
+                detail: method.detail,
+                requestId: -1
+            });
+        }
     }
     sendCode(method, recoveryMethod);
     ctx.body = {
@@ -198,7 +204,7 @@ const sendNewCode = async (ctx) => {
     }
     const code = await sendCode(method, recoveryMethod, requestId, data);
     ctx.body = {
-        success: true, code, message: '2fa code sent'
+        success: true, message: '2fa code sent'
     };
 };
 // http post http://localhost:3000/2fa/verify accountId=mattlock securityCode=430888
