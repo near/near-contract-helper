@@ -74,7 +74,7 @@ const sendCode = async (method, recoveryMethod, requestId = -1, data = {}) => {
         await sendSms({
             text: `NEAR Wallet\n\n
             Enter this code to confirm the following NEAR Wallet transaction: ${securityCode}\n\n
-            ${data ? prettyRequestInfo(data) : ``}
+            ${data.request ? prettyRequestInfo(data) : ``}
             `,
             to: method.detail
         });
@@ -83,7 +83,7 @@ const sendCode = async (method, recoveryMethod, requestId = -1, data = {}) => {
             to: method.detail,
             subject: 'NEAR Wallet Transaction Confirmation',
             text: `Enter this code to confirm the following NEAR Wallet transaction: ${securityCode}\n\n
-            ${data ? prettyRequestInfo(data) : ``}
+            ${data.request ? prettyRequestInfo(data) : ``}
             `,
         });
     }
@@ -117,6 +117,7 @@ const isContractDeployed = async(accountId) => {
 ********************************/
 // http post http://localhost:3000/2fa/getAccessKey accountId=mattlock
 // http post https://helper.testnet.near.org/2fa/getAccessKey accountId=mattlock
+// http post https://near-contract-helper-2fa.onrender.com/2fa/getAccessKey accountId=mattlock
 // Call this to get the public key of the access key that contract-helper will be using to confirm multisig requests
 const getAccessKey = async (ctx) => {
     const { accountId } = ctx.request.body;
@@ -126,8 +127,9 @@ const getAccessKey = async (ctx) => {
         publicKey
     };
 };
+// https://near-contract-helper-2fa.onrender.com/
 // http post http://localhost:3000/2fa/init accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
-// http post https://helper.testnet.near.org/2fa/init accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
+// http post https://near-contract-helper-2fa.onrender.com/2fa/init accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
 // Call ONCE to enable 2fa on this account. Adds a recovery method (passed in body) where kind should start with '2fa-'
 // This WILL send the initial code to the method specified ['2fa-email', '2fa-phone']
 const initCode = async (ctx) => {
@@ -174,7 +176,7 @@ const initCode = async (ctx) => {
     };
 };
 // http post http://localhost:3000/2fa/send accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
-// http post https://helper.testnet.near.org/2fa/send accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
+// http post https://near-contract-helper-2fa.onrender.com/2fa/send accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
 // Call anytime after calling initCode to resend a new code, the new code will overwrite the old code
 const sendNewCode = async (ctx) => {
     const { accountId, method, requestId, data } = ctx.request.body;
@@ -198,7 +200,7 @@ const sendNewCode = async (ctx) => {
     };
 };
 // http post http://localhost:3000/2fa/verify accountId=mattlock securityCode=430888
-// http post https://helper.testnet.near.org/2fa/verify accountId=mattlock securityCode=437543
+// http post https://near-contract-helper-2fa.onrender.com/2fa/verify accountId=mattlock securityCode=437543
 // call when you want to verify the "current" securityCode
 const verifyCode = async (ctx) => {
     const { accountId, securityCode, requestId } = ctx.request.body;
