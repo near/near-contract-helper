@@ -64,8 +64,7 @@ method.kind = ['2fa-email', '2fa-phone']
 ********************************/
 const prettyRequestInfo = ({ request_id, request }) => `
     Recipient: ${ request.receiver_id }
-    Actions:\n${ request.actions.map((r) => r.type + (r.amount ? ': ' + nearAPI.utils.format.formatNearAmount(r.amount, 4) : '')).join(', ') }
-
+    Actions:\n\t${ request.actions.map((r) => r.type + (r.amount ? ': ' + nearAPI.utils.format.formatNearAmount(r.amount, 4) : '')).join('\n\t') }
 `
 
 const sendCode = async (method, recoveryMethod, requestId = -1, data = {}) => {
