@@ -164,14 +164,14 @@ const initCode = async (ctx) => {
         }
     } else {
         // as long as the multisig is not deployed, can keep updating (or create new, recovery method)
-        if (recoveryMethod) {
-            await recoveryMethod.update({
+        if (!recoveryMethod) {
+            recoveryMethod = await account.createRecoveryMethod({
                 kind: method.kind,
                 detail: method.detail,
                 requestId: -1
             });
         } else {
-            recoveryMethod = await account.createRecoveryMethod({
+            await recoveryMethod.update({
                 kind: method.kind,
                 detail: method.detail,
                 requestId: -1
