@@ -160,14 +160,16 @@ const initCode = async (ctx) => {
             // unlikely
             recoveryMethod = await account.createRecoveryMethod({
                 kind: method.kind,
-                detail: method.detail
+                detail: method.detail,
+                requestId: -1
             });
         }
     } else {
         // as long as the multisig is not deployed, can keep adding 2fa- methods 
         recoveryMethod = await account.createRecoveryMethod({
             kind: method.kind,
-            detail: method.detail
+            detail: method.detail,
+            requestId: -1
         });
     }
     sendCode(method, recoveryMethod);
