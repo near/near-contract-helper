@@ -142,7 +142,7 @@ const initCode = async (ctx) => {
     }
     const hasContractDeployed = await isContractDeployed(accountId);
     // check recover methods
-    let recoveryMethod = await account.getRecoveryMethods({ where: {
+    let [recoveryMethod] = await account.getRecoveryMethods({ where: {
         kind: {
             [Op.startsWith]: '2fa-'
         },
