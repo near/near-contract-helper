@@ -108,7 +108,7 @@ const password = require('secure-random-password');
 const models = require('./models');
 const SECURITY_CODE_DIGITS = 6;
 
-const sendSms = require('./utils/sms');
+const { sendSms } = require('./utils/sms');
 
 const nacl = require('tweetnacl');
 const crypto = require('crypto');
