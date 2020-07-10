@@ -1,7 +1,7 @@
 const nearAPI = require('near-api-js');
 const crypto = require('crypto');
 const nacl = require('tweetnacl');
-const { creatorKeyJson } = require('./near');
+const { creatorKeyJson, checkAccountOwnership } = require('./near');
 const { sendSms } = require('../utils/sms');
 const { sendMail } = require('../utils/email');
 const models = require('../models');
