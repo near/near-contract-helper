@@ -3,6 +3,7 @@ const nacl = require('tweetnacl');
 const crypto = require('crypto');
 const bs58 = require('bs58');
 
+const VALID_BLOCK_AGE = 100;
 
 const verifySignature = async (nearAccount, data, signature) => {
     try {
