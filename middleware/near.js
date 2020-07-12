@@ -48,6 +48,24 @@ async function checkAccountOwnership(ctx, next) {
 }
 
 
+function getAccount(ctx, accountId) {
+    return new nearAPI.Account(ctx.near.connection, accountId);
+}
+
+async function checkAccountDoesNotExist(ctx, next) {
+    const { accountId } = ctx.request.body;
+    let remoteAccount = null;
+    try {
+        remoteAccount = await getAccount(ctx, accountId).state();
+    } catch (e) {
+        return await next();
+    }
+    if (remoteAccount) {
+        ctx.throw(403, 'Account ' + accountId + ' already exists.');
+    }
+}
+
+
 const creatorKeyJson = (() => {
     try {
         return JSON.parse(process.env.ACCOUNT_CREATOR_KEY);
@@ -81,4 +99,5 @@ module.exports = {
     creatorKeyJson,
     withNear,
     checkAccountOwnership,
+    checkAccountDoesNotExist,
 };

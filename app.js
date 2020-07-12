@@ -38,6 +38,7 @@ const {
     creatorKeyJson,
     withNear,
     checkAccountOwnership,
+    checkAccountDoesNotExist,
 } = require('./middleware/near');
 
 app.use(withNear);
@@ -56,22 +57,11 @@ router.post('/2fa/init', checkAccountOwnership, initCode);
 router.post('/2fa/send', checkAccountOwnership, sendNewCode);
 router.post('/2fa/verify', checkAccountOwnership, verifyCode);
 
-const VALID_BLOCK_AGE = 100;
 
-
-
-async function checkAccountDoesNotExist(ctx, next) {
-    const { accountId } = ctx.request.body;
-    let remoteAccount = null;
-    try {
-        remoteAccount = await this.getAccount(accountId).state();
-    } catch (e) {
-        return await next();
-    }
-    if (remoteAccount) {
-        ctx.throw(403, 'Account ' + accountId + ' already exists.');
-    }
-}
+// testing
+router.post('/account/not', checkAccountDoesNotExist, async ctx => {
+    ctx.body = 'does not exist';
+});
 
 const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT;
 

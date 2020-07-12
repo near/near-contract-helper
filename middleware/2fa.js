@@ -1,7 +1,7 @@
 const nearAPI = require('near-api-js');
 const crypto = require('crypto');
 const nacl = require('tweetnacl');
-const { creatorKeyJson, checkAccountOwnership } = require('./near');
+const { creatorKeyJson } = require('./near');
 const { sendSms } = require('../utils/sms');
 const { sendMail } = require('../utils/email');
 const models = require('../models');
@@ -62,10 +62,10 @@ const getDetermKey = async (accountId) => {
 Sending Codes
 method.kind = ['2fa-email', '2fa-phone']
 ********************************/
-const prettyRequestInfo = ({ request_id, request }) => `
+const prettyRequestInfo = ({ request }) => `
     Recipient: ${ request.receiver_id }
     Actions:\n\t${ request.actions.map((r) => r.type + (r.amount ? ': ' + nearAPI.utils.format.formatNearAmount(r.amount, 4) : '')).join('\n\t') }
-`
+`;
 
 const sendCode = async (method, recoveryMethod, requestId = -1, data = {}) => {
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
@@ -74,7 +74,7 @@ const sendCode = async (method, recoveryMethod, requestId = -1, data = {}) => {
         await sendSms({
             text: `NEAR Wallet\n\n
             Enter this code to confirm the following NEAR Wallet transaction: ${securityCode}\n\n
-            ${data.request ? prettyRequestInfo(data) : ``}
+            ${data.request ? prettyRequestInfo(data) : ''}
             `,
             to: method.detail
         });
@@ -83,7 +83,7 @@ const sendCode = async (method, recoveryMethod, requestId = -1, data = {}) => {
             to: method.detail,
             subject: 'NEAR Wallet Transaction Confirmation',
             text: `Enter this code to confirm the following NEAR Wallet transaction: ${securityCode}\n\n
-            ${data.request ? prettyRequestInfo(data) : ``}
+            ${data.request ? prettyRequestInfo(data) : ''}
             `,
         });
     }
@@ -202,7 +202,7 @@ const sendNewCode = async (ctx) => {
         console.warn('2fa not enabled');
         ctx.throw(401);
     }
-    const code = await sendCode(method, recoveryMethod, requestId, data);
+    await sendCode(method, recoveryMethod, requestId, data);
     ctx.body = {
         success: true, message: '2fa code sent'
     };
