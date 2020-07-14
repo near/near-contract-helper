@@ -43,7 +43,7 @@ const confirmRequest = async (accountId, request_id) => {
     const res = await contract.confirm({ request_id: parseInt(request_id) }).catch((e) => {
         return { success: false, error: e };
     });
-    return { success: !!res };
+    return res
 };
 /********************************
 2FA Key
