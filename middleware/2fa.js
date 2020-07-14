@@ -39,7 +39,7 @@ const confirmRequest = async (accountId, request_id) => {
     const key = await getDetermKey(accountId);
     const contract = await getContract(accountId, key.secretKey);
     // always parseInt on requestId. requestId is string in db because it could come from url params etc...
-    console.log(`\n\n\n`, accountId, key.secretKey, request_id, `\n\n\n`)
+    console.log(`\n\n\n`, contract, `\n\n\n`)
     const res = await contract.confirm({ request_id: parseInt(request_id) }).catch((e) => {
         return { success: false, error: e };
     });
