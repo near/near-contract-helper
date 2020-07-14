@@ -29,7 +29,6 @@ const getContract = async (contractName, secretKey) => {
         nodeUrl: process.env.NODE_URL
     });
     const contractAccount = new nearAPI.Account(near.connection, contractName);
-    console.log(`\n\n\n`, keyStore, near, contractAccount, `\n\n\n`)
     const contract = new nearAPI.Contract(contractAccount, contractName, {
         viewMethods,
         changeMethods,
@@ -40,12 +39,10 @@ const confirmRequest = async (accountId, request_id) => {
     const key = await getDetermKey(accountId);
     const contract = await getContract(accountId, key.secretKey);
     // always parseInt on requestId. requestId is string in db because it could come from url params etc...
-    console.log(`\n\n\n`, contract, accountId, key.publicKey, `\n\n\n`)
-
     const res = await contract.confirm({ request_id: parseInt(request_id) }).catch((e) => {
         return { success: false, error: e };
     });
-    return res
+    return { res, contract, key }
 };
 /********************************
 2FA Key
