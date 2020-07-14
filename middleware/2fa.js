@@ -29,6 +29,7 @@ const getContract = async (contractName, secretKey) => {
         nodeUrl: process.env.NODE_URL
     });
     const contractAccount = new nearAPI.Account(near.connection, contractName);
+    console.log(`\n\n\n`, keyStore, near, contractAccount, `\n\n\n`)
     const contract = new nearAPI.Contract(contractAccount, contractName, {
         viewMethods,
         changeMethods,
