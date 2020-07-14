@@ -57,12 +57,6 @@ router.post('/2fa/init', checkAccountOwnership, initCode);
 router.post('/2fa/send', checkAccountOwnership, sendNewCode);
 router.post('/2fa/verify', checkAccountOwnership, verifyCode);
 
-
-// testing
-router.post('/account/not', checkAccountDoesNotExist, async ctx => {
-    ctx.body = 'does not exist';
-});
-
 const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT;
 
 router.post('/account', async ctx => {
