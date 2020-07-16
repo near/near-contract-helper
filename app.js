@@ -37,32 +37,11 @@ const router = new Router();
 const {
     creatorKeyJson,
     withNear,
+    checkAccountOwnership,
+    checkAccountDoesNotExist,
 } = require('./middleware/near');
 
 app.use(withNear);
-
-const VALID_BLOCK_AGE = 100;
-
-async function checkAccountOwnership(ctx, next) {
-    const { accountId, blockNumber, blockNumberSignature } = ctx.request.body;
-    if (!accountId || !blockNumber || !blockNumberSignature) {
-        ctx.throw(403, 'You must provide an accountId, blockNumber, and blockNumberSignature');
-    }
-
-    const currentBlock = (await ctx.near.connection.provider.status()).sync_info.latest_block_height;
-    const givenBlock = Number(blockNumber);
-
-    if (givenBlock <= currentBlock - VALID_BLOCK_AGE || givenBlock > currentBlock) {
-        ctx.throw(403, `You must provide a blockNumber within ${VALID_BLOCK_AGE} of the most recent block; provided: ${blockNumber}, current: ${currentBlock}`);
-    }
-
-    const nearAccount = await ctx.near.account(accountId);
-    if (!(await verifySignature(nearAccount, blockNumber, blockNumberSignature))) {
-        ctx.throw(403, `blockNumberSignature did not match a signature of blockNumber=${blockNumber} from accountId=${accountId}`);
-    }
-
-    return await next();
-}
 
 const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT;
 
@@ -81,28 +60,9 @@ const password = require('secure-random-password');
 const models = require('./models');
 const SECURITY_CODE_DIGITS = 6;
 
-const sendSms = require('./utils/sms');
+const { sendSms } = require('./utils/sms');
 
-const nacl = require('tweetnacl');
-const crypto = require('crypto');
-const bs58 = require('bs58');
-const verifySignature = async (nearAccount, data, signature) => {
-    try {
-        const hash = crypto.createHash('sha256').update(data).digest();
-        const accessKeys = (await nearAccount.getAccessKeys())
-            .filter(({ access_key: { permission } }) => permission === 'FullAccess' ||
-                    permission.FunctionCall &&
-                        permission.FunctionCall.receiver_id === nearAccount.accountId &&
-                        permission.FunctionCall.method_names.includes('__wallet__metadata'));
-        return accessKeys.some(it => {
-            const publicKey = it.public_key.replace('ed25519:', '');
-            return nacl.sign.detached.verify(hash, Buffer.from(signature, 'base64'), bs58.decode(publicKey));
-        });
-    } catch (e) {
-        console.error(e);
-        return false;
-    }
-};
+
 
 async function recoveryMethodsFor(account) {
     if (!account) return [];
@@ -117,6 +77,9 @@ async function recoveryMethodsFor(account) {
     });
 }
 
+/********************************
+
+********************************/
 router.post('/account/recoveryMethods', checkAccountOwnership, async ctx => {
     const { accountId } = ctx.request.body;
     const account = await models.Account.findOne({ where: { accountId } });
@@ -268,51 +231,65 @@ const sendSecurityCode = async (securityCode, method) => {
     }
 };
 
-router.post('/account/initializeRecoveryMethod',
-    checkAccountOwnership,
-    async ctx => {
-        const { accountId, method} = ctx.request.body;
-        const [account] = await models.Account.findOrCreate({ where: { accountId } });
+const completeRecoveryInit = async ctx => {
+    const { accountId, method} = ctx.request.body;
+    const [account] = await models.Account.findOrCreate({ where: { accountId } });
 
-        let [recoveryMethod] = await account.getRecoveryMethods({ where: {
+    let [recoveryMethod] = await account.getRecoveryMethods({ where: {
+        kind: method.kind,
+        detail: method.detail
+    }});
+
+    if (!recoveryMethod) {
+        recoveryMethod = await account.createRecoveryMethod({
             kind: method.kind,
             detail: method.detail
-        }});
-
-        if (!recoveryMethod) {
-            recoveryMethod = await account.createRecoveryMethod({
-                kind: method.kind,
-                detail: method.detail
-            });
-        }
-
-        const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
-        await recoveryMethod.update({ securityCode });
-        await sendSecurityCode(securityCode, method);
-
-        ctx.body = await recoveryMethodsFor(account);
+        });
     }
+
+    const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
+    await recoveryMethod.update({ securityCode });
+    await sendSecurityCode(securityCode, method);
+
+    ctx.body = await recoveryMethodsFor(account);
+};
+
+router.post('/account/initializeRecoveryMethodForTempAccount',
+    checkAccountDoesNotExist,
+    completeRecoveryInit
 );
+
+router.post('/account/initializeRecoveryMethod',
+    checkAccountOwnership,
+    completeRecoveryInit
+);
+
+const completeRecoveryValidation = async ctx => {
+    const { accountId, method, securityCode } = ctx.request.body;
+
+    const account = await models.Account.findOne({ where: { accountId } });
+
+    const [recoveryMethod] = await account.getRecoveryMethods({ where: {
+        kind: method.kind,
+        detail: method.detail,
+        securityCode: securityCode
+    }});
+
+    if (!recoveryMethod) {
+        ctx.throw(401);
+    }
+    console.log(securityCode);
+    ctx.body = await recoveryMethodsFor(account);
+};
 
 router.post('/account/validateSecurityCode',
     checkAccountOwnership,
-    async ctx => {
-        const { accountId, method, securityCode } = ctx.request.body;
+    completeRecoveryValidation
+);
 
-        const account = await models.Account.findOne({ where: { accountId } });
-
-        const [recoveryMethod] = await account.getRecoveryMethods({ where: {
-            kind: method.kind,
-            detail: method.detail,
-            securityCode: securityCode
-        }});
-
-        if (!recoveryMethod) {
-            ctx.throw(401);
-        }
-        console.log(securityCode);
-        ctx.body = await recoveryMethodsFor(account);
-    }
+router.post('/account/validateSecurityCodeForTempAccount',
+    checkAccountDoesNotExist,
+    completeRecoveryValidation
 );
 
 router.post('/account/sendRecoveryMessage', async ctx => {
