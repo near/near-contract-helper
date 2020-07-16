@@ -9,7 +9,6 @@ const Sequelize = require('sequelize');
 const Op = Sequelize.Op;
 //lots of repetition from app.js
 const password = require('secure-random-password');
-const { request } = require('http');
 const SECURITY_CODE_DIGITS = 6;
 
 /********************************
@@ -42,7 +41,7 @@ const confirmRequest = async (accountId, request_id) => {
     const res = await contract.confirm({ request_id: parseInt(request_id) }).catch((e) => {
         return { success: false, error: e };
     });
-    return { success: !!res, res }
+    return { success: !!res, res };
 };
 /********************************
 2FA Key
