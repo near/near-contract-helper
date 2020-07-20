@@ -10,6 +10,7 @@ const Op = Sequelize.Op;
 //lots of repetition from app.js
 const password = require('secure-random-password');
 const SECURITY_CODE_DIGITS = 6;
+const twoFactorMethods = ['2fa-email', '2fa-phone'];
 
 /********************************
 Contract Helper
@@ -136,9 +137,14 @@ const initCode = async (ctx) => {
         ctx.throw(401, 'account should be created');
         return;
     }
+    if (!method || !method.kind || !method.detail) {
+        ctx.throw(401, 'method arguments invalid');
+        return;
+    }
+    const { kind, detail } = method;
     // validate method kind
-    if (method && (method.kind !== '2fa-email' || method.kind !== '2fa-phone')) {
-        ctx.throw(401, 'invalid 2fa method');
+    if (!twoFactorMethods.includes(kind)) {
+        ctx.throw(401, 'invalid 2fa method ' + kind);
         return;
     }
     const hasContractDeployed = await isContractDeployed(accountId);
@@ -148,14 +154,6 @@ const initCode = async (ctx) => {
             [Op.startsWith]: '2fa-'
         },
     }});
-    // create the 2fa method
-    const createTwoFactorMethod = async () => {
-        twoFactorMethod = await account.createRecoveryMethod({
-            kind: method.kind,
-            detail: method.detail,
-            requestId: -1
-        });
-    };
     // check if multisig contract is already deployed
     if (hasContractDeployed) {
         // check to see if they already have at least 1 twoFactorMethod
@@ -164,12 +162,12 @@ const initCode = async (ctx) => {
             return;
         } else {
             // unlikely
-            await createTwoFactorMethod();
+            await account.createRecoveryMethod({ kind, detail, requestId: -1 });
         }
     } else {
         // as long as the multisig is not deployed, can keep updating (or create new, 2fa method)
         if (!twoFactorMethod) {
-            await createTwoFactorMethod();
+            await account.createRecoveryMethod({ kind, detail, requestId: -1 });
         } else {
             await twoFactorMethod.update({
                 kind: method.kind,
@@ -180,8 +178,8 @@ const initCode = async (ctx) => {
     }
     // check if 2fa method matches existing recovery method
     const [recoveryMethod] = await account.getRecoveryMethods({ where: {
-        kind: method.kind.split('2fa-')[1],
-        detail: method.detail,
+        kind: kind.split('2fa-')[1],
+        detail,
     }});
     if (!recoveryMethod) {
         // client waits to deploy contract until code is verified
