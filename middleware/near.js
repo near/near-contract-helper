@@ -8,14 +8,23 @@ const VALID_BLOCK_AGE = 100;
 const verifySignature = async (nearAccount, data, signature) => {
     try {
         const hash = crypto.createHash('sha256').update(data).digest();
-        const accessKeys = (await nearAccount.getAccessKeys());
-        /********************************
-        @todo what should be the correct filter here
-        ********************************/
-        // .filter(({ access_key: { permission } }) => permission === 'FullAccess' ||
-        //         permission.FunctionCall &&
-        //             permission.FunctionCall.receiver_id === nearAccount.accountId &&
-        //             permission.FunctionCall.method_names.includes('__wallet__metadata'));
+        const accessKeys = (await nearAccount.getAccessKeys())
+            .filter(({ access_key: { permission } }) =>
+                permission === 'FullAccess' ||
+                // wallet key
+                (
+                    permission.FunctionCall &&
+                    permission.FunctionCall.receiver_id === nearAccount.accountId &&
+                    permission.FunctionCall.method_names.includes('__wallet__metadata')
+                ) ||
+                // multisig
+                (
+                    permission.FunctionCall &&
+                    permission.FunctionCall.receiver_id === nearAccount.accountId &&
+                    permission.FunctionCall.method_names.includes('confirm') &&
+                    permission.FunctionCall.method_names.includes('add_request')
+                )
+            );
         return accessKeys.some(it => {
             const publicKey = it.public_key.replace('ed25519:', '');
             return nacl.sign.detached.verify(hash, Buffer.from(signature, 'base64'), bs58.decode(publicKey));
