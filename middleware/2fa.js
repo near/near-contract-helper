@@ -149,13 +149,13 @@ const initCode = async (ctx) => {
         },
     }});
     // create the 2fa method
-    const createTwoFactorMethod = () => {
+    const createTwoFactorMethod = async () => {
         twoFactorMethod = await account.createRecoveryMethod({
             kind: method.kind,
             detail: method.detail,
             requestId: -1
         });
-    }
+    };
     // check if multisig contract is already deployed
     if (hasContractDeployed) {
         // check to see if they already have at least 1 twoFactorMethod
@@ -164,12 +164,12 @@ const initCode = async (ctx) => {
             return;
         } else {
             // unlikely
-            createTwoFactorMethod()
+            await createTwoFactorMethod();
         }
     } else {
         // as long as the multisig is not deployed, can keep updating (or create new, 2fa method)
         if (!twoFactorMethod) {
-            createTwoFactorMethod()
+            await createTwoFactorMethod();
         } else {
             await twoFactorMethod.update({
                 kind: method.kind,
