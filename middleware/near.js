@@ -9,7 +9,7 @@ const verifySignature = async (nearAccount, data, signature) => {
     try {
         const hash = crypto.createHash('sha256').update(data).digest();
         const accessKeys = (await nearAccount.getAccessKeys())
-        .filter(({ access_key: { permission } }) => permission === 'FullAccess' ||
+            .filter(({ access_key: { permission } }) => permission === 'FullAccess' ||
                 permission.FunctionCall &&
                     permission.FunctionCall.receiver_id === nearAccount.accountId &&
                     permission.FunctionCall.method_names.includes('__wallet__metadata'));
