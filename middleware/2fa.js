@@ -137,7 +137,7 @@ const initCode = async (ctx) => {
         return;
     }
     // validate method kind
-    if (method && (method !== '2fa-email' || method !== '2fa-phone')) {
+    if (method && (method.kind !== '2fa-email' || method.kind !== '2fa-phone')) {
         ctx.throw(401, 'invalid 2fa method');
         return;
     }
