@@ -64,9 +64,9 @@ const prettyRequestInfo = ({ request }) => `
     Actions:\n\t${ request.actions.map((r) => r.type + (r.amount ? ': ' + nearAPI.utils.format.formatNearAmount(r.amount, 4) : '')).join('\n\t') }
 `;
 
-const sendCode = async (method, recoveryMethod, requestId = -1, data = {}) => {
+const sendCode = async (method, twoFactorMethod, requestId = -1, data = {}) => {
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
-    await recoveryMethod.update({ securityCode, requestId });
+    await twoFactorMethod.update({ securityCode, requestId });
     if (method.kind === '2fa-phone') {
         await sendSms({
             text: `NEAR Wallet\n\n
@@ -127,58 +127,74 @@ const getAccessKey = async (ctx) => {
 // https://near-contract-helper-2fa.onrender.com/
 // http post http://localhost:3000/2fa/init accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
 // http post https://near-contract-helper-2fa.onrender.com/2fa/init accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
-// Call ONCE to enable 2fa on this account. Adds a recovery method (passed in body) where kind should start with '2fa-'
+// Call ONCE to enable 2fa on this account. Adds a twoFactorMethod (passed in body) where kind should start with '2fa-'
 // This WILL send the initial code to the method specified ['2fa-email', '2fa-phone']
 const initCode = async (ctx) => {
     const { accountId, method } = ctx.request.body;
     const [account] = await models.Account.findOrCreate({ where: { accountId } });
     if (!account) {
-        console.warn('account should be created');
-        ctx.throw(401);
+        ctx.throw(401, 'account should be created');
+        return;
+    }
+    // validate method kind
+    if (method && (method !== '2fa-email' || method !== '2fa-phone')) {
+        ctx.throw(401, 'invalid 2fa method');
         return;
     }
     const hasContractDeployed = await isContractDeployed(accountId);
     // check recover methods
-    let [recoveryMethod] = await account.getRecoveryMethods({ where: {
+    let [twoFactorMethod] = await account.getRecoveryMethods({ where: {
         kind: {
             [Op.startsWith]: '2fa-'
         },
     }});
-    // multisig contract is already deployed
+    // create the 2fa method
+    const createTwoFactorMethod = () => {
+        twoFactorMethod = await account.createRecoveryMethod({
+            kind: method.kind,
+            detail: method.detail,
+            requestId: -1
+        });
+    }
+    // check if multisig contract is already deployed
     if (hasContractDeployed) {
-        // check to see if they already have at least 1 2fa recovery method
-        if (recoveryMethod) {
-            console.warn('account with multisig contract already has 2fa method');
-            ctx.throw(401);
+        // check to see if they already have at least 1 twoFactorMethod
+        if (twoFactorMethod) {
+            ctx.throw(401, 'account with multisig contract already has 2fa method');
             return;
         } else {
             // unlikely
-            recoveryMethod = await account.createRecoveryMethod({
-                kind: method.kind,
-                detail: method.detail,
-                requestId: -1
-            });
+            createTwoFactorMethod()
         }
     } else {
-        // as long as the multisig is not deployed, can keep updating (or create new, recovery method)
-        if (!recoveryMethod) {
-            recoveryMethod = await account.createRecoveryMethod({
-                kind: method.kind,
-                detail: method.detail,
-                requestId: -1
-            });
+        // as long as the multisig is not deployed, can keep updating (or create new, 2fa method)
+        if (!twoFactorMethod) {
+            createTwoFactorMethod()
         } else {
-            await recoveryMethod.update({
+            await twoFactorMethod.update({
                 kind: method.kind,
                 detail: method.detail,
                 requestId: -1
             });
         }
     }
-    sendCode(method, recoveryMethod);
-    ctx.body = {
-        success: true, message: '2fa initialized and first code sent'
-    };
+    // check if 2fa method matches existing recovery method
+    const [recoveryMethod] = await account.getRecoveryMethods({ where: {
+        kind: method.kind.split('2fa-')[1],
+        detail: method.detail,
+    }});
+    if (!recoveryMethod) {
+        // client waits to deploy contract until code is verified
+        sendCode(method, twoFactorMethod);
+        ctx.body = {
+            success: true, message: '2fa initialized and code sent to verify method'
+        };
+    } else {
+        // client should deploy contract
+        ctx.body = {
+            success: true, confirmed: true, message: '2fa initialized and set up using recovery method verification'
+        };
+    }
 };
 // http post http://localhost:3000/2fa/send accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
 // http post https://near-contract-helper-2fa.onrender.com/2fa/send accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
@@ -190,16 +206,16 @@ const sendNewCode = async (ctx) => {
         console.warn('account should be created');
         ctx.throw(401);
     }
-    let [recoveryMethod] = await account.getRecoveryMethods({ where: {
+    let [twoFactorMethod] = await account.getRecoveryMethods({ where: {
         kind: {
             [Op.startsWith]: '2fa-'
         },
     }});
-    if (!recoveryMethod) {
+    if (!twoFactorMethod) {
         console.warn('2fa not enabled');
         ctx.throw(401);
     }
-    await sendCode(method, recoveryMethod, requestId, data);
+    await sendCode(method, twoFactorMethod, requestId, data);
     ctx.body = {
         success: true, message: '2fa code sent'
     };
@@ -210,20 +226,20 @@ const sendNewCode = async (ctx) => {
 const verifyCode = async (ctx) => {
     const { accountId, securityCode, requestId } = ctx.request.body;
     const account = await models.Account.findOne({ where: { accountId } });
-    const [recoveryMethod] = await account.getRecoveryMethods({ where: {
+    const [twoFactorMethod] = await account.getRecoveryMethods({ where: {
         kind: {
             [Op.startsWith]: '2fa-'
         },
         requestId,
         securityCode,
     }});
-    if (!recoveryMethod) {
+    if (!twoFactorMethod) {
         console.warn('2fa code invalid');
         ctx.throw(401);
     }
     //security code was valid, remove it and if there was a request, confirm it, otherwise just return success: true
-    await recoveryMethod.update({ requestId: -1, securityCode: null });
-    // requestId already matched recoveryMethod record and if it's not -1 we will attempt to confirm the request
+    await twoFactorMethod.update({ requestId: -1, securityCode: null });
+    // requestId already matched twoFactorMethod record and if it's not -1 we will attempt to confirm the request
     if (requestId !== -1) {
         ctx.body = await confirmRequest(accountId, parseInt(requestId));
     } else {
