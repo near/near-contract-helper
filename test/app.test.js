@@ -307,19 +307,24 @@ describe('/account/deleteRecoveryMethod', () => {
                 accountId: 'illegitimate',
                 kind: 'phone',
             });
+
         expect(response.status).toBe(404);
     });
 
     test('returns 403 Forbidden (signature not from accountId owner)', async () => {
         const accountId = await createNearAccount();
+        const accountId2 = await createNearAccount();
         await models.Account.create({ accountId });
+        await models.Account.create({ accountId2 });
 
         let response = await request.post('/account/deleteRecoveryMethod')
             .send({
                 accountId,
                 kind: 'phone',
-                ...(await signatureFor(accountId, false))
+                ...(await signatureFor(accountId2, false))
             });
+        
+        console.log(response, response.message);
 
         expect(response.status).toBe(403);
     });

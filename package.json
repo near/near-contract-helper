@@ -5,7 +5,7 @@
   "main": "app.js",
   "scripts": {
     "start": "env $(sed 's/ # .*//' .env) supervisor app",
-    "test": "npm run lint && jest test",
+    "test": "npm run lint && jest test --verbose=true",
     "lint": "eslint .",
     "fix": "eslint . --fix",
     "migrate": "sequelize db:migrate"
