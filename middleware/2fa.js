@@ -162,12 +162,12 @@ const initCode = async (ctx) => {
             return;
         } else {
             // unlikely
-            await account.createRecoveryMethod({ kind, detail, requestId: -1 });
+            twoFactorMethod = await account.createRecoveryMethod({ kind, detail, requestId: -1 });
         }
     } else {
         // as long as the multisig is not deployed, can keep updating (or create new, 2fa method)
         if (!twoFactorMethod) {
-            await account.createRecoveryMethod({ kind, detail, requestId: -1 });
+            twoFactorMethod = await account.createRecoveryMethod({ kind, detail, requestId: -1 });
         } else {
             await twoFactorMethod.update({
                 kind: method.kind,
