@@ -84,7 +84,7 @@ describe('/account/initializeRecoveryMethod', () => {
         const [, { subject }] = ctx.logs.find(log => log[0].match(/^sendMail.+/));
         savedSecurityCode = /Your NEAR Wallet security code is:\s+(\d+)/.exec(subject)[1];
 
-        console.log(response, savedSecurityCode)
+        console.log(response, savedSecurityCode);
 
         assert.equal(response.status, 200);
     });
