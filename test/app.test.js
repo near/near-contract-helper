@@ -24,7 +24,7 @@ const keyPair = nearAPI.KeyPair.fromString(parseSeedPhrase(SEED_PHRASE).secretKe
 const ctx = {};
 const request = supertest(app.callback());
 
-jest.setTimeout(15000);
+jest.setTimeout(30000);
 
 beforeAll(async () => {
     await models.sequelize.sync({ force: true });
@@ -83,6 +83,9 @@ describe('/account/initializeRecoveryMethod', () => {
 
         const [, { subject }] = ctx.logs.find(log => log[0].match(/^sendMail.+/));
         savedSecurityCode = /Your NEAR Wallet security code is:\s+(\d+)/.exec(subject)[1];
+
+        console.log(response, savedSecurityCode)
+
         assert.equal(response.status, 200);
     });
 
