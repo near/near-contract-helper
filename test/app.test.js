@@ -24,7 +24,7 @@ const keyPair = nearAPI.KeyPair.fromString(parseSeedPhrase(SEED_PHRASE).secretKe
 const ctx = {};
 const request = supertest(app.callback());
 
-jest.setTimeout(30000);
+jest.setTimeout(15000);
 
 beforeAll(async () => {
     await models.sequelize.sync({ force: true });
@@ -83,9 +83,6 @@ describe('/account/initializeRecoveryMethod', () => {
 
         const [, { subject }] = ctx.logs.find(log => log[0].match(/^sendMail.+/));
         savedSecurityCode = /Your NEAR Wallet security code is:\s+(\d+)/.exec(subject)[1];
-
-        console.log(response, savedSecurityCode);
-
         assert.equal(response.status, 200);
     });
 
@@ -307,24 +304,19 @@ describe('/account/deleteRecoveryMethod', () => {
                 accountId: 'illegitimate',
                 kind: 'phone',
             });
-
         expect(response.status).toBe(404);
     });
 
     test('returns 403 Forbidden (signature not from accountId owner)', async () => {
         const accountId = await createNearAccount();
-        const accountId2 = await createNearAccount();
         await models.Account.create({ accountId });
-        await models.Account.create({ accountId2 });
 
         let response = await request.post('/account/deleteRecoveryMethod')
             .send({
                 accountId,
                 kind: 'phone',
-                ...(await signatureFor(accountId2, false))
+                ...(await signatureFor(accountId, false))
             });
-        
-        console.log(response, response.message);
 
         expect(response.status).toBe(403);
     });
