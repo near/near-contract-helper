@@ -37,8 +37,7 @@ const router = new Router();
 const {
     creatorKeyJson,
     withNear,
-    checkAccountOwnership,
-    checkAccountDoesNotExist,
+    checkAccountOwnership
 } = require('./middleware/near');
 
 app.use(withNear);
@@ -62,8 +61,6 @@ const SECURITY_CODE_DIGITS = 6;
 
 const { sendSms } = require('./utils/sms');
 
-
-
 async function recoveryMethodsFor(account) {
     if (!account) return [];
 
@@ -77,9 +74,6 @@ async function recoveryMethodsFor(account) {
     });
 }
 
-/********************************
-
-********************************/
 router.post('/account/recoveryMethods', checkAccountOwnership, async ctx => {
     const { accountId } = ctx.request.body;
     const account = await models.Account.findOne({ where: { accountId } });
@@ -254,11 +248,6 @@ const completeRecoveryInit = async ctx => {
     ctx.body = await recoveryMethodsFor(account);
 };
 
-router.post('/account/initializeRecoveryMethodForTempAccount',
-    checkAccountDoesNotExist,
-    completeRecoveryInit
-);
-
 router.post('/account/initializeRecoveryMethod',
     checkAccountOwnership,
     completeRecoveryInit
@@ -278,17 +267,11 @@ const completeRecoveryValidation = async ctx => {
     if (!recoveryMethod) {
         ctx.throw(401);
     }
-    console.log(securityCode);
     ctx.body = await recoveryMethodsFor(account);
 };
 
 router.post('/account/validateSecurityCode',
     checkAccountOwnership,
-    completeRecoveryValidation
-);
-
-router.post('/account/validateSecurityCodeForTempAccount',
-    checkAccountDoesNotExist,
     completeRecoveryValidation
 );
 
