@@ -7,8 +7,6 @@ const VALID_BLOCK_AGE = 100;
 
 const verifySignature = async (nearAccount, data, signature) => {
     try {
-
-        
         const hash = crypto.createHash('sha256').update(data).digest();
         const accessKeys = (await nearAccount.getAccessKeys()).filter(({ access_key: { permission } }) =>
             permission === 'FullAccess' ||
