@@ -1,4 +1,3 @@
-const nearAPI = require('near-api-js');
 const Koa = require('koa');
 const app = new Koa();
 
@@ -35,55 +34,13 @@ app.use(async function(ctx, next) {
 const Router = require('koa-router');
 const router = new Router();
 
-const creatorKeyJson = (() => {
-    try {
-        return JSON.parse(process.env.ACCOUNT_CREATOR_KEY);
-    } catch (e) {
-        console.warn(`Account creation not available.\nError parsing ACCOUNT_CREATOR_KEY='${process.env.ACCOUNT_CREATOR_KEY}':`, e);
-        return null;
-    }
-})();
-const keyStore = {
-    async getKey() {
-        return nearAPI.KeyPair.fromString(creatorKeyJson.secret_key || creatorKeyJson.private_key);
-    }
-};
+const {
+    creatorKeyJson,
+    withNear,
+    checkAccountOwnership
+} = require('./middleware/near');
 
-const nearPromise = (async () => {
-    const near = await nearAPI.connect({
-        deps: { keyStore },
-        masterAccount: creatorKeyJson && creatorKeyJson.account_id,
-        nodeUrl: process.env.NODE_URL
-    });
-    return near;
-})();
-app.use(async (ctx, next) => {
-    ctx.near = await nearPromise;
-    await next();
-});
-
-const VALID_BLOCK_AGE = 100;
-
-async function checkAccountOwnership(ctx, next) {
-    const { accountId, blockNumber, blockNumberSignature } = ctx.request.body;
-    if (!accountId || !blockNumber || !blockNumberSignature) {
-        ctx.throw(403, 'You must provide an accountId, blockNumber, and blockNumberSignature');
-    }
-
-    const currentBlock = (await ctx.near.connection.provider.status()).sync_info.latest_block_height;
-    const givenBlock = Number(blockNumber);
-
-    if (givenBlock <= currentBlock - VALID_BLOCK_AGE || givenBlock > currentBlock) {
-        ctx.throw(403, `You must provide a blockNumber within ${VALID_BLOCK_AGE} of the most recent block; provided: ${blockNumber}, current: ${currentBlock}`);
-    }
-
-    const nearAccount = await ctx.near.account(accountId);
-    if (!(await verifySignature(nearAccount, blockNumber, blockNumberSignature))) {
-        ctx.throw(403, `blockNumberSignature did not match a signature of blockNumber=${blockNumber} from accountId=${accountId}`);
-    }
-
-    return await next();
-}
+app.use(withNear);
 
 const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT;
 
@@ -100,45 +57,9 @@ router.post('/account', async ctx => {
 
 const password = require('secure-random-password');
 const models = require('./models');
-const FROM_PHONE = process.env.TWILIO_FROM_PHONE;
 const SECURITY_CODE_DIGITS = 6;
 
-const sendSms = async ({ to, text }) => {
-    if (process.env.NODE_ENV == 'production') {
-        const accountSid = process.env.TWILIO_ACCOUNT_SID;
-        const authToken = process.env.TWILIO_AUTH_TOKEN;
-        const client = require('twilio')(accountSid, authToken);
-        await client.messages
-            .create({
-                body: text,
-                from: FROM_PHONE,
-                to
-            });
-    } else {
-        console.log('sendSms:', { to, text });
-    }
-};
-
-const nacl = require('tweetnacl');
-const crypto = require('crypto');
-const bs58 = require('bs58');
-const verifySignature = async (nearAccount, data, signature) => {
-    try {
-        const hash = crypto.createHash('sha256').update(data).digest();
-        const accessKeys = (await nearAccount.getAccessKeys())
-            .filter(({ access_key: { permission } }) => permission === 'FullAccess' ||
-                    permission.FunctionCall &&
-                        permission.FunctionCall.receiver_id === nearAccount.accountId &&
-                        permission.FunctionCall.method_names.includes('__wallet__metadata'));
-        return accessKeys.some(it => {
-            const publicKey = it.public_key.replace('ed25519:', '');
-            return nacl.sign.detached.verify(hash, Buffer.from(signature, 'base64'), bs58.decode(publicKey));
-        });
-    } catch (e) {
-        console.error(e);
-        return false;
-    }
-};
+const { sendSms } = require('./utils/sms');
 
 async function recoveryMethodsFor(account) {
     if (!account) return [];
@@ -222,25 +143,7 @@ router.post(
     }
 );
 
-const sendMail = async (options) => {
-    if (process.env.NODE_ENV == 'production') {
-        const nodemailer = require('nodemailer');
-        const transport = nodemailer.createTransport({
-            host: process.env.MAIL_HOST,
-            port: process.env.MAIL_PORT,
-            auth: {
-                user: process.env.MAIL_USER,
-                pass: process.env.MAIL_PASSWORD
-            }
-        });
-        return transport.sendMail({
-            from: process.env.WALLET_EMAIL || 'wallet@near.org',
-            ...options
-        });
-    } else {
-        console.log('sendMail:', options);
-    }
-};
+const { sendMail } = require('./utils/email');
 
 const WALLET_URL = process.env.WALLET_URL;
 const sendRecoveryMessage = async ({ accountId, method, seedPhrase }) => {
@@ -322,51 +225,54 @@ const sendSecurityCode = async (securityCode, method) => {
     }
 };
 
-router.post('/account/initializeRecoveryMethod',
-    checkAccountOwnership,
-    async ctx => {
-        const { accountId, method} = ctx.request.body;
-        const [account] = await models.Account.findOrCreate({ where: { accountId } });
+const completeRecoveryInit = async ctx => {
+    const { accountId, method} = ctx.request.body;
+    const [account] = await models.Account.findOrCreate({ where: { accountId } });
 
-        let [recoveryMethod] = await account.getRecoveryMethods({ where: {
+    let [recoveryMethod] = await account.getRecoveryMethods({ where: {
+        kind: method.kind,
+        detail: method.detail
+    }});
+
+    if (!recoveryMethod) {
+        recoveryMethod = await account.createRecoveryMethod({
             kind: method.kind,
             detail: method.detail
-        }});
-
-        if (!recoveryMethod) {
-            recoveryMethod = await account.createRecoveryMethod({
-                kind: method.kind,
-                detail: method.detail
-            });
-        }
-
-        const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
-        await recoveryMethod.update({ securityCode });
-        await sendSecurityCode(securityCode, method);
-
-        ctx.body = await recoveryMethodsFor(account);
+        });
     }
+
+    const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
+    await recoveryMethod.update({ securityCode });
+    await sendSecurityCode(securityCode, method);
+
+    ctx.body = await recoveryMethodsFor(account);
+};
+
+router.post('/account/initializeRecoveryMethod',
+    checkAccountOwnership,
+    completeRecoveryInit
 );
+
+const completeRecoveryValidation = async ctx => {
+    const { accountId, method, securityCode } = ctx.request.body;
+
+    const account = await models.Account.findOne({ where: { accountId } });
+
+    const [recoveryMethod] = await account.getRecoveryMethods({ where: {
+        kind: method.kind,
+        detail: method.detail,
+        securityCode: securityCode
+    }});
+
+    if (!recoveryMethod) {
+        ctx.throw(401);
+    }
+    ctx.body = await recoveryMethodsFor(account);
+};
 
 router.post('/account/validateSecurityCode',
     checkAccountOwnership,
-    async ctx => {
-        const { accountId, method, securityCode } = ctx.request.body;
-
-        const account = await models.Account.findOne({ where: { accountId } });
-
-        const [recoveryMethod] = await account.getRecoveryMethods({ where: {
-            kind: method.kind,
-            detail: method.detail,
-            securityCode: securityCode
-        }});
-
-        if (!recoveryMethod) {
-            ctx.throw(401);
-        }
-        console.log(securityCode);
-        ctx.body = await recoveryMethodsFor(account);
-    }
+    completeRecoveryValidation
 );
 
 router.post('/account/sendRecoveryMessage', async ctx => {
