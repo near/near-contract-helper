@@ -7,16 +7,12 @@ const { sendMail } = require('../utils/email');
 const models = require('../models');
 const Sequelize = require('sequelize');
 const Op = Sequelize.Op;
-//lots of repetition from app.js
 const password = require('secure-random-password');
 const SECURITY_CODE_DIGITS = 6;
 const twoFactorMethods = ['2fa-email', '2fa-phone'];
-
-/********************************
-Contract Helper
-********************************/
 const viewMethods = [];
 const changeMethods = ['confirm'];
+
 const getContract = async (contractName, secretKey) => {
     const keyStore = {
         async getKey() {
