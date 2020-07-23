@@ -154,6 +154,9 @@ const sendRecoveryMessage = async ({ accountId, method, seedPhrase }) => {
             to: method.detail
         });
     } else if (method.kind === 'email') {
+        if ((method.detail.match(/@/g)||[]).length > 1) {
+            throw new Error(`too many email addresses`);
+        }
         await sendMail({
             to: method.detail,
             subject: `Important: Near Wallet Recovery Email for ${accountId}`,
