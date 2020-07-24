@@ -127,7 +127,7 @@ const getAccessKey = async (ctx) => {
 // Call ONCE to enable 2fa on this account. Adds a twoFactorMethod (passed in body) where kind should start with '2fa-'
 // This WILL send the initial code to the method specified ['2fa-email', '2fa-phone']
 const initCode = async (ctx) => {
-    const { accountId, method } = ctx.request.body;
+    const { accountId, method, testing, code_hash } = ctx.request.body;
     const [account] = await models.Account.findOrCreate({ where: { accountId } });
     if (!account) {
         ctx.throw(401, 'account should be created');
@@ -151,11 +151,10 @@ const initCode = async (ctx) => {
         },
     }});
     // check if multisig contract is already deployed
-    if (hasContractDeployed) {
+    if (hasContractDeployed || !!code_hash) {
         // check to see if they already have at least 1 twoFactorMethod
         if (twoFactorMethod) {
             ctx.throw(401, 'account with multisig contract already has 2fa method');
-            return;
         } else {
             // unlikely
             twoFactorMethod = await account.createRecoveryMethod({ kind, detail, requestId: -1 });
@@ -179,10 +178,15 @@ const initCode = async (ctx) => {
     }});
     if (!recoveryMethod) {
         // client waits to deploy contract until code is verified
-        sendCode(method, twoFactorMethod);
-        ctx.body = {
-            success: true, message: '2fa initialized and code sent to verify method'
+        const securityCode = await sendCode(method, twoFactorMethod);
+        const body = {
+            success: true,
+            message: '2fa initialized and code sent to verify method',
         };
+        if (testing) {
+            body.securityCode = securityCode;
+        }
+        ctx.body = body;
     } else {
         // client should deploy contract
         ctx.body = {
@@ -209,6 +213,7 @@ const sendNewCode = async (ctx) => {
         console.warn('2fa not enabled');
         ctx.throw(401);
     }
+
     await sendCode(method, twoFactorMethod, requestId, data);
     ctx.body = {
         success: true, message: '2fa code sent'
@@ -221,13 +226,14 @@ const verifyCode = async (ctx) => {
     const { accountId, securityCode, requestId } = ctx.request.body;
     const account = await models.Account.findOne({ where: { accountId } });
     const [twoFactorMethod] = await account.getRecoveryMethods({ where: {
+        securityCode,
         kind: {
             [Op.startsWith]: '2fa-'
         },
-        requestId,
-        securityCode,
+        // cannot test for requestId equality with negative integer???
     }});
-    if (!twoFactorMethod) {
+    // checking requestId here with weak equality (no type match)
+    if (!twoFactorMethod || twoFactorMethod.requestId != requestId) {
         console.warn('2fa code invalid');
         ctx.throw(401);
     }
@@ -238,7 +244,7 @@ const verifyCode = async (ctx) => {
         ctx.body = await confirmRequest(accountId, parseInt(requestId));
     } else {
         ctx.body = {
-            success: true, message: '2fa code verified'
+            success: true, message: '2fa code verified', requestId: twoFactorMethod.requestId,
         };
     }
 };

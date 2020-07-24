@@ -3,6 +3,7 @@ const app = new Koa();
 
 const body = require('koa-json-body');
 const cors = require('@koa/cors');
+// const { Op } = require('sequelize');
 
 app.use(require('koa-logger')());
 app.use(body({ limit: '500kb', fallback: true }));
@@ -19,13 +20,14 @@ app.use(async function(ctx, next) {
 
         switch (e.status) {
         case 400:
+        case 401:
         case 403:
         case 404:
             ctx.throw(e);
             break;
         default:
             // TODO: Figure out which errors should be exposed to user
-            console.error('Error: ', e, JSON.stringify(e));
+            // console.error('Error: ', e, JSON.stringify(e));
             ctx.throw(400, e.toString());
         }
     }
@@ -91,9 +93,6 @@ async function recoveryMethodsFor(account) {
     });
 }
 
-/********************************
-
-********************************/
 router.post('/account/recoveryMethods', checkAccountOwnership, async ctx => {
     const { accountId } = ctx.request.body;
     const account = await models.Account.findOne({ where: { accountId } });
@@ -307,7 +306,7 @@ router.post('/account/validateSecurityCodeForTempAccount',
 );
 
 router.post('/account/sendRecoveryMessage', async ctx => {
-    const { accountId, method, seedPhrase } = ctx.request.body;
+    const { accountId, method, seedPhrase, isNew } = ctx.request.body;
 
     // Verify that seed phrase is added to the account
     const { publicKey } = parseSeedPhrase(seedPhrase);
@@ -318,12 +317,26 @@ router.post('/account/sendRecoveryMessage', async ctx => {
     }
 
     const account = await models.Account.findOne({ where: { accountId } });
-    const [recoveryMethod] = await account.getRecoveryMethods({ where: {
-        kind: method.kind,
-        detail: method.detail
-    }});
 
-    await recoveryMethod.update({ publicKey, securityCode: null });
+    if (isNew) {
+        // remove all recovery methods
+        const allRecoveryMethods = await account.getRecoveryMethods();
+        for (const rm of allRecoveryMethods) {
+            await rm.destroy();
+        }
+        // set up the official recovery method for this account
+        await account.createRecoveryMethod({
+            kind: method.kind,
+            detail: method.detail,
+            publicKey
+        });
+    } else {
+        const [recoveryMethod] = await account.getRecoveryMethods({ where: {
+            kind: method.kind,
+            detail: method.detail
+        }});
+        await recoveryMethod.update({ publicKey, securityCode: null });  
+    }
 
     await sendRecoveryMessage({
         accountId,

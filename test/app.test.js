@@ -2,7 +2,6 @@ const dotenv = require('dotenv');
 dotenv.config('../.env');
 const assert = require('assert');
 const supertest = require('supertest');
-const { parseSeedPhrase } = require('near-seed-phrase');
 const models = require('../models');
 const MASTER_KEY_INFO = {
     account_id: 'test.near',
@@ -19,8 +18,6 @@ const app = require('../app');
 
 const nearAPI = require('near-api-js');
 
-const SEED_PHRASE = 'shoot island position soft burden budget tooth cruel issue economy destroy above';
-const keyPair = nearAPI.KeyPair.fromString(parseSeedPhrase(SEED_PHRASE).secretKey);
 const ctx = {};
 const request = supertest(app.callback());
 
@@ -49,10 +46,31 @@ afterEach(() => {
 });
 
 const keyStore = new nearAPI.keyStores.InMemoryKeyStore();
-const inMemorySigner = new nearAPI.InMemorySigner(keyStore);
 
-async function createNearAccount() {
-    const accountId = `helper-test-${Date.now()}`;
+const recoveryMethods = [
+    { kind: 'email', detail: 'hello@example.com', publicKey: 'pkemail' },
+    { kind: 'phone', detail: '+1 717 555 0101', publicKey: 'pkphone' },
+    { kind: 'phrase', publicKey: 'pkphrase' },
+];
+
+const inMemorySigner = new nearAPI.InMemorySigner(keyStore);
+async function signatureFor(accountId, valid = true) {
+    let blockNumber = (await ctx.near.connection.provider.status()).sync_info.latest_block_height;
+    if (!valid) blockNumber = blockNumber - 101;
+    blockNumber = String(blockNumber);
+    const message = Buffer.from(blockNumber);
+    const signedHash = await inMemorySigner.signMessage(message, accountId);
+    const blockNumberSignature = Buffer.from(signedHash.signature).toString('base64');
+    return { blockNumber, blockNumberSignature };
+}
+
+const { parseSeedPhrase } = require('near-seed-phrase');
+const SEED_PHRASE = 'shoot island position soft burden budget tooth cruel issue economy destroy above';
+const keyPair = nearAPI.KeyPair.fromString(parseSeedPhrase(SEED_PHRASE).secretKey);
+async function createNearAccount(accountId) {
+    if (!accountId) {
+        accountId = `helper-test-${Date.now()}`;
+    }
     const response = await request.post('/account')
         .send({
             newAccountId: accountId,
@@ -62,6 +80,119 @@ async function createNearAccount() {
     assert.equal(response.status, 200);
     return accountId;
 }
+
+describe('/account/initializeRecoveryMethodForTempAccount', () => {
+
+    let savedSecurityCode = '';
+    let accountId = 'doesnotexistonchain' + Date.now();
+    const method = recoveryMethods[0];
+
+    test('send security code', async () => {
+        const response = await request.post('/account/initializeRecoveryMethodForTempAccount')
+            .send({
+                accountId,
+                method,
+            });
+        const [, { subject }] = ctx.logs.find(log => log[0].match(/^sendMail.+/));
+        savedSecurityCode = /Your NEAR Wallet security code is:\s+(\d+)/.exec(subject)[1];
+        assert.equal(response.status, 200);
+    });
+
+    test('validate security code (wrong code)', async () => {
+        const response = await request.post('/account/validateSecurityCodeForTempAccount')
+            .send({
+                accountId,
+                method,
+                securityCode: '123123',
+            });
+
+        assert.equal(response.status, 401);
+    });
+
+    test('validate security code', async () => {
+        const response = await request.post('/account/validateSecurityCodeForTempAccount')
+            .send({
+                accountId,
+                method,
+                securityCode: savedSecurityCode,
+            });
+        assert.equal(response.status, 200);
+    });
+
+    /********************************
+    Two people send recovery methods for the same account before it's created
+    ********************************/
+    accountId = 'doesnotexistonchain' + Date.now();
+    let alice = recoveryMethods[0];
+    let bob = recoveryMethods[1];
+    test('send security code alice', async () => {
+        const response = await request.post('/account/initializeRecoveryMethodForTempAccount')
+            .send({
+                accountId,
+                method: alice,
+            });
+        const [, { subject }] = ctx.logs.find(log => log[0].match(/^sendMail.+/));
+        savedSecurityCode = /Your NEAR Wallet security code is:\s+(\d+)/.exec(subject)[1];
+        assert.equal(response.status, 200);
+    });
+
+    test('send security code bob', async () => {
+        const response = await request.post('/account/initializeRecoveryMethodForTempAccount')
+            .send({
+                accountId,
+                method: bob,
+            });
+        assert.equal(response.status, 200);
+    });
+
+    test('validate security code alice and there are 2 methods', async () => {
+        const response = await request.post('/account/validateSecurityCodeForTempAccount')
+            .send({
+                accountId,
+                method: alice,
+                securityCode: savedSecurityCode,
+            });
+        assert.equal(response.status, 200);
+
+        await createNearAccount(accountId);
+
+        const response2 = await request.post('/account/recoveryMethods')
+            .send({
+                accountId,
+                ...(await signatureFor(accountId))
+            });
+        assert.equal(response2.status, 200);
+        const methods = await response2.body;
+        assert.equal(methods.length, 2);
+    });
+
+    test('send email, should only have 1 recovery method for new account now', async () => {
+        const response = await request.post('/account/sendRecoveryMessage')
+            .send({
+                accountId,
+                method,
+                isNew: true,
+                seedPhrase: SEED_PHRASE
+            });
+
+        assert.equal(response.status, 200);
+
+        const [, { subject, text, to }] = ctx.logs.find(log => log[0].match(/^sendMail.+/));
+        expect(subject).toEqual(`Important: Near Wallet Recovery Email for ${accountId}`);
+        expect(to).toEqual(recoveryMethods[0].detail);
+        expect(text).toMatch(new RegExp(`https://wallet.nearprotocol.com/recover-with-link/${accountId}/${SEED_PHRASE.replace(/ /g, '%20')}`));
+
+        const response2 = await request.post('/account/recoveryMethods')
+            .send({
+                accountId,
+                ...(await signatureFor(accountId))
+            });
+        assert.equal(response2.status, 200);
+        const methods = await response2.body;
+        assert.equal(methods.length, 1);
+    });
+
+});
 
 describe('/account/initializeRecoveryMethod', () => {
 
@@ -95,7 +226,7 @@ describe('/account/initializeRecoveryMethod', () => {
                 ...(await signatureFor(accountId))
             });
 
-        assert.equal(response.status, 400);
+        assert.equal(response.status, 401);
     });
 
     test('validate security code', async () => {
@@ -160,22 +291,6 @@ describe('/account/initializeRecoveryMethod', () => {
     });
 
 });
-
-const recoveryMethods = [
-    { kind: 'email', detail: 'hello@example.com', publicKey: 'pkemail' },
-    { kind: 'phone', detail: '+1 717 555 0101', publicKey: 'pkphone' },
-    { kind: 'phrase', publicKey: 'pkphrase' },
-];
-
-async function signatureFor(accountId, valid = true) {
-    let blockNumber = (await ctx.near.connection.provider.status()).sync_info.latest_block_height;
-    if (!valid) blockNumber = blockNumber - 101;
-    blockNumber = String(blockNumber);
-    const message = Buffer.from(blockNumber);
-    const signedHash = await inMemorySigner.signMessage(message, accountId);
-    const blockNumberSignature = Buffer.from(signedHash.signature).toString('base64');
-    return { blockNumber, blockNumberSignature };
-}
 
 describe('/account/recoveryMethods', () => {
     test('returns 403 Forbidden (accountId not valid NEAR account)', async () => {
