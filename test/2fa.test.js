@@ -216,3 +216,48 @@ describe('after deploying contract', () => {
     });
 
 });
+
+describe('code older than 5min should fail', () => {
+    let accountId = 'testing' + Date.now();
+    let method = twoFactorMethods[0];
+    let securityCode = '';
+    let requestId = -1;
+    let testing = true;
+
+    test('initCode for an account, sets up 2fa method', async () => {
+        await createNearAccount(accountId);
+
+        await request.post('/2fa/init')
+            .send({
+                testing,
+                accountId,
+                method,
+                ...(await signatureFor(accountId))
+            })
+            .expect('Content-Type', /json/)
+            .expect((res) => {
+                assert.equal(res.body.success, true);
+                assert.equal(res.body.securityCode.length, 6);
+                securityCode = res.body.securityCode;
+            })
+            .expect(200);
+    });
+
+    test('verify 2fa method', async () => {
+
+        await request.post('/2fa/verify')
+            .send({
+                accountId,
+                requestId,
+                securityCode,
+                testing: true,
+                ...(await signatureFor(accountId))
+            })
+            // .expect('Content-Type', /json/)
+            .expect((res) => {
+                assert.equal(res.body.success, true);
+            })
+            .expect(401);
+    });
+
+});

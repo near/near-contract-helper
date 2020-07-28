@@ -223,13 +223,17 @@ const sendNewCode = async (ctx) => {
 // http post https://near-contract-helper-2fa.onrender.com/2fa/verify accountId=mattlock securityCode=437543
 // call when you want to verify the "current" securityCode
 const verifyCode = async (ctx) => {
-    const { accountId, securityCode, requestId } = ctx.request.body;
+    const { accountId, securityCode, requestId, testing } = ctx.request.body;
     const account = await models.Account.findOne({ where: { accountId } });
     const [twoFactorMethod] = await account.getRecoveryMethods({ where: {
         securityCode,
         kind: {
             [Op.startsWith]: '2fa-'
         },
+        // only verify codes that are 5 minutes old (if testing make this impossible)
+        updatedAt: {
+            [Op.gt]: Date.now() - (!testing ? 300000 : -1000)
+        }
         // cannot test for requestId equality with negative integer???
     }});
     // checking requestId here with weak equality (no type match)
