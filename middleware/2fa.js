@@ -72,13 +72,15 @@ Important: By entering this code, you are authorizing the following transaction:
 ${dataOutput}
 `;
     const html =
-`npm 
+`
 <body style="margin: 0; padding: 0;">
-    <table align="center" border="0" cellpadding="0" cellspacing="0" width="800">
+    <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%">
         <tr>
             <td align="center">
                 <img src="https://near.org/wp-content/themes/near-19/assets/downloads/near_logo.png" width="300" height="117"
             </td>
+        </tr>
+        <tr>
             <td>
                 <p>NEAR Wallet security code: ${securityCode}</p>
                 <p><strong>Important:</strong> By entering this code, you are authorizing the following transaction:\n\n</p>
