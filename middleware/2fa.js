@@ -57,28 +57,48 @@ Sending Codes
 method.kind = ['2fa-email', '2fa-phone']
 ********************************/
 const prettyRequestInfo = ({ request }) => `
-    Recipient: ${ request.receiver_id }
+    Transaction Recipient: ${ request.receiver_id }
     Actions:\n\t${ request.actions.map((r) => r.type + (r.amount ? ': ' + nearAPI.utils.format.formatNearAmount(r.amount, 4) : '')).join('\n\t') }
 `;
 
 const sendCode = async (method, twoFactorMethod, requestId = -1, data = {}) => {
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
     await twoFactorMethod.update({ securityCode, requestId });
+    const dataOutput = data.request ? prettyRequestInfo(data) : `Verifying ${method.detail} as 2FA method`
+    const text = 
+`
+NEAR Wallet security code: ${securityCode}\n\n
+Important: By entering this code, you are authorizing the following transaction:\n\n
+${dataOutput}
+`
+    const html =
+`
+<body style="margin: 0; padding: 0;">
+    <table align="center" border="0" cellpadding="0" cellspacing="0" width="400">
+        <tr>
+            <td align="center">
+                <img src="https://near.org/wp-content/themes/near-19/assets/downloads/near_logo.png" width="400" height="117"
+            </td>
+        </tr>
+    </table>
+    <p>NEAR Wallet security code: ${securityCode}</p>
+    <p><strong>Important:</strong> By entering this code, you are authorizing the following transaction:\n\n</p>
+    <pre>
+        ${dataOutput}
+    </pre>
+</body>
+`
     if (method.kind === '2fa-phone') {
         await sendSms({
-            text: `NEAR Wallet\n\n
-            Enter this code to confirm the following NEAR Wallet transaction: ${securityCode}\n\n
-            ${data.request ? prettyRequestInfo(data) : ''}
-            `,
+            text,
             to: method.detail
         });
     } else if (method.kind === '2fa-email') {
         await sendMail({
             to: method.detail,
-            subject: 'NEAR Wallet Transaction Confirmation',
-            text: `Enter this code to confirm the following NEAR Wallet transaction: ${securityCode}\n\n
-            ${data.request ? prettyRequestInfo(data) : ''}
-            `,
+            subject: `NEAR Wallet security code: ${securityCode}`,
+            text,
+            html
         });
     }
     return securityCode;
