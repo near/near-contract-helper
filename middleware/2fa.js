@@ -64,15 +64,15 @@ const prettyRequestInfo = ({ request }) => `
 const sendCode = async (method, twoFactorMethod, requestId = -1, data = {}) => {
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
     await twoFactorMethod.update({ securityCode, requestId });
-    const dataOutput = data.request ? prettyRequestInfo(data) : `Verifying ${method.detail} as 2FA method`
+    const dataOutput = data.request ? prettyRequestInfo(data) : `Verifying ${method.detail} as 2FA method`;
     const text = 
 `
 NEAR Wallet security code: ${securityCode}\n\n
 Important: By entering this code, you are authorizing the following transaction:\n\n
 ${dataOutput}
-`
+`;
     const html =
-`
+`npm 
 <body style="margin: 0; padding: 0;">
     <table align="center" border="0" cellpadding="0" cellspacing="0" width="400">
         <tr>
@@ -87,7 +87,7 @@ ${dataOutput}
         ${dataOutput}
     </pre>
 </body>
-`
+`;
     if (method.kind === '2fa-phone') {
         await sendSms({
             text,
