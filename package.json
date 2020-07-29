@@ -27,7 +27,7 @@
     "koa-json-body": "^5.3.0",
     "koa-logger": "^3.2.0",
     "koa-router": "^8.0.8",
-    "near-api-js": "^0.27.0",
+    "near-api-js": "^0.28.0",
     "near-seed-phrase": "^0.0.2",
     "nodemailer": "^6.4.3",
     "pg": "^8.0.2",
