@@ -72,6 +72,10 @@ As mentioned in the "Environment Variables" section above, make sure you are run
 
 This will run the tests using [jest]
 
+Tests should be run sequentially, i.e.
+```
+jest test --runInBand
+```
 
   [nearcore]: https://github.com/nearprotocol/nearcore
   [jest]: https://jestjs.io/

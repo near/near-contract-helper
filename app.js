@@ -3,7 +3,6 @@ const app = new Koa();
 
 const body = require('koa-json-body');
 const cors = require('@koa/cors');
-// const { Op } = require('sequelize');
 
 app.use(require('koa-logger')());
 app.use(body({ limit: '500kb', fallback: true }));
@@ -291,7 +290,6 @@ const completeRecoveryValidation = async ctx => {
     if (!recoveryMethod) {
         ctx.throw(401);
     }
-    console.log(securityCode);
     ctx.body = await recoveryMethodsFor(account);
 };
 
@@ -319,12 +317,12 @@ router.post('/account/sendRecoveryMessage', async ctx => {
     const account = await models.Account.findOne({ where: { accountId } });
 
     if (isNew) {
-        // remove all recovery methods
+        // clear all methods that may have been added by other users attempting to set up the same accountId
         const allRecoveryMethods = await account.getRecoveryMethods();
         for (const rm of allRecoveryMethods) {
             await rm.destroy();
         }
-        // set up the official recovery method for this account
+        // set up the first recovery method for this account
         await account.createRecoveryMethod({
             kind: method.kind,
             detail: method.detail,

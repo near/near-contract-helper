@@ -119,12 +119,15 @@ describe('/account/initializeRecoveryMethodForTempAccount', () => {
         assert.equal(response.status, 200);
     });
 
-    /********************************
-    Two people send recovery methods for the same account before it's created
-    ********************************/
-    accountId = 'doesnotexistonchain' + Date.now();
+});
+
+describe('Two people send recovery methods for the same account before created', () => {
+    const method = recoveryMethods[0];
+    let savedSecurityCode = '';
+    let accountId = 'doesnotexistonchain' + Date.now();
     let alice = recoveryMethods[0];
     let bob = recoveryMethods[1];
+    
     test('send security code alice', async () => {
         const response = await request.post('/account/initializeRecoveryMethodForTempAccount')
             .send({
