@@ -272,10 +272,14 @@ const verifyCode = async (ctx) => {
             [Op.startsWith]: '2fa-'
         },
     }});
+    if (!twoFactorMethod) {
+        console.warn(`${accountId} has no 2fa method for the provided security code`);
+        ctx.throw(401, '2fa code not valid for request id');
+    }
     // cannot test for requestId equality with negative integer???
     // checking requestId here with weak equality (no type match)
-    if (!twoFactorMethod || twoFactorMethod.requestId != requestId) {
-        console.warn(`2fa code not valid for request id: ${requestId} and account:${accountId}`);
+    if (twoFactorMethod.requestId != requestId) {
+        console.warn(`2fa code not valid for request id: ${requestId} and account: ${accountId}`);
         ctx.throw(401, '2fa code not valid for request id');
     }
     // only verify codes that are 5 minutes old (if testing make this impossible)
