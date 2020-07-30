@@ -23,10 +23,7 @@ const getKeyStore = (accountId) => ({
     async getKey() {
         const hash = crypto.createHash('sha256').update(accountId + DETERM_KEY_SEED).digest();
         const keyPair = nacl.sign.keyPair.fromSeed(hash);
-        return {
-            publicKey: `ed25519:${base_encode(keyPair.publicKey)}`,
-            secretKey: base_encode(keyPair.secretKey)
-        };
+        return nearAPI.KeyPair.fromString(base_encode(keyPair.secretKey))
     },
 });
 
@@ -170,7 +167,7 @@ const isContractDeployed = async(accountId) => {
 // Call this to get the public key of the access key that contract-helper will be using to confirm multisig requests
 const getAccessKey = async (ctx) => {
     const { accountId } = ctx.request.body;
-    const { publicKey } = await getKeyStore(accountId).getKey();
+    const publicKey = (await getKeyStore(accountId).getKey()).publicKey.toString();
     ctx.body = {
         success: true,
         publicKey
@@ -261,12 +258,7 @@ const sendNewCode = async (ctx) => {
 // http post http://localhost:3000/2fa/verify accountId=mattlock securityCode=430888
 // call when you want to verify the "current" securityCode
 const verifyCode = async (ctx) => {
-    const { accountId, securityCode, requestId, debug = false } = ctx.request.body;
-
-    if (debug) {
-        ctx.body = await confirmRequest(accountId, parseInt(requestId, 10));
-        return;
-    }
+    const { accountId, securityCode, requestId } = ctx.request.body;
 
     const account = await models.Account.findOne({ where: { accountId } });
     if (!securityCode || isNaN(parseInt(securityCode, 10)) || securityCode.length !== 6) {
