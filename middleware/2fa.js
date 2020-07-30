@@ -33,7 +33,7 @@ const getKeyStore = (accountId) => ({
 // get the accountId's multisig contract instance
 const getContract = async (accountId) => {
     const keyStore = getKeyStore(accountId);
-    console.log(await getKeyStore(accountId).getKey);
+    console.log(await getKeyStore(accountId).getKey());
     const near = await nearAPI.connect({
         deps: { keyStore },
         nodeUrl: process.env.NODE_URL
