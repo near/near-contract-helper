@@ -26,7 +26,7 @@ app.use(async function(ctx, next) {
             break;
         default:
             // TODO: Figure out which errors should be exposed to user
-            // console.error('Error: ', e, JSON.stringify(e));
+            console.error('Error: ', e, JSON.stringify(e));
             ctx.throw(400, e.toString());
         }
     }
@@ -305,7 +305,6 @@ router.post('/account/validateSecurityCodeForTempAccount',
 
 router.post('/account/sendRecoveryMessage', async ctx => {
     const { accountId, method, seedPhrase, isNew } = ctx.request.body;
-
     // Verify that seed phrase is added to the account
     const { publicKey } = parseSeedPhrase(seedPhrase);
     const nearAccount = await ctx.near.account(accountId);
@@ -313,35 +312,26 @@ router.post('/account/sendRecoveryMessage', async ctx => {
     if (!keys.some(key => key.public_key === publicKey)) {
         ctx.throw(403, 'seed phrase doesn\'t match any access keys');
     }
-
     const account = await models.Account.findOne({ where: { accountId } });
-
+    const [recoveryMethod] = await account.getRecoveryMethods({ where: {
+        kind: method.kind,
+        detail: method.detail
+    }});
+    await recoveryMethod.update({ publicKey, securityCode: null });
     if (isNew) {
         // clear all methods that may have been added by other users attempting to set up the same accountId
         const allRecoveryMethods = await account.getRecoveryMethods();
         for (const rm of allRecoveryMethods) {
-            await rm.destroy();
+            if (rm.publicKey !== publicKey) {
+                await rm.destroy();
+            }
         }
-        // set up the first recovery method for this account
-        await account.createRecoveryMethod({
-            kind: method.kind,
-            detail: method.detail,
-            publicKey
-        });
-    } else {
-        const [recoveryMethod] = await account.getRecoveryMethods({ where: {
-            kind: method.kind,
-            detail: method.detail
-        }});
-        await recoveryMethod.update({ publicKey, securityCode: null });  
     }
-
     await sendRecoveryMessage({
         accountId,
         method,
         seedPhrase
     });
-
     ctx.body = await recoveryMethodsFor(account);
 });
 

@@ -18,27 +18,36 @@ const DETERM_KEY_SEED = process.env.DETERM_KEY_SEED || creatorKeyJson.private_ke
 const MULTISIG_CONTRACT_HASHES = process.env.MULTISIG_CONTRACT_HASHES || ['7GQStUCd8bmCK43bzD8PRh7sD2uyyeMJU5h8Rj3kXXJk'];
 const CODE_EXPIRY = 300000;
 
-const getContract = async (contractName, secretKey) => {
-    const keyStore = {
-        async getKey() {
-            return nearAPI.KeyPair.fromString(secretKey);
-        },
-    };
+// generates a deterministic key based on the accountId
+const getKeyStore = (accountId) => ({
+    async getKey() {
+        const hash = crypto.createHash('sha256').update(accountId + DETERM_KEY_SEED).digest();
+        const keyPair = nacl.sign.keyPair.fromSeed(hash);
+        return {
+            publicKey: `ed25519:${base_encode(keyPair.publicKey)}`,
+            secretKey: base_encode(keyPair.secretKey)
+        };
+    },
+});
+
+// get the accountId's multisig contract instance
+const getContract = async (accountId) => {
+    const keyStore = getKeyStore(accountId);
     const near = await nearAPI.connect({
         deps: { keyStore },
         nodeUrl: process.env.NODE_URL
     });
-    const contractAccount = new nearAPI.Account(near.connection, contractName);
-    const contract = new nearAPI.Contract(contractAccount, contractName, {
+    const contractAccount = new nearAPI.Account(near.connection, accountId);
+    const contract = new nearAPI.Contract(contractAccount, accountId, {
         viewMethods,
         changeMethods,
     });
     return contract;
 };
 
+// confirms a multisig request
 const confirmRequest = async (accountId, request_id) => {
-    const key = await getDetermKey(accountId);
-    const contract = await getContract(accountId, key.secretKey);
+    const contract = await getContract(accountId);
     // always parseInt on requestId. requestId is string in db because it could come from url params etc...
     try {
         const res = await contract.confirm({ request_id: parseInt(request_id, 10) });
@@ -48,18 +57,7 @@ const confirmRequest = async (accountId, request_id) => {
     }
 };
 /********************************
-2FA Key - generates a deterministic key based on the accountId
-********************************/
-const getDetermKey = async (accountId) => {
-    const hash = crypto.createHash('sha256').update(accountId + DETERM_KEY_SEED).digest();
-    const keyPair = nacl.sign.keyPair.fromSeed(hash);//nacl.sign.keyPair.fromSecretKey(hash)
-    return {
-        publicKey: `ed25519:${base_encode(keyPair.publicKey)}`,
-        secretKey: base_encode(keyPair.secretKey)
-    };
-};
-/********************************
-Sending Codes
+Sending codes to 2fa methods
 method.kind = ['2fa-email', '2fa-phone']
 ********************************/
 const prettyRequestInfo = (request) => `
@@ -171,7 +169,7 @@ const isContractDeployed = async(accountId) => {
 // Call this to get the public key of the access key that contract-helper will be using to confirm multisig requests
 const getAccessKey = async (ctx) => {
     const { accountId } = ctx.request.body;
-    const { publicKey } = await getDetermKey(accountId);
+    const { publicKey } = await getKeyStore(accountId).getKey();
     ctx.body = {
         success: true,
         publicKey

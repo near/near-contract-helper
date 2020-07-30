@@ -50,8 +50,8 @@ const getCodeFromLogs = () => ctx.logs.find((log) => log[0].length === 6)[0];
 const keyStore = new nearAPI.keyStores.InMemoryKeyStore();
 
 const twoFactorMethods = [
-    { kind: '2fa-email', detail: 'hello@example.com', publicKey: 'pkemail' },
-    { kind: '2fa-phone', detail: '+1 717 555 0101', publicKey: 'pkphone' },
+    { kind: '2fa-email', detail: 'hello@example.com', publicKey: 'pkemail2fa' },
+    { kind: '2fa-phone', detail: '+1 717 555 0101', publicKey: 'pkphone2fa' },
 ];
 
 const inMemorySigner = new nearAPI.InMemorySigner(keyStore);
@@ -66,7 +66,7 @@ async function signatureFor(accountId, valid = true) {
 }
 
 const { parseSeedPhrase } = require('near-seed-phrase');
-const SEED_PHRASE = 'shoot island position soft burden budget tooth cruel issue economy destroy above';
+const SEED_PHRASE = 'table island position soft burden budget tooth cruel issue economy destroy above';
 const keyPair = nearAPI.KeyPair.fromString(parseSeedPhrase(SEED_PHRASE).secretKey);
 async function createNearAccount(accountId) {
     if (!accountId) {
