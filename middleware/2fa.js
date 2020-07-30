@@ -23,14 +23,13 @@ const getKeyStore = (accountId) => ({
     async getKey() {
         const hash = crypto.createHash('sha256').update(accountId + DETERM_KEY_SEED).digest();
         const keyPair = nacl.sign.keyPair.fromSeed(hash);
-        return nearAPI.KeyPair.fromString(base_encode(keyPair.secretKey))
+        return nearAPI.KeyPair.fromString(base_encode(keyPair.secretKey));
     },
 });
 
 // get the accountId's multisig contract instance
 const getContract = async (accountId) => {
     const keyStore = getKeyStore(accountId);
-    console.log(await getKeyStore(accountId).getKey());
     const near = await nearAPI.connect({
         deps: { keyStore },
         nodeUrl: process.env.NODE_URL
@@ -46,7 +45,6 @@ const getContract = async (accountId) => {
 // confirms a multisig request
 const confirmRequest = async (accountId, request_id) => {
     const contract = await getContract(accountId);
-    console.log(contract);
     try {
         const res = await contract.confirm({ request_id });
         return { success: true, res };
