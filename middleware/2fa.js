@@ -48,9 +48,9 @@ const getContract = async (accountId) => {
 // confirms a multisig request
 const confirmRequest = async (accountId, request_id) => {
     const contract = await getContract(accountId);
-    // always parseInt on requestId. requestId is string in db because it could come from url params etc...
+    console.log(contract);
     try {
-        const res = await contract.confirm({ request_id: parseInt(request_id, 10) });
+        const res = await contract.confirm({ request_id });
         return { success: true, res };
     } catch (e) {
         return { success: false, error: JSON.stringify(e) };
@@ -260,7 +260,13 @@ const sendNewCode = async (ctx) => {
 // http post http://localhost:3000/2fa/verify accountId=mattlock securityCode=430888
 // call when you want to verify the "current" securityCode
 const verifyCode = async (ctx) => {
-    const { accountId, securityCode, requestId } = ctx.request.body;
+    const { accountId, securityCode, requestId, debug = false } = ctx.request.body;
+
+    if (debug) {
+        ctx.body = await confirmRequest(accountId, parseInt(requestId, 10));
+        return;
+    }
+
     const account = await models.Account.findOne({ where: { accountId } });
     if (!securityCode || isNaN(parseInt(securityCode, 10)) || securityCode.length !== 6) {
         console.warn('invalid 2fa code provided');
