@@ -64,9 +64,9 @@ const { sendSms } = require('./utils/sms');
 async function recoveryMethodsFor(account) {
     if (!account) return [];
 
-    return await account.getRecoveryMethods({
+    return (await account.getRecoveryMethods({
         attributes: ['createdAt', 'detail', 'kind', 'publicKey', 'securityCode']
-    }).map(method => {
+    })).map(method => {
         const json = method.toJSON();
         json.confirmed = !method.securityCode;
         delete json.securityCode;
