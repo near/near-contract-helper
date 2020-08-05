@@ -209,42 +209,42 @@ describe('after deploying contract', () => {
 
 });
 
-/********************************
-TBD if we need to test with env vars need to figure out how to reset modules
-********************************/
-// describe('code older than 5min should fail', () => {
-//     let accountId = 'testing' + Date.now();
-//     let method = twoFactorMethods[0];
-//     let securityCode = '';
-//     let requestId = -1;
 
-//     test('initCode for an account, sets up 2fa method', async () => {
-//         await createNearAccount(accountId);
+describe('code older than 5min should fail', () => {
+    let accountId = 'testing' + Date.now();
+    let method = twoFactorMethods[0];
+    let securityCode = '';
+    let requestId = -1;
 
-//         await request.post('/2fa/init')
-//             .send({
-//                 accountId,
-//                 method,
-//                 ...(await signatureFor(accountId))
-//             })
-//             .expect('Content-Type', /json/)
-//             .expect((res) => {
-//                 assert.equal(res.body.success, true);
-//                 securityCode = getCodeFromLogs();
-//             })
-//             .expect(200);
-//     });
+    test('initCode for an account, sets up 2fa method', async () => {
+        await createNearAccount(accountId);
 
-//     test('verify 2fa method', async () => {
+        await request.post('/2fa/init')
+            .send({
+                accountId,
+                method,
+                ...(await signatureFor(accountId))
+            })
+            .expect('Content-Type', /json/)
+            .expect((res) => {
+                assert.equal(res.body.success, true);
+                securityCode = getCodeFromLogs();
+            })
+            .expect(200);
+    });
 
-//         await request.post('/2fa/verify')
-//             .send({
-//                 accountId,
-//                 requestId,
-//                 securityCode,
-//                 ...(await signatureFor(accountId))
-//             })
-//             .expect(401);
-//     });
+    test('verify 2fa method', async () => {
 
-// });
+        global.Date.now = () => Date.parse('2030-01-01');
+
+        await request.post('/2fa/verify')
+            .send({
+                accountId,
+                requestId,
+                securityCode,
+                ...(await signatureFor(accountId))
+            })
+            .expect(401);
+    });
+
+});
