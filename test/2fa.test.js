@@ -96,10 +96,9 @@ describe('setting up 2fa method', () => {
                 accountId,
                 ...(await signatureFor(accountId))
             })
-            .expect('Content-Type', /json/)
+            .expect('Content-Type', /text/)
             .expect((res) => {
-                assert.equal(res.body.success, true);
-                assert(res.body.publicKey.length > 80);
+                assert(res.body.length > 80);
             })
             .expect(200);
     });
