@@ -29,6 +29,8 @@ beforeAll(async () => {
         deps: { keyStore },
         nodeUrl: process.env.NODE_URL
     });
+    // ctx.accountId = 'testing' + Date.now();
+    // ctx.signature = await signatureFor(ctx.accountId);
 });
 
 afterAll(async () => {
@@ -44,7 +46,7 @@ beforeEach(() => {
 afterEach(() => {
     console.log = ctx.savedLog;
 });
-// const [, { subject }] = ctx.logs.find(log => log[0].match(/^sendMail.+/));
+
 const getCodeFromLogs = () => ctx.logs.find((log) => log[0].length === 6)[0];
 
 const keyStore = new nearAPI.keyStores.InMemoryKeyStore();

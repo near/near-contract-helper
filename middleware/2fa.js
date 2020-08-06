@@ -157,6 +157,21 @@ const isContractDeployed = async(accountId) => {
     return MULTISIG_CONTRACT_HASHES.includes(state.code_hash);
 };
 
+const getAccountAndMethod = async(ctx, accountId) => {
+    const [account] = await models.Account.findOrCreate({ where: { accountId } });
+    if (!account) {
+        console.warn(`account: ${accountId} should already exist when sending new code`);
+        ctx.throw(401);
+        return;
+    }
+    let [twoFactorMethod] = await account.getRecoveryMethods({ where: {
+        kind: {
+            [Op.startsWith]: '2fa-'
+        },
+    }});
+    return { account, twoFactorMethod };
+};
+
 /********************************
 @warn protect these routes using checkAccountOwnership middleware from app.js
 @warn Requires refactor
@@ -172,28 +187,17 @@ const getAccessKey = async (ctx) => {
 // This WILL send the initial code to the method specified ['2fa-email', '2fa-phone']
 const initCode = async (ctx) => {
     const { accountId, method, testContractDeployed = false } = ctx.request.body;
-    const [account] = await models.Account.findOrCreate({ where: { accountId } });
-    if (!account) {
-        ctx.throw(401, 'account should be created');
-        return;
-    }
     if (!method || !method.kind || !method.detail) {
         ctx.throw(401, 'method arguments invalid');
         return;
     }
     const { kind, detail } = method;
-    // validate method kind
     if (!twoFactorMethods.includes(kind)) {
         ctx.throw(401, 'invalid 2fa method ' + kind);
         return;
     }
     const hasContractDeployed = await isContractDeployed(accountId);
-    // check recovery methods
-    let [twoFactorMethod] = await account.getRecoveryMethods({ where: {
-        kind: {
-            [Op.startsWith]: '2fa-'
-        },
-    }});
+    let { account, twoFactorMethod } = await getAccountAndMethod(ctx, accountId);
     if (twoFactorMethod) {
         // check if multisig contract is already deployed
         if (hasContractDeployed || testContractDeployed) {
@@ -230,16 +234,7 @@ const initCode = async (ctx) => {
 // Call anytime after calling initCode to resend a new code, the new code will overwrite the old code
 const sendNewCode = async (ctx) => {
     const { accountId, method, requestId, data } = ctx.request.body;
-    const [account] = await models.Account.findOrCreate({ where: { accountId } });
-    if (!account) {
-        console.warn(`account: ${accountId} should already exist when sending new code`);
-        ctx.throw(401);
-    }
-    let [twoFactorMethod] = await account.getRecoveryMethods({ where: {
-        kind: {
-            [Op.startsWith]: '2fa-'
-        },
-    }});
+    const { twoFactorMethod } = getAccountAndMethod(ctx, accountId);
     if (!twoFactorMethod) {
         console.warn(`account: ${accountId} does not have 2fa enabled`);
         ctx.throw(401);
