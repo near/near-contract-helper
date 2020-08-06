@@ -34,7 +34,7 @@
     "secure-random-password": "^0.2.1",
     "sequelize": "^6.3.4",
     "tweetnacl": "^1.0.3",
-    "twilio": "^3.39.5"
+    "twilio": "^3.48.2"
   },
   "devDependencies": {
     "dotenv": "^8.2.0",
