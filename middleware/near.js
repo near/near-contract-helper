@@ -55,16 +55,11 @@ async function checkAccountOwnership(ctx, next) {
     return await next();
 }
 
-
-function getAccount(ctx, accountId) {
-    return new nearAPI.Account(ctx.near.connection, accountId);
-}
-
 async function checkAccountDoesNotExist(ctx, next) {
     const { accountId } = ctx.request.body;
     let remoteAccount = null;
     try {
-        remoteAccount = await getAccount(ctx, accountId).state();
+        remoteAccount = (await ctx.near.account(accountId)).state();
     } catch (e) {
         return await next();
     }
