@@ -234,7 +234,7 @@ const initCode = async (ctx) => {
 // Call anytime after calling initCode to resend a new code, the new code will overwrite the old code
 const sendNewCode = async (ctx) => {
     const { accountId, method, requestId, data } = ctx.request.body;
-    const { twoFactorMethod } = getAccountAndMethod(ctx, accountId);
+    const { twoFactorMethod } = await getAccountAndMethod(ctx, accountId);
     if (!twoFactorMethod) {
         console.warn(`account: ${accountId} does not have 2fa enabled`);
         ctx.throw(401);
