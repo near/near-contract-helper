@@ -7,7 +7,8 @@ module.exports = (sequelize, DataTypes) => {
         },
         detail: DataTypes.STRING, // the phone number or email address (null for 'phrase')
         publicKey: DataTypes.STRING,
-        securityCode: DataTypes.STRING
+        securityCode: DataTypes.STRING,
+        requestId: DataTypes.STRING
     }, {
         timestamps: true,
     });
