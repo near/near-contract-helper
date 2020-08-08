@@ -7,8 +7,8 @@ module.exports = {
             'kind_constraint',
         ).then(() => queryInterface.addConstraint(
             'RecoveryMethods',
-            ['kind'],
             {
+                fields: ['kind'],
                 name: 'kind_constraint',
                 type: 'check',
                 where: {
@@ -24,8 +24,8 @@ module.exports = {
             'kind_constraint',
         ).then(() => queryInterface.addConstraint(
             'RecoveryMethods',
-            ['kind'],
             {
+                fields: ['kind'],
                 name: 'kind_constraint',
                 type: 'check',
                 where: {
