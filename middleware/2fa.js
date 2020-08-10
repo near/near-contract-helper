@@ -12,10 +12,10 @@ const password = require('secure-random-password');
 // constants
 const SECURITY_CODE_DIGITS = 6;
 const twoFactorMethods = ['2fa-email', '2fa-phone'];
-const viewMethods = [];
+const viewMethods = ['get_request'];
 const changeMethods = ['confirm'];
 const DETERM_KEY_SEED = process.env.DETERM_KEY_SEED || creatorKeyJson.private_key;
-const MULTISIG_CONTRACT_HASHES = process.env.MULTISIG_CONTRACT_HASHES || ['7GQStUCd8bmCK43bzD8PRh7sD2uyyeMJU5h8Rj3kXXJk'];
+const MULTISIG_CONTRACT_HASHES = process.env.MULTISIG_CONTRACT_HASHES ? process.env.MULTISIG_CONTRACT_HASHES.split() :['7GQStUCd8bmCK43bzD8PRh7sD2uyyeMJU5h8Rj3kXXJk','AEE3vt6S3pS2s7K6HXnZc46VyMyJcjygSMsaafFh67DF'];
 const CODE_EXPIRY = 300000;
 
 // generates a deterministic key based on the accountId
@@ -61,15 +61,21 @@ const prettyRequestInfo = (request) => `
     Actions:\n\t${ request.actions.map((r) => r.type + (r.amount ? ': ' + nearAPI.utils.format.formatNearAmount(r.amount, 4) : '')).join('\n\t') }
 `;
 
-const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, data = {}, accountId = '') => {
+const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId = '') => {
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
     await twoFactorMethod.update({ securityCode, requestId });
-    // check user input for html
-    const hasHtml = /[<>]/g.test(JSON.stringify(data));
-    if (hasHtml) {
-        ctx.throw(401, 'requests cannot include html');
+    // get request data from chain
+    let request
+    if (requestId !== -1) {
+        const contract = await getContract(accountId);
+        try {
+            request = await contract.get_request({ request_id: parseInt(requestId) });
+        } catch (e) {
+            const message = `could not find request id ${requestId} for account ${accountId}. ${e}`
+            console.warn(message);
+            ctx.throw(401, message);
+        }
     }
-    const { request } = data;
     const dataOutput = request ? prettyRequestInfo(request) : `Verifying ${method.detail} as 2FA method`;
     let isAddingFAK = false;
     let subject = `NEAR Wallet security code: ${securityCode}`;
@@ -79,8 +85,8 @@ Important: By entering this code, you are authorizing the following transaction:
 ${dataOutput}
 `;
 
-    // are we adding a full access key to this account?
-    if (request && request.receiver_id === accountId && request.actions.length && request.actions.find((a) => a.type === 'AddKey')) {
+    // check if adding full access key to account (AddKey with no permission)
+    if (request && request.receiver_id === accountId && request.actions.length && request.actions.some((a) => a.type === 'AddKey' && !a.permission)) {
         isAddingFAK = true;
         subject = 'NEAR Wallet Message';
         text = `
@@ -230,16 +236,16 @@ const initCode = async (ctx) => {
         message: '2fa initialized and code sent to verify method',
     };
 };
-// http post http://localhost:3000/2fa/send accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
+// http post http://localhost:3000/2fa/send accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}' requestId=0
 // Call anytime after calling initCode to resend a new code, the new code will overwrite the old code
 const sendNewCode = async (ctx) => {
-    const { accountId, method, requestId, data } = ctx.request.body;
+    const { accountId, method, requestId } = ctx.request.body;
     const { twoFactorMethod } = await getAccountAndMethod(ctx, accountId);
     if (!twoFactorMethod) {
         console.warn(`account: ${accountId} does not have 2fa enabled`);
         ctx.throw(401);
     }
-    await sendCode(ctx, method, twoFactorMethod, requestId, data, accountId);
+    await sendCode(ctx, method, twoFactorMethod, requestId, accountId);
     ctx.body = {
         success: true, message: '2fa code sent'
     };
