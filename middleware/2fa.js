@@ -65,13 +65,13 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
     await twoFactorMethod.update({ securityCode, requestId });
     // get request data from chain
-    let request
+    let request;
     if (requestId !== -1) {
         const contract = await getContract(accountId);
         try {
             request = await contract.get_request({ request_id: parseInt(requestId) });
         } catch (e) {
-            const message = `could not find request id ${requestId} for account ${accountId}. ${e}`
+            const message = `could not find request id ${requestId} for account ${accountId}. ${e}`;
             console.warn(message);
             ctx.throw(401, message);
         }
