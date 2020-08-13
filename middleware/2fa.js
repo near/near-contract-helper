@@ -38,7 +38,7 @@ const getContract = async (accountId) => {
     const contract = new nearAPI.Contract(contractAccount, accountId, {
         viewMethods,
         changeMethods,
-    }, '200000000000000');
+    }, '500000000000000');
     return contract;
 };
 
