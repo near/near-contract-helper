@@ -19,6 +19,7 @@ app.use(async function(ctx, next) {
 
         switch (e.status) {
         case 400:
+        case 401:
         case 403:
         case 404:
             ctx.throw(e);
@@ -37,10 +38,25 @@ const router = new Router();
 const {
     creatorKeyJson,
     withNear,
-    checkAccountOwnership
+    checkAccountOwnership,
+    checkAccountDoesNotExist,
 } = require('./middleware/near');
 
 app.use(withNear);
+
+/********************************
+2fa routes
+********************************/
+const {
+    getAccessKey,
+    initCode,
+    sendNewCode,
+    verifyCode,
+} = require('./middleware/2fa');
+router.post('/2fa/getAccessKey', checkAccountOwnership, getAccessKey);
+router.post('/2fa/init', checkAccountOwnership, initCode);
+router.post('/2fa/send', checkAccountOwnership, sendNewCode);
+router.post('/2fa/verify', checkAccountOwnership, verifyCode);
 
 const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT;
 
@@ -61,12 +77,14 @@ const SECURITY_CODE_DIGITS = 6;
 
 const { sendSms } = require('./utils/sms');
 
+
+
 async function recoveryMethodsFor(account) {
     if (!account) return [];
 
-    return await account.getRecoveryMethods({
+    return (await account.getRecoveryMethods({
         attributes: ['createdAt', 'detail', 'kind', 'publicKey', 'securityCode']
-    }).map(method => {
+    })).map(method => {
         const json = method.toJSON();
         json.confirmed = !method.securityCode;
         delete json.securityCode;
@@ -248,6 +266,11 @@ const completeRecoveryInit = async ctx => {
     ctx.body = await recoveryMethodsFor(account);
 };
 
+router.post('/account/initializeRecoveryMethodForTempAccount',
+    checkAccountDoesNotExist,
+    completeRecoveryInit
+);
+
 router.post('/account/initializeRecoveryMethod',
     checkAccountOwnership,
     completeRecoveryInit
@@ -275,9 +298,13 @@ router.post('/account/validateSecurityCode',
     completeRecoveryValidation
 );
 
-router.post('/account/sendRecoveryMessage', async ctx => {
-    const { accountId, method, seedPhrase } = ctx.request.body;
+router.post('/account/validateSecurityCodeForTempAccount',
+    checkAccountDoesNotExist,
+    completeRecoveryValidation
+);
 
+router.post('/account/sendRecoveryMessage', async ctx => {
+    const { accountId, method, seedPhrase, isNew } = ctx.request.body;
     // Verify that seed phrase is added to the account
     const { publicKey } = parseSeedPhrase(seedPhrase);
     const nearAccount = await ctx.near.account(accountId);
@@ -285,21 +312,26 @@ router.post('/account/sendRecoveryMessage', async ctx => {
     if (!keys.some(key => key.public_key === publicKey)) {
         ctx.throw(403, 'seed phrase doesn\'t match any access keys');
     }
-
     const account = await models.Account.findOne({ where: { accountId } });
     const [recoveryMethod] = await account.getRecoveryMethods({ where: {
         kind: method.kind,
         detail: method.detail
     }});
-
     await recoveryMethod.update({ publicKey, securityCode: null });
-
+    if (isNew) {
+        // clear all methods that may have been added by other users attempting to set up the same accountId
+        const allRecoveryMethods = await account.getRecoveryMethods();
+        for (const rm of allRecoveryMethods) {
+            if (rm.publicKey !== publicKey) {
+                await rm.destroy();
+            }
+        }
+    }
     await sendRecoveryMessage({
         accountId,
         method,
         seedPhrase
     });
-
     ctx.body = await recoveryMethodsFor(account);
 });
 
