@@ -71,13 +71,15 @@ router.post('/account', async ctx => {
     ctx.body = await masterAccount.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT);
 });
 
+
+const { findAccountsByPublicKey } = require('./middleware/indexer');
+router.get('/publicKey/:publicKey/accounts', findAccountsByPublicKey);
+
 const password = require('secure-random-password');
 const models = require('./models');
 const SECURITY_CODE_DIGITS = 6;
 
 const { sendSms } = require('./utils/sms');
-
-
 
 async function recoveryMethodsFor(account) {
     if (!account) return [];
