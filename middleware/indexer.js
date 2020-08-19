@@ -20,4 +20,4 @@ async function findAccountsByPublicKey(ctx) {
     ctx.body = rows.map(({ account_id }) => account_id);
 }
 
-module.exports = { findAccountsByPublicKey }
+module.exports = { findAccountsByPublicKey };
