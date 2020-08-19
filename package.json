@@ -30,7 +30,7 @@
     "near-api-js": "^0.29.0",
     "near-seed-phrase": "^0.0.2",
     "nodemailer": "^6.4.3",
-    "pg": "^8.0.2",
+    "pg": "^8.3.2",
     "secure-random-password": "^0.2.1",
     "sequelize": "^6.3.4",
     "tweetnacl": "^1.0.3",
