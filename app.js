@@ -161,7 +161,7 @@ router.post(
     }
 );
 
-const { sendMail } = require('./utils/email');
+const { sendMail, getRecoveryHtml } = require('./utils/email');
 
 const WALLET_URL = process.env.WALLET_URL;
 const sendRecoveryMessage = async ({ accountId, method, seedPhrase }) => {
@@ -186,17 +186,7 @@ Click below to recover your account.
 
 ${recoverUrl}
 `,
-            html:
-`<p>Hi ${accountId},</p>
-
-<p>This email contains your NEAR Wallet account recovery link.</p>
-
-<p>Keep this email safe, and DO NOT SHARE IT! We cannot resend this email.</p>
-
-<p>Click below to recover your account.</p>
-
-<a href="${recoverUrl}">Recover Account</a>
-`
+            html: getRecoveryHtml(accountId, recoverUrl)
 
         });
     } else {
