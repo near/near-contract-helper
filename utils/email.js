@@ -20,7 +20,7 @@ const sendMail = async (options) => {
 };
 
 const getRecoveryHtml = (accountId, buttonLink) => template({
-    title: `NEAR Wallet Account Recovery`,
+    title: 'NEAR Wallet Account Recovery',
     contentPreview: `This Email contains your NEAR Wallet recovery link for the following account: ${accountId}`,
     content: [
         {
@@ -44,31 +44,12 @@ const getRecoveryHtml = (accountId, buttonLink) => template({
     buttonLink,
 });
 
-const get2faHtml = (isAddingFAK, securityCode, request, method) => {
+const get2faHtml = (isAddingFAK, securityCode, requestDetails) => {
     const content = [{
         blockquote: false,
-        html: 'This request code confirms the following transaction:'
+        html: 'Important: By entering this code, you are authorizing the following transaction:'
     }];
 
-    if (request) {
-        content.push({
-            blockquote: false,
-            html:
-`
-<pre style="font-size: 12px">
-${
-    JSON.stringify(request, null, 2)
-}
-</pre>
-`
-        });
-    } else {
-        content.push({
-            blockquote: false,
-            html: `Verify ${method.detail} as your 2FA method`
-        });
-    }
-    
     if (isAddingFAK) {
         content.push({
             blockquote: true,
@@ -80,20 +61,25 @@ ${
         });
     } else {
         content.push({
-            blockquote: true,
-            html: `Transaction request code: ${securityCode}`
+            blockquote: false,
+            html: requestDetails, 
         });
     }
 
+    content.push({
+        blockquote: true,
+        html: `Transaction request code: ${securityCode}`
+    });
+
     return template({
-        title: `NEAR Wallet Transaction Request`,
+        title: 'NEAR Wallet Transaction Request',
         contentPreview: `NEAR Wallet transaction request code: ${securityCode}`,
         content,
     });
 };
 
 const template = ({
-    title = `Sample Title`,
+    title = 'Sample Title',
     contentPreview = 'This Email is a sample',
     content = [
         {

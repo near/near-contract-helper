@@ -18,6 +18,9 @@ const DETERM_KEY_SEED = process.env.DETERM_KEY_SEED || creatorKeyJson.private_ke
 const MULTISIG_CONTRACT_HASHES = process.env.MULTISIG_CONTRACT_HASHES ? process.env.MULTISIG_CONTRACT_HASHES.split() :['7GQStUCd8bmCK43bzD8PRh7sD2uyyeMJU5h8Rj3kXXJk','AEE3vt6S3pS2s7K6HXnZc46VyMyJcjygSMsaafFh67DF'];
 const CODE_EXPIRY = 300000;
 
+const fmtNear = (amount) => nearAPI.utils.format.formatNearAmount(amount, 4);
+
+
 // generates a deterministic key based on the accountId
 const getKeyStore = (accountId) => ({
     async getKey() {
@@ -69,13 +72,27 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
         }
     }
     let isAddingFAK = false;
+    let requestDetails = `Verify ${method.detail} as your 2FA method`;
+    if (request) {
+        const { receiver_id, actions } = request;
+        requestDetails = '';
+        actions.forEach((a) => {
+            switch (a.type) {
+            case 'FunctionCall': requestDetails += `Calling method: ${ a.method_name } with args ${ Buffer.from(a.args, 'base64').toString() } in contract: @${ receiver_id }`; break;
+            case 'Transfer': requestDetails += `Transferring ${ fmtNear(a.amount) } to: @${ receiver_id }`; break;
+            case 'Stake': requestDetails += `Staking: ${ fmtNear(a.amount) } to validator: ${ receiver_id }`; break;
+            case 'AddKey': requestDetails += `Adding key ${ a.public_key }`; break;
+            case 'DeleteKey': requestDetails += `Deleting key ${ a.public_key }`; break;
+            }
+            requestDetails += '\n';
+        });
+        
+    }
     let subject = `NEAR Wallet security code: ${securityCode}`;
     let text = `
 NEAR Wallet security code: ${securityCode}\n\n
 Important: By entering this code, you are authorizing the following transaction:\n\n
-${
-    JSON.stringify(request, null, 2)
-}
+${ requestDetails }
 `;
 
     // check if adding full access key to account (AddKey with no permission)
@@ -91,7 +108,7 @@ If you'd like to proceed, enter this security code: ${securityCode}
 `;
     }
 
-    const html = get2faHtml(isAddingFAK, securityCode, request, method);
+    const html = get2faHtml(isAddingFAK, securityCode, requestDetails);
 
     if (method.kind === '2fa-phone') {
         await sendSms({
