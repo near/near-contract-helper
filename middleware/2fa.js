@@ -84,7 +84,7 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
             case 'AddKey': requestDetails += `Adding key ${ a.public_key }`; break;
             case 'DeleteKey': requestDetails += `Deleting key ${ a.public_key }`; break;
             }
-            requestDetails += '\n';
+            requestDetails += '<br/>';
         });
         
     }
