@@ -55,7 +55,7 @@ const get2faHtml = (isAddingFAK, securityCode, request, method) => {
             blockquote: false,
             html:
 `
-<pre>
+<pre style="font-size: 12px">
 ${
     JSON.stringify(request, null, 2)
 }
