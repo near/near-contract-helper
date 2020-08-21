@@ -57,7 +57,7 @@ const get2faHtml = (isAddingFAK, securityCode, request, method) => {
 `
 <pre>
 ${
-    JSON.stringify(request, null, 4)
+    JSON.stringify(request, null, 2)
 }
 </pre>
 `
@@ -269,7 +269,7 @@ const template = ({
   >
     <!-- The Email client preview part goes here -->
     <div style="display:none; font-size:1px; color:#333; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden;">
-      ${ contentPreview}
+      ${ contentPreview }
     </div>
     <table class="table-container" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
       <tr>

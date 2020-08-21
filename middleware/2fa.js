@@ -74,7 +74,7 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
 NEAR Wallet security code: ${securityCode}\n\n
 Important: By entering this code, you are authorizing the following transaction:\n\n
 ${
-    JSON.stringify(request, null, 4)
+    JSON.stringify(request, null, 2)
 }
 `;
 
