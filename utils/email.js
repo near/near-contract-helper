@@ -20,6 +20,7 @@ const sendMail = async (options) => {
 };
 
 const getRecoveryHtml = (accountId, buttonLink) => template({
+    title: `NEAR Wallet Account Recovery`,
     contentPreview: `This Email contains your NEAR Wallet recovery link for the following account: ${accountId}`,
     content: [
         {
@@ -83,15 +84,16 @@ ${
             html: `Transaction request code: ${securityCode}`
         });
     }
-    
 
     return template({
+        title: `NEAR Wallet Transaction Request`,
         contentPreview: `NEAR Wallet transaction request code: ${securityCode}`,
         content,
     });
 };
 
 const template = ({
+    title: `Sample Title`,
     contentPreview = 'This Email is a sample',
     content = [
         {
@@ -302,7 +304,7 @@ const template = ({
                     <td align="center" style="font-size:28px; color:#25272A; font-weight:700;"
                         class="normal-font-family">
                       <!-- The title goes here -->
-                      <span>Wallet Account Recovery</span>
+                      <span>${ title }</span>
                     </td>
                   </tr>
                   <tr>
