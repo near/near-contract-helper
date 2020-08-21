@@ -93,7 +93,7 @@ ${
 };
 
 const template = ({
-    title: `Sample Title`,
+    title = `Sample Title`,
     contentPreview = 'This Email is a sample',
     content = [
         {
