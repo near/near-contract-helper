@@ -128,7 +128,7 @@ const template = ({
         padding: 0;
         -webkit-font-smoothing: antialiased;
         -webkit-text-size-adjust: none;
-        background: #25272A url("https://storage.googleapis.com/near-contract-helper/email-background.png") no-repeat;
+        background: #25272A url('https://storage.googleapis.com/near-contract-helper/email-background.png') no-repeat;
         background-size: contain;
       }
   
@@ -263,7 +263,7 @@ const template = ({
     <div style="display:none; font-size:1px; color:#333; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden;">
       ${ contentPreview}
     </div>
-    <table class="table-container" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+    <table class="table-container" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;" background="https://storage.googleapis.com/near-contract-helper/email-background.png">
       <tr>
         <td height="40"></td>
       </tr>
