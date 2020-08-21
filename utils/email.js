@@ -24,7 +24,7 @@ const getRecoveryHtml = (accountId, buttonLink) => template({
     content: [
         {
             blockquote: false,
-            html: `This Email contains your <a href="https://near.org/" target="_blank" title="NEAR Wallet">NEAR Wallet</a> recovery link for the following account:`
+            html: 'This Email contains your <a href="https://near.org/" target="_blank" title="NEAR Wallet">NEAR Wallet</a> recovery link for the following account:'
         },
         {
             blockquote: true,
@@ -32,28 +32,23 @@ const getRecoveryHtml = (accountId, buttonLink) => template({
         },
         {
             blockquote: false,
-            html: `Keep this Email safe, and <strong>DO NOT SHARE IT!</strong> <span style="color:#DF2626;">We cannot resend this Email.</span>`
+            html: 'Keep this Email safe, and <strong>DO NOT SHARE IT!</strong> <span style="color:#DF2626;">We cannot resend this Email.</span>'
         },
         {
             blockquote: false,
-            html: `Click below to recover your account.`
+            html: 'Click below to recover your account.'
         },
     ],
-    buttonLabel: `RECOVER ACCOUNT`,
+    buttonLabel: 'RECOVER ACCOUNT',
     buttonLink,
-})
+});
 
 const get2faHtml = (isAddingFAK, securityCode, request, method) => {
     const content = [{
         blockquote: false,
-        html: `This code confirms the following transaction:`
-    }]
-    if (isAddingFAK) {
-        content.push({
-            blockquote: true,
-            html: `<strong>Confirming this transaction will give the key full access to your account!</strong>`
-        })
-    }
+        html: 'This request code confirms the following transaction:'
+    }];
+
     if (request) {
         content.push({
             blockquote: false,
@@ -61,34 +56,51 @@ const get2faHtml = (isAddingFAK, securityCode, request, method) => {
 `
 <pre>
 ${
-JSON.stringify(request, null, 4)
+    JSON.stringify(request, null, 4)
 }
 </pre>
 `
-        })
+        });
     } else {
         content.push({
             blockquote: false,
             html: `Verify ${method.detail} as your 2FA method`
-        })
+        });
     }
+    
+    if (isAddingFAK) {
+        content.push({
+            blockquote: true,
+            html: `<strong>WARNING: entering this code will authorize full access to your NEAR account. If you did not initiate this action DO NOT continue.</strong>
+            <br />
+            This should only be done if you are adding a new seed phrase to your account. In all other cases, this is very dangerous.
+            <br />
+            If you'd like to proceed, enter the security code: ${securityCode}`
+        });
+    } else {
+        content.push({
+            blockquote: true,
+            html: `Transaction request code: ${securityCode}`
+        });
+    }
+    
 
     return template({
-        contentPreview: `NEAR Wallet security code: ${securityCode}`,
+        contentPreview: `NEAR Wallet transaction request code: ${securityCode}`,
         content,
-    })
-}
+    });
+};
 
 const template = ({
-    contentPreview = `This Email is a sample`,
+    contentPreview = 'This Email is a sample',
     content = [
         {
             blockquote: false,
-            html: `This will show up first as a <p></p> tag element.`
+            html: 'This will show up first as a <p></p> tag element.'
         },
         {
             blockquote: true,
-            html: `This will look like a blockquote with centered blue text for showing important things.`
+            html: 'This will look like a blockquote with centered blue text for showing important things.'
         },
     ],
     buttonLabel,
@@ -300,13 +312,13 @@ const template = ({
                     <!-- The content goes here -->
                     <td style="font-size:16px; color:#3b3b3b; line-height:24px;" class="normal-font-family md-content">
                         ${ content.map(({ blockquote, html }) => blockquote ?
-    `<p><span style="background:#F6F6F6; border-radius:5px; color:#0B70CE; display:block; font-weight:700; margin:30px 0; padding:10px 20px; text-align:center; ">${html}</span></p>` :
-    `<p>${html}</p>`).join('\n')
-    }
+        `<p><span style="background:#F6F6F6; border-radius:5px; color:#0B70CE; display:block; font-weight:700; margin:30px 0; padding:10px 20px; text-align:center; ">${html}</span></p>` :
+        `<p>${html}</p>`).join('\n')
+}
                     </td>
                   </tr>
                   ${ buttonLabel ?
-                    `
+        `
                     <tr>
                         <td height="20"></td>
                     </tr>
@@ -323,8 +335,8 @@ const template = ({
                         </table>
                         </td>
                     </tr>
-                    `: ``
-                  }
+                    `: ''
+}
                   <tr>
                     <td height="60"></td>
                   </tr>
@@ -369,7 +381,7 @@ const template = ({
     </table>
   </body>
 </html>
-`
+`;
 module.exports = {
     sendMail,
     getRecoveryHtml,

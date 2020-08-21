@@ -18,27 +18,6 @@ const DETERM_KEY_SEED = process.env.DETERM_KEY_SEED || creatorKeyJson.private_ke
 const MULTISIG_CONTRACT_HASHES = process.env.MULTISIG_CONTRACT_HASHES ? process.env.MULTISIG_CONTRACT_HASHES.split() :['7GQStUCd8bmCK43bzD8PRh7sD2uyyeMJU5h8Rj3kXXJk','AEE3vt6S3pS2s7K6HXnZc46VyMyJcjygSMsaafFh67DF'];
 const CODE_EXPIRY = 300000;
 
-
-console.log(get2faHtml(false, 345687, {
-    "receiver_id": "qz4.testnet",
-    "actions": [
-      {
-        "type": "AddKey",
-        "public_key": "CFgzhHcNBPQe6y8ezgsVqGEUgzbRgwo5LQeUPA8iJdzv",
-        "permission": {
-          "receiver_id": "qz4.testnet",
-          "allowance": "0",
-          "method_names": [
-            "add_request",
-            "add_request_and_confirm",
-            "delete_request",
-            "confirm"
-          ]
-        }
-      }
-    ]
-  }, { detail: 'matt@foo.come'}))
-  
 // generates a deterministic key based on the accountId
 const getKeyStore = (accountId) => ({
     async getKey() {
@@ -94,13 +73,15 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
     let text = `
 NEAR Wallet security code: ${securityCode}\n\n
 Important: By entering this code, you are authorizing the following transaction:\n\n
-${dataOutput}
+${
+    JSON.stringify(request, null, 4)
+}
 `;
 
     // check if adding full access key to account (AddKey with no permission)
     if (request && request.receiver_id === accountId && request.actions.length && request.actions.some((a) => a.type === 'AddKey' && !a.permission)) {
         isAddingFAK = true;
-        subject = 'NEAR Wallet Message';
+        subject = 'NEAR Wallet Transaction Request Code';
         text = `
 WARNING: Entering the code below will authorize full access to your NEAR account. If you did not initiate this action, please DO NOT continue.
 
@@ -111,7 +92,6 @@ If you'd like to proceed, enter this security code: ${securityCode}
     }
 
     const html = get2faHtml(isAddingFAK, securityCode, request, method);
-
 
     if (method.kind === '2fa-phone') {
         await sendSms({
