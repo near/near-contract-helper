@@ -9,6 +9,7 @@ const models = require('../models');
 const Sequelize = require('sequelize');
 const Op = Sequelize.Op;
 const password = require('secure-random-password');
+var escape = require('escape-html');
 // constants
 const SECURITY_CODE_DIGITS = 6;
 const twoFactorMethods = ['2fa-email', '2fa-phone'];
@@ -19,7 +20,6 @@ const MULTISIG_CONTRACT_HASHES = process.env.MULTISIG_CONTRACT_HASHES ? process.
 const CODE_EXPIRY = 300000;
 
 const fmtNear = (amount) => nearAPI.utils.format.formatNearAmount(amount, 4) + 'Ⓝ';
-
 
 // generates a deterministic key based on the accountId
 const getKeyStore = (accountId) => ({
@@ -71,18 +71,19 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
             ctx.throw(401, message);
         }
     }
+    method.detail = escape(method.detail)
     let isAddingFAK = false;
     let requestDetails = `Verify ${method.detail} as your 2FA method`;
     if (request) {
         const { receiver_id, actions } = request;
-        requestDetails = '';
+        requestDetails = [];
         actions.forEach((a) => {
             switch (a.type) {
-            case 'FunctionCall': requestDetails += `Calling method: ${ a.method_name } with args ${ Buffer.from(a.args, 'base64').toString() } in contract: @${ receiver_id }`; break;
-            case 'Transfer': requestDetails += `Transferring ${ fmtNear(a.amount) } to: @${ receiver_id }`; break;
-            case 'Stake': requestDetails += `Staking: ${ fmtNear(a.amount) } to validator: ${ receiver_id }`; break;
-            case 'AddKey': requestDetails += `Adding key ${ a.public_key }`; break;
-            case 'DeleteKey': requestDetails += `Deleting key ${ a.public_key }`; break;
+            case 'FunctionCall': requestDetails += escape(`Calling method: ${ a.method_name } with args ${ Buffer.from(a.args, 'base64').toString() } in contract: @${ receiver_id }`); break;
+            case 'Transfer': requestDetails += escape(`Transferring ${ fmtNear(a.amount) } to: @${ receiver_id }`); break;
+            case 'Stake': requestDetails += escape(`Staking: ${ fmtNear(a.amount) } to validator: ${ receiver_id }`); break;
+            case 'AddKey': requestDetails += escape(`Adding key ${ a.public_key }`); break;
+            case 'DeleteKey': requestDetails += escape(`Deleting key ${ a.public_key }`); break;
             }
             requestDetails += '<br/>';
         });
