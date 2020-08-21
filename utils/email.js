@@ -68,7 +68,7 @@ const get2faHtml = (isAddingFAK, securityCode, requestDetails) => {
 
     content.push({
         blockquote: true,
-        html: `Transaction request code: ${securityCode}`
+        html: securityCode
     });
 
     return template({
@@ -308,7 +308,7 @@ const template = ({
                     <!-- The content goes here -->
                     <td style="font-size:16px; color:#3b3b3b; line-height:24px;" class="normal-font-family md-content">
                         ${ content.map(({ blockquote, html }) => blockquote ?
-        `<p><span style="background:#F6F6F6; border-radius:5px; color:#0B70CE; display:block; font-weight:700; margin:30px 0; padding:10px 20px; text-align:center; ">${html}</span></p>` :
+        `<p><span style="background:#F6F6F6; border-radius:5px; color:#0B70CE; display:block; font-size:18px; font-weight:700; margin:30px 0; padding:10px 20px; text-align:center; ">${html}</span></p>` :
         `<p>${html}</p>`).join('\n')
 }
                     </td>
