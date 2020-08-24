@@ -9,7 +9,7 @@ const models = require('../models');
 const Sequelize = require('sequelize');
 const Op = Sequelize.Op;
 const password = require('secure-random-password');
-var escape = require('escape-html');
+const escape = require('escape-html');
 // constants
 const SECURITY_CODE_DIGITS = 6;
 const twoFactorMethods = ['2fa-email', '2fa-phone'];
