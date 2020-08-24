@@ -164,8 +164,9 @@ router.post(
 const { sendMail, getRecoveryHtml } = require('./utils/email');
 
 const WALLET_URL = process.env.WALLET_URL;
+const getRecoveryUrl = (accountId, seedPhrase) => `${WALLET_URL}/recover-with-link/${encodeURIComponent(accountId)}/${encodeURIComponent(seedPhrase)}`
 const sendRecoveryMessage = async ({ accountId, method, seedPhrase }) => {
-    const recoverUrl = `${WALLET_URL}/recover-with-link/${encodeURIComponent(accountId)}/${encodeURIComponent(seedPhrase)}`;
+    const recoverUrl = getRecoveryUrl(accountId, seedPhrase);
     if (method.kind === 'phone') {
         await sendSms({
             text: `Your NEAR Wallet (${accountId}) recovery link is: ${recoverUrl}\nSave this message in a secure place to allow you to recover account.`,
@@ -217,24 +218,25 @@ router.post(
     }
 );
 
-const sendSecurityCode = async (securityCode, method) => {
-
+const sendSecurityCode = async (securityCode, method, accountId, seedPhrase) => {
+    let html, text = `Your NEAR Wallet security code is: ${securityCode}`
+    if (seedPhrase) {
+        const recoverUrl = getRecoveryUrl(accountId, seedPhrase);
+        text += `\nEnter this code now to finish creating your account.\n\nIn the future, you can recover your account with this link: ${recoverUrl}\nSAVE this message in a secure place so you can recover your account.`
+        html = getRecoveryHtml(accountId, recoverUrl, securityCode)
+    }
     if (method.kind === 'phone') {
-        await sendSms({
-            text: `Your NEAR Wallet security code is: ${securityCode}`,
-            to: method.detail
-        });
+        await sendSms({ to: method.detail, text});
     } else if (method.kind === 'email') {
         await sendMail({
-            to: method.detail,
+            to: method.detail, text, html,
             subject: `Your NEAR Wallet security code is: ${securityCode}`,
-            text: `Use this code to confirm your email address: ${securityCode}`
         });
     }
 };
 
 const completeRecoveryInit = async ctx => {
-    const { accountId, method} = ctx.request.body;
+    const { accountId, method, seedPhrase } = ctx.request.body;
     const [account] = await models.Account.findOrCreate({ where: { accountId } });
 
     let [recoveryMethod] = await account.getRecoveryMethods({ where: {
@@ -251,7 +253,7 @@ const completeRecoveryInit = async ctx => {
 
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
     await recoveryMethod.update({ securityCode });
-    await sendSecurityCode(securityCode, method);
+    await sendSecurityCode(securityCode, method, accountId, seedPhrase);
 
     ctx.body = await recoveryMethodsFor(account);
 };
