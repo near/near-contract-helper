@@ -239,15 +239,22 @@ const completeRecoveryInit = async ctx => {
     const { accountId, method, seedPhrase } = ctx.request.body;
     const [account] = await models.Account.findOrCreate({ where: { accountId } });
 
+    let publicKey
+    if (seedPhrase) {
+        ({ publicKey } = parseSeedPhrase(recoverySeedPhrase))
+    }
+
     let [recoveryMethod] = await account.getRecoveryMethods({ where: {
         kind: method.kind,
-        detail: method.detail
+        detail: method.detail,
+        publicKey
     }});
 
     if (!recoveryMethod) {
         recoveryMethod = await account.createRecoveryMethod({
             kind: method.kind,
-            detail: method.detail
+            detail: method.detail,
+            publicKey
         });
     }
 

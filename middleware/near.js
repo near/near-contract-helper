@@ -99,6 +99,7 @@ const withNear = async (ctx, next) => {
 };
 
 module.exports = {
+    parseSeedPhrase: require('near-seed-phrase').parseSeedPhrase,
     creatorKeyJson,
     withNear,
     checkAccountOwnership,
