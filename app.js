@@ -241,7 +241,7 @@ const completeRecoveryInit = async ctx => {
 
     let publicKey
     if (seedPhrase) {
-        ({ publicKey } = parseSeedPhrase(recoverySeedPhrase))
+        ({ publicKey } = parseSeedPhrase(seedPhrase))
     }
 
     let [recoveryMethod] = await account.getRecoveryMethods({ where: {
