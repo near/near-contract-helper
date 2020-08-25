@@ -47,7 +47,7 @@ const getNewAccountEmail = (accountId, recoverUrl, securityCode) => template({
         html: securityCode
     },
     {
-        html: `In the event that you need to recover your account, click the link below, and follow the directions in NEAR Wallet.
+        html: `2. In the event that you need to recover your account, click the link below, and follow the directions in NEAR Wallet.
       Recover my account`
     }, {
         html: `<a href="${recoverUrl}">Recover my Account</a>`
