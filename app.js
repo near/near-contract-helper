@@ -161,10 +161,10 @@ router.post(
     }
 );
 
-const { sendMail, getRecoveryHtml } = require('./utils/email');
+const { sendMail, getRecoveryHtml, getNewAccountEmail, getSecurityCodeEmail } = require('./utils/email');
 
 const WALLET_URL = process.env.WALLET_URL;
-const getRecoveryUrl = (accountId, seedPhrase) => `${WALLET_URL}/recover-with-link/${encodeURIComponent(accountId)}/${encodeURIComponent(seedPhrase)}`
+const getRecoveryUrl = (accountId, seedPhrase) => `${WALLET_URL}/recover-with-link/${encodeURIComponent(accountId)}/${encodeURIComponent(seedPhrase)}`;
 const sendRecoveryMessage = async ({ accountId, method, seedPhrase }) => {
     const recoverUrl = getRecoveryUrl(accountId, seedPhrase);
     if (method.kind === 'phone') {
@@ -219,14 +219,14 @@ router.post(
 );
 
 const sendSecurityCode = async (securityCode, method, accountId, seedPhrase) => {
-    let text, html
+    let text, html;
     if (seedPhrase) {
         const recoverUrl = getRecoveryUrl(accountId, seedPhrase);
-        text += `\nWelcome to NEAR Wallet!\nThis message contains your account activation code and recovery link for ${accountId}. Keep this email safe, and DO NOT SHARE IT. We cannot resend this email.\n\n1. Confirm your activation code to finish creating your account:\n${securityCode}\n\n2. In the event that you need to recover your account, click the link below, and follow the directions in NEAR Wallet.\n${recoverUrl}\n\nKeep this message safe and DO NOT SHARE IT. We cannot resend this message.`
-        html = getNewAccountEmail(accountId, recoverUrl, securityCode)
+        text += `\nWelcome to NEAR Wallet!\nThis message contains your account activation code and recovery link for ${accountId}. Keep this email safe, and DO NOT SHARE IT. We cannot resend this email.\n\n1. Confirm your activation code to finish creating your account:\n${securityCode}\n\n2. In the event that you need to recover your account, click the link below, and follow the directions in NEAR Wallet.\n${recoverUrl}\n\nKeep this message safe and DO NOT SHARE IT. We cannot resend this message.`;
+        html = getNewAccountEmail(accountId, recoverUrl, securityCode);
     } else {
-        text = `Your NEAR Wallet security code is:\n${securityCode}\nEnter this code to verify your device.`
-        html = getSecurityCodeEmail(accountId, securityCode)
+        text = `Your NEAR Wallet security code is:\n${securityCode}\nEnter this code to verify your device.`;
+        html = getSecurityCodeEmail(accountId, securityCode);
     }
     if (method.kind === 'phone') {
         await sendSms({ to: method.detail, text});
@@ -242,9 +242,9 @@ const completeRecoveryInit = async ctx => {
     const { accountId, method, seedPhrase } = ctx.request.body;
     const [account] = await models.Account.findOrCreate({ where: { accountId } });
 
-    let publicKey
+    let publicKey;
     if (seedPhrase) {
-        ({ publicKey } = parseSeedPhrase(seedPhrase))
+        ({ publicKey } = parseSeedPhrase(seedPhrase));
     }
 
     let [recoveryMethod] = await account.getRecoveryMethods({ where: {

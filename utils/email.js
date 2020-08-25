@@ -1,127 +1,127 @@
 
 const sendMail = async (options) => {
-  if (process.env.NODE_ENV == 'production') {
-    const nodemailer = require('nodemailer');
-    const transport = nodemailer.createTransport({
-      host: process.env.MAIL_HOST,
-      port: process.env.MAIL_PORT,
-      auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASSWORD
-      }
-    });
-    return transport.sendMail({
-      from: process.env.WALLET_EMAIL || 'wallet@near.org',
-      ...options
-    });
-  } else {
-    console.log('sendMail:', options);
-  }
+    if (process.env.NODE_ENV == 'production') {
+        const nodemailer = require('nodemailer');
+        const transport = nodemailer.createTransport({
+            host: process.env.MAIL_HOST,
+            port: process.env.MAIL_PORT,
+            auth: {
+                user: process.env.MAIL_USER,
+                pass: process.env.MAIL_PASSWORD
+            }
+        });
+        return transport.sendMail({
+            from: process.env.WALLET_EMAIL || 'wallet@near.org',
+            ...options
+        });
+    } else {
+        console.log('sendMail:', options);
+    }
 };
 
 const getSecurityCodeEmail = (accountId, securityCode) => template({
-  title: `Verify Your Device`,
-  contentPreview: `Your NEAR Wallet security code is: ${securityCode}`,
-  content: [{
-    html: `Your NEAR Wallet security code is:`,
-  },
-  {
-    blockquote: true,
-    html: securityCode
-  }, {
-    html: `Enter this code to verify your device.`,
-  }],
+    title: 'Verify Your Device',
+    contentPreview: `Your NEAR Wallet security code is: ${securityCode}`,
+    content: [{
+        html: 'Your NEAR Wallet security code is:',
+    },
+    {
+        blockquote: true,
+        html: securityCode
+    }, {
+        html: 'Enter this code to verify your device.',
+    }],
 });
 
 const getNewAccountEmail = (accountId, recoverUrl, securityCode) => template({
-  title: `Welcome to NEAR Wallet`,
-  contentPreview: `This message contains your account activation code and recovery link for ${accountId}.`,
-  content: [{
-    html: `This message contains your account activation code and recovery link for ${accountId}. Keep this Email safe, and <strong>DO NOT SHARE IT!</strong> <span style="color:#DF2626;">We cannot resend this Email.</span>`
-  },
-  {
-    html: `1. Confirm your activation code to finish creating your account:`
-  },
-  {
-    blockquote: true,
-    html: securityCode
-  },
-  {
-    html: `In the event that you need to recover your account, click the link below, and follow the directions in NEAR Wallet.
+    title: 'Welcome to NEAR Wallet',
+    contentPreview: `This message contains your account activation code and recovery link for ${accountId}.`,
+    content: [{
+        html: `This message contains your account activation code and recovery link for ${accountId}. Keep this Email safe, and <strong>DO NOT SHARE IT!</strong> <span style="color:#DF2626;">We cannot resend this Email.</span>`
+    },
+    {
+        html: '1. Confirm your activation code to finish creating your account:'
+    },
+    {
+        blockquote: true,
+        html: securityCode
+    },
+    {
+        html: `In the event that you need to recover your account, click the link below, and follow the directions in NEAR Wallet.
       Recover my account`
-  }, {
-    html: `<a href="${recoverUrl}">Recover my Account</a>`
-  }],
+    }, {
+        html: `<a href="${recoverUrl}">Recover my Account</a>`
+    }],
 });
 
 const getRecoveryHtml = (accountId, buttonLink) => template({
-  title: `Welcome to NEAR Wallet`,
-  contentPreview: `This Email contains your NEAR Wallet recovery link for the following account: ${accountId}`,
-  content: [
-    {
-      html: `This Email contains your <a href="https://near.org/" target="_blank" title="NEAR Wallet">NEAR Wallet</a> recovery link for the following account:`
-    },
-    {
-      blockquote: true,
-      html: accountId
-    },
-    {
-      html: `Keep this Email safe, and <strong>DO NOT SHARE IT!</strong> <span style="color:#DF2626;">We cannot resend this Email.</span>`
-    },
-    {
-      html: `Click below to recover your account.`
-    }
-  ],
-  buttonLabel: `RECOVER ACCOUNT`,
-  buttonLink,
-})
+    title: 'Welcome to NEAR Wallet',
+    contentPreview: `This Email contains your NEAR Wallet recovery link for the following account: ${accountId}`,
+    content: [
+        {
+            html: 'This Email contains your <a href="https://near.org/" target="_blank" title="NEAR Wallet">NEAR Wallet</a> recovery link for the following account:'
+        },
+        {
+            blockquote: true,
+            html: accountId
+        },
+        {
+            html: 'Keep this Email safe, and <strong>DO NOT SHARE IT!</strong> <span style="color:#DF2626;">We cannot resend this Email.</span>'
+        },
+        {
+            html: 'Click below to recover your account.'
+        }
+    ],
+    buttonLabel: 'RECOVER ACCOUNT',
+    buttonLink,
+});
 
 const get2faHtml = (isAddingFAK, securityCode, requestDetails) => {
-  const content = [{
-    html: 'Important: By entering this code, you are authorizing the following transaction:'
-  }];
+    const content = [{
+        html: 'Important: By entering this code, you are authorizing the following transaction:'
+    }];
 
-  if (isAddingFAK) {
-    content.push({
-      blockquote: true,
-      html: `<strong>WARNING: entering this code will authorize full access to your NEAR account. If you did not initiate this action DO NOT continue.</strong>
+    if (isAddingFAK) {
+        content.push({
+            blockquote: true,
+            html: `<strong>WARNING: entering this code will authorize full access to your NEAR account. If you did not initiate this action DO NOT continue.</strong>
             <br />
             This should only be done if you are adding a new seed phrase to your account. In all other cases, this is very dangerous.
             <br />
             If you'd like to proceed, enter the security code: ${securityCode}`
-    });
-  } else {
+        });
+    } else {
+        content.push({
+            html: requestDetails,
+        });
+    }
+
     content.push({
-      html: requestDetails,
+        blockquote: true,
+        html: securityCode
     });
-  }
 
-  content.push({
-    blockquote: true,
-    html: securityCode
-  });
-
-  return template({
-    title: 'NEAR Wallet Transaction Request',
-    contentPreview: `NEAR Wallet transaction request code: ${securityCode}`,
-    content,
-  });
+    return template({
+        title: 'NEAR Wallet Transaction Request',
+        contentPreview: `NEAR Wallet transaction request code: ${securityCode}`,
+        content,
+    });
 };
 
 const template = ({
-  title = 'Sample Title',
-  contentPreview = 'This Email is a sample',
-  content = [
-    {
-      html: 'This will show up first as a <p></p> tag element.'
-    },
-    {
-      blockquote: true,
-      html: 'This will look like a blockquote with centered blue text for showing important things.'
-    },
-  ],
-  buttonLabel,
-  buttonLink
+    title = 'Sample Title',
+    contentPreview = 'This Email is a sample',
+    content = [
+        {
+            html: 'This will show up first as a <p></p> tag element.'
+        },
+        {
+            blockquote: true,
+            html: 'This will look like a blockquote with centered blue text for showing important things.'
+        },
+    ],
+    buttonLabel,
+    buttonLink
 }) => `
 <!DOCTYPE html>
 <html lang="en">
@@ -337,13 +337,13 @@ const template = ({
                     <!-- The content goes here -->
                     <td style="font-size:16px; color:#3b3b3b; line-height:24px;" class="normal-font-family md-content">
                         ${ content.map(({ blockquote, html }) => blockquote ?
-  `<p><span style="background:#F6F6F6; border-radius:5px; color:#0B70CE; display:block; font-size:18px; font-weight:700; margin:30px 0; padding:10px 20px; text-align:center; ">${html}</span></p>` :
-  `<p>${html}</p>`).join('\n')
-  }
+        `<p><span style="background:#F6F6F6; border-radius:5px; color:#0B70CE; display:block; font-size:18px; font-weight:700; margin:30px 0; padding:10px 20px; text-align:center; ">${html}</span></p>` :
+        `<p>${html}</p>`).join('\n')
+}
                     </td>
                   </tr>
                   ${ buttonLabel ?
-    `
+        `
                     <tr>
                         <td height="20"></td>
                     </tr>
@@ -361,7 +361,7 @@ const template = ({
                         </td>
                     </tr>
                     `: ''
-  }
+}
                   <tr>
                     <td height="60"></td>
                   </tr>
@@ -408,10 +408,10 @@ const template = ({
 </html>
 `;
 module.exports = {
-  sendMail,
-  getSecurityCodeEmail,
-  getNewAccountEmail,
-  getRecoveryHtml,
-  get2faHtml,
+    sendMail,
+    getSecurityCodeEmail,
+    getNewAccountEmail,
+    getRecoveryHtml,
+    get2faHtml,
 };
 
