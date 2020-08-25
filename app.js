@@ -219,11 +219,14 @@ router.post(
 );
 
 const sendSecurityCode = async (securityCode, method, accountId, seedPhrase) => {
-    let html, text = `Your NEAR Wallet security code is: ${securityCode}`
+    let text, html
     if (seedPhrase) {
         const recoverUrl = getRecoveryUrl(accountId, seedPhrase);
-        text += `\nEnter this code now to finish creating your account.\n\nIn the future, you can recover your account with this link: ${recoverUrl}\nSAVE this message in a secure place so you can recover your account.`
-        html = getRecoveryHtml(accountId, recoverUrl, securityCode)
+        text += `\nWelcome to NEAR Wallet!\nThis message contains your account activation code and recovery link for ${accountId}. Keep this email safe, and DO NOT SHARE IT. We cannot resend this email.\n\n1. Confirm your activation code to finish creating your account:\n${securityCode}\n\n2. In the event that you need to recover your account, click the link below, and follow the directions in NEAR Wallet.\n${recoverUrl}\n\nKeep this message safe and DO NOT SHARE IT. We cannot resend this message.`
+        html = getNewAccountEmail(accountId, recoverUrl, securityCode)
+    } else {
+        text = `Your NEAR Wallet security code is:\n${securityCode}\nEnter this code to verify your device.`
+        html = getSecurityCodeEmail(accountId, securityCode)
     }
     if (method.kind === 'phone') {
         await sendSms({ to: method.detail, text});
