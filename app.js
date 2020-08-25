@@ -289,6 +289,9 @@ const completeRecoveryValidation = async ctx => {
     if (!recoveryMethod) {
         ctx.throw(401);
     }
+    
+    await recoveryMethod.update({ securityCode: null });
+
     ctx.body = await recoveryMethodsFor(account);
 };
 
