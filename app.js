@@ -283,6 +283,10 @@ const completeRecoveryValidation = async ctx => {
 
     const account = await models.Account.findOne({ where: { accountId } });
 
+    if (!account) {
+        ctx.throw(401, 'account does not exist');
+    }
+
     const [recoveryMethod] = await account.getRecoveryMethods({ where: {
         kind: method.kind,
         detail: method.detail,
@@ -290,7 +294,17 @@ const completeRecoveryValidation = async ctx => {
     }});
 
     if (!recoveryMethod) {
-        ctx.throw(401);
+        ctx.throw(401, 'recoveryMethod does not exist');
+    }
+
+    // for new accounts, clear all other recovery methods that may have been created
+    if (ctx.request.url.indexOf('ForTempAccount') > -1) {
+        const allRecoveryMethods = await account.getRecoveryMethods();
+        for (const rm of allRecoveryMethods) {
+            if (rm.detail !== method.detail) {
+                await rm.destroy();
+            }
+        }
     }
     
     await recoveryMethod.update({ securityCode: null });
@@ -308,37 +322,37 @@ router.post('/account/validateSecurityCodeForTempAccount',
     completeRecoveryValidation
 );
 
-router.post('/account/sendRecoveryMessage', async ctx => {
-    const { accountId, method, seedPhrase, isNew } = ctx.request.body;
-    // Verify that seed phrase is added to the account
-    const { publicKey } = parseSeedPhrase(seedPhrase);
-    const nearAccount = await ctx.near.account(accountId);
-    const keys = await nearAccount.getAccessKeys();
-    if (!keys.some(key => key.public_key === publicKey)) {
-        ctx.throw(403, 'seed phrase doesn\'t match any access keys');
-    }
-    const account = await models.Account.findOne({ where: { accountId } });
-    const [recoveryMethod] = await account.getRecoveryMethods({ where: {
-        kind: method.kind,
-        detail: method.detail
-    }});
-    await recoveryMethod.update({ publicKey, securityCode: null });
-    if (isNew) {
-        // clear all methods that may have been added by other users attempting to set up the same accountId
-        const allRecoveryMethods = await account.getRecoveryMethods();
-        for (const rm of allRecoveryMethods) {
-            if (rm.publicKey !== publicKey) {
-                await rm.destroy();
-            }
-        }
-    }
-    await sendRecoveryMessage({
-        accountId,
-        method,
-        seedPhrase
-    });
-    ctx.body = await recoveryMethodsFor(account);
-});
+// router.post('/account/sendRecoveryMessage', async ctx => {
+//     const { accountId, method, seedPhrase, isNew } = ctx.request.body;
+//     // Verify that seed phrase is added to the account
+//     const { publicKey } = parseSeedPhrase(seedPhrase);
+//     const nearAccount = await ctx.near.account(accountId);
+//     const keys = await nearAccount.getAccessKeys();
+//     if (!keys.some(key => key.public_key === publicKey)) {
+//         ctx.throw(403, 'seed phrase doesn\'t match any access keys');
+//     }
+//     const account = await models.Account.findOne({ where: { accountId } });
+//     const [recoveryMethod] = await account.getRecoveryMethods({ where: {
+//         kind: method.kind,
+//         detail: method.detail
+//     }});
+//     await recoveryMethod.update({ publicKey, securityCode: null });
+//     if (isNew) {
+//         // clear all methods that may have been added by other users attempting to set up the same accountId
+//         const allRecoveryMethods = await account.getRecoveryMethods();
+//         for (const rm of allRecoveryMethods) {
+//             if (rm.publicKey !== publicKey) {
+//                 await rm.destroy();
+//             }
+//         }
+//     }
+//     await sendRecoveryMessage({
+//         accountId,
+//         method,
+//         seedPhrase
+//     });
+//     ctx.body = await recoveryMethodsFor(account);
+// });
 
 app
     .use(router.routes())
