@@ -122,7 +122,7 @@ describe('/account/initializeRecoveryMethodForTempAccount', () => {
 });
 
 describe('Two people send recovery methods for the same account before created', () => {
-    const method = recoveryMethods[0];
+    // const method = recoveryMethods[0];
     let savedSecurityCode = '';
     let accountId = 'doesnotexistonchain' + Date.now();
     let alice = recoveryMethods[0];
