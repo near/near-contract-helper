@@ -84,11 +84,11 @@ const get2faHtml = (isAddingFAK, securityCode, requestDetails) => {
     if (isAddingFAK) {
         content.push({
             blockquote: true,
-            html: `<strong>WARNING: entering this code will authorize full access to your NEAR account. If you did not initiate this action DO NOT continue.</strong>
-            <br />
-            This should only be done if you are adding a new seed phrase to your account. In all other cases, this is very dangerous.
-            <br />
-            If you'd like to proceed, enter the security code: ${securityCode}`
+            html: `<strong>WARNING: entering this code will authorize full access to your NEAR account. If you did not initiate this action DO NOT continue.</strong>`
+        }, {
+          html: `This should only be done if you are adding a new seed phrase to your account. In all other cases, this is very dangerous. `
+        }, {
+          html: `If you'd like to proceed, enter the security code: ${securityCode}`
         });
     } else {
         content.push({

@@ -169,32 +169,6 @@ describe('Two people send recovery methods for the same account before created',
         assert.equal(methods.length, 1);
     });
 
-    // test('send email, should only have 1 recovery method for new account now', async () => {
-    //     const response = await request.post('/account/sendRecoveryMessage')
-    //         .send({
-    //             accountId,
-    //             method,
-    //             isNew: true,
-    //             seedPhrase: SEED_PHRASE
-    //         });
-
-    //     assert.equal(response.status, 200);
-
-    //     const [, { subject, text, to }] = ctx.logs.find(log => log[0].match(/^sendMail.+/));
-    //     expect(subject).toEqual(`Important: Near Wallet Recovery Email for ${accountId}`);
-    //     expect(to).toEqual(recoveryMethods[0].detail);
-    //     expect(text).toMatch(new RegExp(`https://wallet.nearprotocol.com/recover-with-link/${accountId}/${SEED_PHRASE.replace(/ /g, '%20')}`));
-
-    //     const response2 = await request.post('/account/recoveryMethods')
-    //         .send({
-    //             accountId,
-    //             ...(await signatureFor(accountId))
-    //         });
-    //     assert.equal(response2.status, 200);
-    //     const methods = await response2.body;
-    //     assert.equal(methods.length, 1);
-    // });
-
 });
 
 describe('/account/initializeRecoveryMethod', () => {
@@ -243,55 +217,6 @@ describe('/account/initializeRecoveryMethod', () => {
 
         assert.equal(response.status, 200);
     });
-
-    // test('send email (wrong seed phrase)', async () => {
-    //     const response = await request.post('/account/sendRecoveryMessage')
-    //         .send({
-    //             accountId,
-    //             method,
-    //             seedPhrase: 'seed-phrase'
-    //         });
-
-    //     assert.equal(response.status, 403);
-    // });
-
-    // test('send email (wrong accountId)', async () => {
-    //     const response = await request.post('/account/sendRecoveryMessage')
-    //         .send({
-    //             accountId: 'wrong-id',
-    //             method,
-    //             seedPhrase: SEED_PHRASE
-    //         });
-
-    //     assert.equal(response.status, 400);
-    // });
-
-    // test('send email (wrong email)', async () => {
-    //     const response = await request.post('/account/sendRecoveryMessage')
-    //         .send({
-    //             accountId,
-    //             method: {kind: 'email', detail: 'asdada@g.com'},
-    //             seedPhrase: SEED_PHRASE
-    //         });
-
-    //     assert.equal(response.status, 400);
-    // });
-
-    // test('send email', async () => {
-    //     const response = await request.post('/account/sendRecoveryMessage')
-    //         .send({
-    //             accountId,
-    //             method,
-    //             seedPhrase: SEED_PHRASE
-    //         });
-
-    //     assert.equal(response.status, 200);
-
-    //     const [, { subject, text, to }] = ctx.logs.find(log => log[0].match(/^sendMail.+/));
-    //     expect(subject).toEqual(`Important: Near Wallet Recovery Email for ${accountId}`);
-    //     expect(to).toEqual('test@dispostable.com');
-    //     expect(text).toMatch(new RegExp(`https://wallet.nearprotocol.com/recover-with-link/${accountId}/${SEED_PHRASE.replace(/ /g, '%20')}`));
-    // });
 
 });
 

@@ -322,38 +322,6 @@ router.post('/account/validateSecurityCodeForTempAccount',
     completeRecoveryValidation
 );
 
-// router.post('/account/sendRecoveryMessage', async ctx => {
-//     const { accountId, method, seedPhrase, isNew } = ctx.request.body;
-//     // Verify that seed phrase is added to the account
-//     const { publicKey } = parseSeedPhrase(seedPhrase);
-//     const nearAccount = await ctx.near.account(accountId);
-//     const keys = await nearAccount.getAccessKeys();
-//     if (!keys.some(key => key.public_key === publicKey)) {
-//         ctx.throw(403, 'seed phrase doesn\'t match any access keys');
-//     }
-//     const account = await models.Account.findOne({ where: { accountId } });
-//     const [recoveryMethod] = await account.getRecoveryMethods({ where: {
-//         kind: method.kind,
-//         detail: method.detail
-//     }});
-//     await recoveryMethod.update({ publicKey, securityCode: null });
-//     if (isNew) {
-//         // clear all methods that may have been added by other users attempting to set up the same accountId
-//         const allRecoveryMethods = await account.getRecoveryMethods();
-//         for (const rm of allRecoveryMethods) {
-//             if (rm.publicKey !== publicKey) {
-//                 await rm.destroy();
-//             }
-//         }
-//     }
-//     await sendRecoveryMessage({
-//         accountId,
-//         method,
-//         seedPhrase
-//     });
-//     ctx.body = await recoveryMethodsFor(account);
-// });
-
 app
     .use(router.routes())
     .use(router.allowedMethods());
