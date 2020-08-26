@@ -242,7 +242,7 @@ const completeRecoveryInit = async ctx => {
     const { accountId, method, seedPhrase } = ctx.request.body;
     const [account] = await models.Account.findOrCreate({ where: { accountId } });
 
-    let publicKey;
+    let publicKey = null;
     if (seedPhrase) {
         ({ publicKey } = parseSeedPhrase(seedPhrase));
     }
