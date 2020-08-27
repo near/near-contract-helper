@@ -278,7 +278,7 @@ router.post('/account/initializeRecoveryMethod',
     completeRecoveryInit
 );
 
-const completeRecoveryValidation = ({ isNew }) => async ctx => {
+const completeRecoveryValidation = ({ isNew } = {}) => async ctx => {
     const { accountId, method, securityCode } = ctx.request.body;
 
     if (!securityCode || isNaN(parseInt(securityCode, 10)) || securityCode.length !== 6) {
