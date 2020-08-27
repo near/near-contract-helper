@@ -19,12 +19,46 @@ const sendMail = async (options) => {
     }
 };
 
+const getSecurityCodeEmail = (accountId, securityCode) => template({
+    title: 'Verify Your Device',
+    contentPreview: `Your NEAR Wallet security code is: ${securityCode}`,
+    content: [{
+        html: 'Your NEAR Wallet security code is:',
+    },
+    {
+        blockquote: true,
+        html: securityCode
+    }, {
+        html: 'Enter this code to verify your device.',
+    }],
+});
+
+const getNewAccountEmail = (accountId, recoverUrl, securityCode) => template({
+    title: 'Welcome to NEAR Wallet',
+    contentPreview: `This message contains your account activation code and recovery link for ${accountId}.`,
+    content: [{
+        html: `This message contains your account activation code and recovery link for ${accountId}. Keep this Email safe, and <strong>DO NOT SHARE IT!</strong> <span style="color:#DF2626;">We cannot resend this Email.</span>`
+    },
+    {
+        html: '1. Confirm your activation code to finish creating your account:'
+    },
+    {
+        blockquote: true,
+        html: securityCode
+    },
+    {
+        html: `2. In the event that you need to recover your account, click the link below, and follow the directions in NEAR Wallet.
+      Recover my account`
+    }, {
+        html: `<a href="${recoverUrl}">Recover my Account</a>`
+    }],
+});
+
 const getRecoveryHtml = (accountId, buttonLink) => template({
-    title: 'NEAR Wallet Account Recovery',
+    title: 'Welcome to NEAR Wallet',
     contentPreview: `This Email contains your NEAR Wallet recovery link for the following account: ${accountId}`,
     content: [
         {
-            blockquote: false,
             html: 'This Email contains your <a href="https://near.org/" target="_blank" title="NEAR Wallet">NEAR Wallet</a> recovery link for the following account:'
         },
         {
@@ -32,13 +66,11 @@ const getRecoveryHtml = (accountId, buttonLink) => template({
             html: accountId
         },
         {
-            blockquote: false,
             html: 'Keep this Email safe, and <strong>DO NOT SHARE IT!</strong> <span style="color:#DF2626;">We cannot resend this Email.</span>'
         },
         {
-            blockquote: false,
             html: 'Click below to recover your account.'
-        },
+        }
     ],
     buttonLabel: 'RECOVER ACCOUNT',
     buttonLink,
@@ -46,23 +78,21 @@ const getRecoveryHtml = (accountId, buttonLink) => template({
 
 const get2faHtml = (isAddingFAK, securityCode, requestDetails) => {
     const content = [{
-        blockquote: false,
         html: 'Important: By entering this code, you are authorizing the following transaction:'
     }];
 
     if (isAddingFAK) {
         content.push({
             blockquote: true,
-            html: `<strong>WARNING: entering this code will authorize full access to your NEAR account. If you did not initiate this action DO NOT continue.</strong>
-            <br />
-            This should only be done if you are adding a new seed phrase to your account. In all other cases, this is very dangerous.
-            <br />
-            If you'd like to proceed, enter the security code: ${securityCode}`
+            html: '<strong>WARNING: entering this code will authorize full access to your NEAR account. If you did not initiate this action DO NOT continue.</strong>'
+        }, {
+            html: 'This should only be done if you are adding a new seed phrase to your account. In all other cases, this is very dangerous.'
+        }, {
+            html: `If you'd like to proceed, enter the security code: ${securityCode}`
         });
     } else {
         content.push({
-            blockquote: false,
-            html: requestDetails, 
+            html: requestDetails,
         });
     }
 
@@ -83,7 +113,6 @@ const template = ({
     contentPreview = 'This Email is a sample',
     content = [
         {
-            blockquote: false,
             html: 'This will show up first as a <p></p> tag element.'
         },
         {
@@ -255,7 +284,7 @@ const template = ({
   >
     <!-- The Email client preview part goes here -->
     <div style="display:none; font-size:1px; color:#333; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden;">
-      ${ contentPreview }
+      ${ contentPreview}
     </div>
     <table class="table-container" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
       <tr>
@@ -298,7 +327,7 @@ const template = ({
                     <td align="center" style="font-size:28px; color:#25272A; font-weight:700;"
                         class="normal-font-family">
                       <!-- The title goes here -->
-                      <span>${ title }</span>
+                      <span>${ title}</span>
                     </td>
                   </tr>
                   <tr>
@@ -380,6 +409,8 @@ const template = ({
 `;
 module.exports = {
     sendMail,
+    getSecurityCodeEmail,
+    getNewAccountEmail,
     getRecoveryHtml,
     get2faHtml,
 };
