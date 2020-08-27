@@ -109,6 +109,16 @@ describe('/account/initializeRecoveryMethodForTempAccount', () => {
         assert.equal(response.status, 401);
     });
 
+    test('validate security code (no code)', async () => {
+        const response = await request.post('/account/validateSecurityCodeForTempAccount')
+            .send({
+                accountId,
+                method,
+            });
+
+        assert.equal(response.status, 401);
+    });
+
     test('validate security code', async () => {
         const response = await request.post('/account/validateSecurityCodeForTempAccount')
             .send({
