@@ -93,7 +93,7 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
     let text = `
 NEAR Wallet security code: ${securityCode}\n\n
 Important: By entering this code, you are authorizing the following transaction:\n\n
-${ requestDetails }
+${ requestDetails.replace('<br/>', '\n') }
 `;
 
     // check if adding full access key to account (AddKey with no permission)
