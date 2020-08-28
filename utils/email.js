@@ -389,7 +389,6 @@ module.exports = {
     sendMail,
     getSecurityCodeEmail,
     getNewAccountEmail,
-    getRecoveryHtml,
     get2faHtml,
 };
 
