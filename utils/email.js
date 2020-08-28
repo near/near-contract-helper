@@ -54,28 +54,6 @@ const getNewAccountEmail = (accountId, recoverUrl, securityCode) => template({
     }],
 });
 
-const getRecoveryHtml = (accountId, buttonLink) => template({
-    title: 'Welcome to NEAR Wallet',
-    contentPreview: `This Email contains your NEAR Wallet recovery link for the following account: ${accountId}`,
-    content: [
-        {
-            html: 'This Email contains your <a href="https://near.org/" target="_blank" title="NEAR Wallet">NEAR Wallet</a> recovery link for the following account:'
-        },
-        {
-            blockquote: true,
-            html: accountId
-        },
-        {
-            html: 'Keep this Email safe, and <strong>DO NOT SHARE IT!</strong> <span style="color:#DF2626;">We cannot resend this Email.</span>'
-        },
-        {
-            html: 'Click below to recover your account.'
-        }
-    ],
-    buttonLabel: 'RECOVER ACCOUNT',
-    buttonLink,
-});
-
 const get2faHtml = (isAddingFAK, securityCode, requestDetails) => {
     const content = [{
         html: 'Important: By entering this code, you are authorizing the following transaction:'

@@ -138,64 +138,10 @@ router.post(
     }
 );
 
-router.post(
-    '/account/resendRecoveryLink',
-    checkAccountOwnership,
-    async ctx => {
-        const { accountId, seedPhrase, publicKey, method } = ctx.request.body;
-        const account = await models.Account.findOne({ where: { accountId } });
-
-        const [recoveryMethod] = await account.getRecoveryMethods({ where: {
-            kind: method.kind,
-            detail: method.detail,
-            publicKey: method.publicKey
-        }});
-
-        await recoveryMethod.update({ publicKey });
-
-        await sendRecoveryMessage({
-            accountId,
-            method,
-            seedPhrase
-        });
-
-        ctx.body = await recoveryMethodsFor(account);
-    }
-);
-
-const { sendMail, getRecoveryHtml, getNewAccountEmail, getSecurityCodeEmail } = require('./utils/email');
+const { sendMail, getNewAccountEmail, getSecurityCodeEmail } = require('./utils/email');
 
 const WALLET_URL = process.env.WALLET_URL;
 const getRecoveryUrl = (accountId, seedPhrase) => `${WALLET_URL}/recover-with-link/${encodeURIComponent(accountId)}/${encodeURIComponent(seedPhrase)}`;
-const sendRecoveryMessage = async ({ accountId, method, seedPhrase }) => {
-    const recoverUrl = getRecoveryUrl(accountId, seedPhrase);
-    if (method.kind === 'phone') {
-        await sendSms({
-            text: `Your NEAR Wallet (${accountId}) recovery link is: ${recoverUrl}\nSave this message in a secure place to allow you to recover account.`,
-            to: method.detail
-        });
-    } else if (method.kind === 'email') {
-        await sendMail({
-            to: method.detail,
-            subject: `Important: Near Wallet Recovery Email for ${accountId}`,
-            text:
-`Hi ${accountId},
-
-This email contains your NEAR Wallet account recovery link.
-
-Keep this email safe, and DO NOT SHARE IT! We cannot resend this email.
-
-Click below to recover your account.
-
-${recoverUrl}
-`,
-            html: getRecoveryHtml(accountId, recoverUrl)
-
-        });
-    } else {
-        throw new Error(`Account ${accountId} has no contact information`);
-    }
-};
 
 const { parseSeedPhrase } = require('near-seed-phrase');
 
