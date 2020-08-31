@@ -41,7 +41,7 @@ const getContract = async (accountId) => {
     const contract = new nearAPI.Contract(contractAccount, accountId, {
         viewMethods,
         changeMethods,
-    }, '100000000000000');
+    });
     return contract;
 };
 
@@ -49,7 +49,7 @@ const getContract = async (accountId) => {
 const confirmRequest = async (accountId, request_id) => {
     const contract = await getContract(accountId);
     try {
-        const res = await contract.confirm({ request_id });
+        const res = await contract.confirm({ request_id }, '100000000000000');
         return { success: true, res };
     } catch (e) {
         return { success: false, error: JSON.stringify(e) };
