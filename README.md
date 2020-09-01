@@ -39,13 +39,11 @@ npx sequelize-cli migration:generate --name migration-skeleton
 
 Create a `.env` file, copy in the default values from `.env.sample`. Read this file for information about how to change configuration settings to suit your needs.
 
-By default, it assumes that you're running a local node and local network. To do this:
+By default, it assumes that you're running a local node and local network. To do this, use [nearup](https://github.com/near/nearup) or [rainbow-bridge-cli](https://github.com/near/rainbow-bridge-cli)
 
-* clone [nearcore]
-* in your nearcore directory, get a local network running (at the time of writing, the command was `./scripts/start_localnet.py`)
+Now you can add an `ACCOUNT_CREATOR_KEY` to your `.env`. Running a local NEAR network created a `~/.near/localnet/node0/validator_key.json` file for you. Copy the contents of this file and paste them as a single line, with NO whitespace, for the `ACCOUNT_CREATOR_KEY` value in your `.env`. For example:
 
-Note that you need to add an `ACCOUNT_CREATOR_KEY` to your `.env`. Running `nearcore` locally created a `~/.near/[network]/validator_key.json` file for you. Copy the contents of this file and paste them as a single line, with NO whitespace, for the `*_KEY` value in your `.env`.
-e.g. `ACCOUNT_CREATOR_KEY={"account_id":"...","...":"...",...}`
+    ACCOUNT_CREATOR_KEY={"account_id":"node0","public_key":"...","secret_key":"..."}
 
 ### Run server
 
@@ -64,7 +62,7 @@ Follow the instructions above for creating the development database and `helper`
 
     create database accounts_test with owner=helper;
 
-### Ensure [nearcore] is running
+### Ensure NEAR localnet is running
 
 As mentioned in the "Environment Variables" section above, make sure you are running a local blockchain
 
@@ -77,5 +75,4 @@ Tests should be run sequentially, i.e.
 jest test --runInBand
 ```
 
-  [nearcore]: https://github.com/nearprotocol/nearcore
   [jest]: https://jestjs.io/
