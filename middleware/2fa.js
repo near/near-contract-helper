@@ -4,19 +4,22 @@ const crypto = require('crypto');
 const nacl = require('tweetnacl');
 const { creatorKeyJson } = require('./near');
 const { sendSms } = require('../utils/sms');
-const { sendMail } = require('../utils/email');
+const { sendMail, get2faHtml } = require('../utils/email');
 const models = require('../models');
 const Sequelize = require('sequelize');
 const Op = Sequelize.Op;
 const password = require('secure-random-password');
+const escape = require('escape-html');
 // constants
 const SECURITY_CODE_DIGITS = 6;
 const twoFactorMethods = ['2fa-email', '2fa-phone'];
 const viewMethods = ['get_request'];
 const changeMethods = ['confirm'];
 const DETERM_KEY_SEED = process.env.DETERM_KEY_SEED || creatorKeyJson.private_key;
-const MULTISIG_CONTRACT_HASHES = process.env.MULTISIG_CONTRACT_HASHES ? process.env.MULTISIG_CONTRACT_HASHES.split() :['7GQStUCd8bmCK43bzD8PRh7sD2uyyeMJU5h8Rj3kXXJk','AEE3vt6S3pS2s7K6HXnZc46VyMyJcjygSMsaafFh67DF'];
+const MULTISIG_CONTRACT_HASHES = process.env.MULTISIG_CONTRACT_HASHES ? process.env.MULTISIG_CONTRACT_HASHES.split() :['7GQStUCd8bmCK43bzD8PRh7sD2uyyeMJU5h8Rj3kXXJk','AEE3vt6S3pS2s7K6HXnZc46VyMyJcjygSMsaafFh67DF', '45gayUD7tUKFc3vvGwzoPEeFS6RjdQWu7SHGpxAJe13F'];
 const CODE_EXPIRY = 300000;
+
+const fmtNear = (amount) => nearAPI.utils.format.formatNearAmount(amount, 4) + 'Ⓝ';
 
 // generates a deterministic key based on the accountId
 const getKeyStore = (accountId) => ({
@@ -52,14 +55,6 @@ const confirmRequest = async (accountId, request_id) => {
         return { success: false, error: JSON.stringify(e) };
     }
 };
-/********************************
-Sending codes to 2fa methods
-method.kind = ['2fa-email', '2fa-phone']
-********************************/
-const prettyRequestInfo = (request) => `
-    Transaction Recipient: ${ request.receiver_id }
-    Actions:\n\t${ request.actions.map((r) => r.type + (r.amount ? ': ' + nearAPI.utils.format.formatNearAmount(r.amount, 4) : '')).join('\n\t') }
-`;
 
 const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId = '') => {
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
@@ -76,19 +71,35 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
             ctx.throw(401, message);
         }
     }
-    const dataOutput = request ? prettyRequestInfo(request) : `Verifying ${method.detail} as 2FA method`;
+    method.detail = escape(method.detail);
     let isAddingFAK = false;
+    let requestDetails = `Verify ${method.detail} as your 2FA method`;
+    if (request) {
+        const { receiver_id, actions } = request;
+        requestDetails = [];
+        actions.forEach((a) => {
+            switch (a.type) {
+            case 'FunctionCall': requestDetails += escape(`Calling method: ${ a.method_name } with args ${ Buffer.from(a.args, 'base64').toString() } in contract: @${ receiver_id }`); break;
+            case 'Transfer': requestDetails += escape(`Transferring ${ fmtNear(a.amount) } to: @${ receiver_id }`); break;
+            case 'Stake': requestDetails += escape(`Staking: ${ fmtNear(a.amount) } to validator: ${ receiver_id }`); break;
+            case 'AddKey': requestDetails += escape(`Adding key ${ a.public_key }`); break;
+            case 'DeleteKey': requestDetails += escape(`Deleting key ${ a.public_key }`); break;
+            }
+            requestDetails += '<br/>';
+        });
+        
+    }
     let subject = `NEAR Wallet security code: ${securityCode}`;
     let text = `
 NEAR Wallet security code: ${securityCode}\n\n
 Important: By entering this code, you are authorizing the following transaction:\n\n
-${dataOutput}
+${ requestDetails.replace('<br/>', '\n') }
 `;
 
     // check if adding full access key to account (AddKey with no permission)
     if (request && request.receiver_id === accountId && request.actions.length && request.actions.some((a) => a.type === 'AddKey' && !a.permission)) {
         isAddingFAK = true;
-        subject = 'NEAR Wallet Message';
+        subject = 'NEAR Wallet Transaction Request Code';
         text = `
 WARNING: Entering the code below will authorize full access to your NEAR account. If you did not initiate this action, please DO NOT continue.
 
@@ -98,35 +109,7 @@ If you'd like to proceed, enter this security code: ${securityCode}
 `;
     }
 
-    const html =
-`
-<body style="margin: 0; padding: 0;">
-    <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%">
-        <tr>
-            <td align="center">
-                <img src="https://near.org/wp-content/themes/near-19/assets/downloads/near_logo.png" width="300" height="117"
-            </td>
-        </tr>
-        <tr>
-            <td>
-                ${!isAddingFAK ? `
-                <p>NEAR Wallet security code: ${securityCode}</p>
-                <p><strong>Important:</strong> By entering this code, you are authorizing the following transaction:\n\n</p>
-                <pre>
-                    ${dataOutput}
-                </pre>
-                ` : `
-                <pre>
-                    ${text}
-                </pre>
-                `
-}
-            </td>
-        </tr>
-    </table>
-</body>
-`;
-
+    const html = get2faHtml(isAddingFAK, securityCode, requestDetails);
 
     if (method.kind === '2fa-phone') {
         await sendSms({

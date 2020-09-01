@@ -109,6 +109,16 @@ describe('/account/initializeRecoveryMethodForTempAccount', () => {
         assert.equal(response.status, 401);
     });
 
+    test('validate security code (no code)', async () => {
+        const response = await request.post('/account/validateSecurityCodeForTempAccount')
+            .send({
+                accountId,
+                method,
+            });
+
+        assert.equal(response.status, 401);
+    });
+
     test('validate security code', async () => {
         const response = await request.post('/account/validateSecurityCodeForTempAccount')
             .send({
@@ -122,7 +132,7 @@ describe('/account/initializeRecoveryMethodForTempAccount', () => {
 });
 
 describe('Two people send recovery methods for the same account before created', () => {
-    const method = recoveryMethods[0];
+    // const method = recoveryMethods[0];
     let savedSecurityCode = '';
     let accountId = 'doesnotexistonchain' + Date.now();
     let alice = recoveryMethods[0];
@@ -148,7 +158,7 @@ describe('Two people send recovery methods for the same account before created',
         assert.equal(response.status, 200);
     });
 
-    test('validate security code alice and there are 2 methods', async () => {
+    test('validate security code alice (new account) and other methods should be removed leaving 1 recoveryMethod', async () => {
         const response = await request.post('/account/validateSecurityCodeForTempAccount')
             .send({
                 accountId,
@@ -158,32 +168,6 @@ describe('Two people send recovery methods for the same account before created',
         assert.equal(response.status, 200);
 
         await createNearAccount(accountId);
-
-        const response2 = await request.post('/account/recoveryMethods')
-            .send({
-                accountId,
-                ...(await signatureFor(accountId))
-            });
-        assert.equal(response2.status, 200);
-        const methods = await response2.body;
-        assert.equal(methods.length, 2);
-    });
-
-    test('send email, should only have 1 recovery method for new account now', async () => {
-        const response = await request.post('/account/sendRecoveryMessage')
-            .send({
-                accountId,
-                method,
-                isNew: true,
-                seedPhrase: SEED_PHRASE
-            });
-
-        assert.equal(response.status, 200);
-
-        const [, { subject, text, to }] = ctx.logs.find(log => log[0].match(/^sendMail.+/));
-        expect(subject).toEqual(`Important: Near Wallet Recovery Email for ${accountId}`);
-        expect(to).toEqual(recoveryMethods[0].detail);
-        expect(text).toMatch(new RegExp(`https://wallet.nearprotocol.com/recover-with-link/${accountId}/${SEED_PHRASE.replace(/ /g, '%20')}`));
 
         const response2 = await request.post('/account/recoveryMethods')
             .send({
@@ -242,55 +226,6 @@ describe('/account/initializeRecoveryMethod', () => {
             });
 
         assert.equal(response.status, 200);
-    });
-
-    test('send email (wrong seed phrase)', async () => {
-        const response = await request.post('/account/sendRecoveryMessage')
-            .send({
-                accountId,
-                method,
-                seedPhrase: 'seed-phrase'
-            });
-
-        assert.equal(response.status, 403);
-    });
-
-    test('send email (wrong accountId)', async () => {
-        const response = await request.post('/account/sendRecoveryMessage')
-            .send({
-                accountId: 'wrong-id',
-                method,
-                seedPhrase: SEED_PHRASE
-            });
-
-        assert.equal(response.status, 400);
-    });
-
-    test('send email (wrong email)', async () => {
-        const response = await request.post('/account/sendRecoveryMessage')
-            .send({
-                accountId,
-                method: {kind: 'email', detail: 'asdada@g.com'},
-                seedPhrase: SEED_PHRASE
-            });
-
-        assert.equal(response.status, 400);
-    });
-
-    test('send email', async () => {
-        const response = await request.post('/account/sendRecoveryMessage')
-            .send({
-                accountId,
-                method,
-                seedPhrase: SEED_PHRASE
-            });
-
-        assert.equal(response.status, 200);
-
-        const [, { subject, text, to }] = ctx.logs.find(log => log[0].match(/^sendMail.+/));
-        expect(subject).toEqual(`Important: Near Wallet Recovery Email for ${accountId}`);
-        expect(to).toEqual('test@dispostable.com');
-        expect(text).toMatch(new RegExp(`https://wallet.nearprotocol.com/recover-with-link/${accountId}/${SEED_PHRASE.replace(/ /g, '%20')}`));
     });
 
 });
