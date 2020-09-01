@@ -89,7 +89,7 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
         });
         
     }
-    let subject = `NEAR Wallet security code: ${securityCode}`;
+    let subject = `Confirm Transaction with ${ receiver_id }`;
     let text = `
 NEAR Wallet security code: ${securityCode}\n\n
 Important: By entering this code, you are authorizing the following transaction:\n\n
@@ -99,7 +99,7 @@ ${ requestDetails.replace('<br/>', '\n') }
     // check if adding full access key to account (AddKey with no permission)
     if (request && request.receiver_id === accountId && request.actions.length && request.actions.some((a) => a.type === 'AddKey' && !a.permission)) {
         isAddingFAK = true;
-        subject = 'NEAR Wallet Transaction Request Code';
+        subject = 'Confirm Transaction - Warning Adding Full Access Key';
         text = `
 WARNING: Entering the code below will authorize full access to your NEAR account. If you did not initiate this action, please DO NOT continue.
 
