@@ -88,7 +88,7 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
             requestDetails += '<br/>';
         });
     }
-    let subject = `Confirm Transaction from: ${ accountId }${ request ? ` to: ${ request.receiver_id }` : ``}`;
+    let subject = `Confirm Transaction from: ${ accountId }${ request ? ` to: ${ request.receiver_id }` : ''}`;
     let text = `
 NEAR Wallet security code: ${securityCode}\n\n
 Important: By entering this code, you are authorizing the following transaction:\n\n
