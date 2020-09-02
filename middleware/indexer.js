@@ -26,7 +26,6 @@ async function findAccountsByPublicKeyTemp(ctx) {
     const { publicKey } = ctx.params;
 
     const rows = await models.AccountByPublicKey.findAll({ where: { publicKey }, attributes: ['accountId'], group: ['accountId'] });
-    // ctx.body = [...new Set(rows.map(({ accountId }) => accountId))];
     ctx.body = rows.map(({ accountId }) => accountId);
 }
 
