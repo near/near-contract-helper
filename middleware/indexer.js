@@ -1,3 +1,4 @@
+const HELPER_DISABLE_INDEXER = process.env.HELPER_DISABLE_INDEXER === 'yes' || process.env.HELPER_DISABLE_INDEXER === 'true';
 const { Client } = require('pg');
 
 let client;
@@ -29,4 +30,7 @@ async function findAccountsByPublicKeyTemp(ctx) {
     ctx.body = rows.map(({ accountId }) => accountId);
 }
 
-module.exports = { findAccountsByPublicKey: findAccountsByPublicKeyTemp, findAccountsByPublicKeyIndexer };
+module.exports = {
+    findAccountsByPublicKey: HELPER_DISABLE_INDEXER ? findAccountsByPublicKeyTemp : findAccountsByPublicKeyIndexer,
+    findAccountsByPublicKeyIndexer
+};
