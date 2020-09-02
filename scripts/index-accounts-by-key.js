@@ -30,7 +30,7 @@ const BATCH_SIZE = 1000;
                 const keys = await nearAccount.getAccessKeys();
                 const records = keys.map(({ public_key: publicKey }) => ({ publicKey, accountId }));
                 await models.AccountByPublicKey.bulkCreate(records, { ignoreDuplicates: true });
-                await models.AccountByPublicKey.destroy({ where: { publicKey: { [Op.notIn]: keys.map(k => k.public_key) } }});
+                await models.AccountByPublicKey.destroy({ where: { accountId,  publicKey: { [Op.notIn]: keys.map(k => k.public_key) } }});
             } catch (e) {
                 console.error('Error processing account', accountId, e);
             }
