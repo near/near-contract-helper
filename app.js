@@ -72,8 +72,10 @@ router.post('/account', async ctx => {
 });
 
 
-const { findAccountsByPublicKey } = require('./middleware/indexer');
+const { findAccountsByPublicKey, findAccountsByPublicKeyIndexer } = require('./middleware/indexer');
+// TODO: Remove kludge when indexer returns up to date data
 router.get('/publicKey/:publicKey/accounts', findAccountsByPublicKey);
+router.get('/publicKey/:publicKey/accountsIndexer', findAccountsByPublicKeyIndexer);
 
 const password = require('secure-random-password');
 const models = require('./models');
