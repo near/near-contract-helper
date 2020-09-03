@@ -308,7 +308,7 @@ describe('/account/seedPhraseAdded', () => {
         const accountId = await createNearAccount();
 
         const response = await request.post('/account/seedPhraseAdded')
-            .send({ accountId, securityCode: 'lol', signature: 'wut' });
+            .send({ accountId, signature: 'wut' });
 
         expect(response.status).toBe(403);
         const account = await models.Account.findOne({ where: { accountId } });
@@ -338,6 +338,44 @@ describe('/account/seedPhraseAdded', () => {
         expect(account).toBeTruthy();
     });
 });
+
+// TODO: Refactor recovery methods endpoints to be more generic?
+describe('/account/ledgerKeyAdded', () => {
+    test('returns 403 Forbidden (signature not from accountId owner)', async () => {
+        const accountId = await createNearAccount();
+
+        const response = await request.post('/account/ledgerKeyAdded')
+            .send({ accountId, signature: 'wut' });
+
+        expect(response.status).toBe(403);
+        const account = await models.Account.findOne({ where: { accountId } });
+        expect(account).toBeFalsy();
+    });
+
+    test('requires a publicKey', async () => {
+        const accountId = await createNearAccount();
+
+        const response = await request.post('/account/ledgerKeyAdded')
+            .send({ accountId, ...(await signatureFor(accountId)) });
+
+        expect(response.status).toBe(400);
+    });
+
+    test('finds/creates account, adds phraseAddedAt; returns recovery methods', async () => {
+        const accountId = await createNearAccount();
+        const publicKey = nearAPI.KeyPair.fromRandom('ED25519').publicKey.toString();
+
+        const response = await request.post('/account/ledgerKeyAdded')
+            .send({ accountId, publicKey, ...(await signatureFor(accountId)) });
+
+        expect(response.status).toBe(200);
+        expect(response.body.length).toBe(1);
+        expect(response.body[0].kind).toBe('ledger');
+        const account = await models.Account.findOne({ where: { accountId } });
+        expect(account).toBeTruthy();
+    });
+});
+
 
 describe('/account/deleteRecoveryMethod', () => {
     test('returns 400 (recoveryMethod invalid)', async () => {

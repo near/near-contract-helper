@@ -222,6 +222,18 @@ router.post(
     }
 );
 
+router.post(
+    '/account/ledgerKeyAdded',
+    checkAccountOwnership,
+    withPublicKey,
+    async ctx => {
+        const { accountId } = ctx.request.body;
+        const [ account ] = await models.Account.findOrCreate({ where: { accountId } });
+        await account.createRecoveryMethod({ kind: 'ledger', publicKey: ctx.publicKey });
+        ctx.body = await recoveryMethodsFor(account);
+    }
+);
+
 const sendSecurityCode = async (securityCode, method, accountId, seedPhrase) => {
     let text, html;
     if (seedPhrase) {
