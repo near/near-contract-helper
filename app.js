@@ -112,7 +112,8 @@ async function withAccount(ctx, next) {
     ctx.throw(404, `Could not find account with accountId: '${accountId}'`);
 }
 
-const recoveryMethods = ['email', 'phone', 'phrase'];
+// TODO: Do we need extra validation in addition to DB constraint?
+const recoveryMethods = ['email', 'phone', 'phrase', 'ledger'];
 
 async function checkRecoveryMethod(ctx, next) {
     const { kind } = ctx.request.body;
