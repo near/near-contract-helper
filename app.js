@@ -196,7 +196,7 @@ const sendSecurityCode = async (securityCode, method, accountId, seedPhrase) => 
     } else if (method.kind === 'email') {
         await sendMail({
             to: method.detail, text, html,
-            subject: seedPhrase ? 'Important: Near Wallet Recovery Email' : `Your NEAR Wallet security code is: ${securityCode}`,
+            subject: seedPhrase ? `Important: Near Wallet Recovery Email for ${accountId}` : `Your NEAR Wallet security code is: ${securityCode}`,
         });
     }
 };
