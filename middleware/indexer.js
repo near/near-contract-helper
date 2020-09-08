@@ -9,13 +9,11 @@ async function getPgClient() {
         });
         await client.connect();
     }
-
     return client;
 }
 
 async function findAccountsByPublicKeyIndexer(ctx) {
     const { publicKey } = ctx.params;
-
     const client = await getPgClient();
     const { rows } = await client.query('SELECT account_id FROM access_keys WHERE public_key = $1', [publicKey]);
     ctx.body = rows.map(({ account_id }) => account_id);
