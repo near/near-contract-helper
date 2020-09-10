@@ -37,7 +37,7 @@ const getNewAccountEmail = (accountId, recoverUrl, securityCode) => template({
     title: 'Welcome to NEAR Wallet',
     contentPreview: `This message contains your account activation code and recovery link for ${accountId}.`,
     content: [{
-        html: `This message contains your account activation code and recovery link for ${accountId}. Keep this Email safe, and <strong>DO NOT SHARE IT!</strong> <span style="color:#DF2626;">We cannot resend this Email.</span>`
+        html: `This message contains your account activation code and recovery link for <b>${accountId}</b>. Keep this Email safe, and <strong>DO NOT SHARE IT!</strong> <span style="color:#DF2626;">We cannot resend this Email.</span>`
     },
     {
         html: '1. Confirm your activation code to finish creating your account:'
@@ -48,7 +48,7 @@ const getNewAccountEmail = (accountId, recoverUrl, securityCode) => template({
     },
     {
         html: `2. In the event that you need to recover your account, click the link below, and follow the directions in NEAR Wallet.
-      Recover my account`
+      `
     }, {
         html: `<a href="${recoverUrl}">Recover my Account</a>`
     }],
