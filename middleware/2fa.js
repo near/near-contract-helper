@@ -123,7 +123,6 @@ If you'd like to proceed, enter this security code: ${securityCode}
             html,
         });
     }
-    console.log(securityCode);
     return securityCode;
 };
 /********************************
@@ -259,7 +258,6 @@ const verifyCode = async (ctx) => {
         ctx.throw(401, '2fa code not valid for request id');
     }
     // only verify codes that are 5 minutes old (if testing make this impossible)
-    // console.log(twoFactorMethod.updatedAt, Date.now() - CODE_EXPIRY, twoFactorMethod);
     if (twoFactorMethod.updatedAt < Date.now() - CODE_EXPIRY) {
         console.warn(`2fa code expired for: ${accountId}`);
         ctx.throw(401, '2fa code expired');
