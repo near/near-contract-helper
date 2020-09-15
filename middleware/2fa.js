@@ -18,6 +18,7 @@ const changeMethods = ['confirm'];
 const DETERM_KEY_SEED = process.env.DETERM_KEY_SEED || creatorKeyJson.private_key;
 const MULTISIG_CONTRACT_HASHES = process.env.MULTISIG_CONTRACT_HASHES ? process.env.MULTISIG_CONTRACT_HASHES.split() :['7GQStUCd8bmCK43bzD8PRh7sD2uyyeMJU5h8Rj3kXXJk','AEE3vt6S3pS2s7K6HXnZc46VyMyJcjygSMsaafFh67DF', '45gayUD7tUKFc3vvGwzoPEeFS6RjdQWu7SHGpxAJe13F'];
 const CODE_EXPIRY = 300000;
+const HELPER_2FA_GAS = process.env.HELPER_2FA_GAS || '100000000000000';
 
 const fmtNear = (amount) => nearAPI.utils.format.formatNearAmount(amount, 4) + 'Ⓝ';
 
@@ -41,7 +42,7 @@ const getContract = async (accountId) => {
     const contract = new nearAPI.Contract(contractAccount, accountId, {
         viewMethods,
         changeMethods,
-    }, '100000000000000');
+    });
     return contract;
 };
 
@@ -49,7 +50,7 @@ const getContract = async (accountId) => {
 const confirmRequest = async (accountId, request_id) => {
     const contract = await getContract(accountId);
     try {
-        const res = await contract.confirm({ request_id });
+        const res = await contract.confirm({ request_id }, HELPER_2FA_GAS);
         return { success: true, res };
     } catch (e) {
         return { success: false, error: JSON.stringify(e) };
