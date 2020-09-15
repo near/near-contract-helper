@@ -74,6 +74,7 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
     }
     method.detail = escape(method.detail);
     let isAddingFAK = false;
+    let subject = `Confirm 2FA for ${ accountId }`;
     let requestDetails = `Verify ${method.detail} as the 2FA method for account ${ accountId }`;
     if (request) {
         const { receiver_id, actions } = request;
@@ -88,8 +89,8 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
             }
             requestDetails += '<br/>';
         });
+        subject = `Confirm Transaction from: ${ accountId }${ request ? ` to: ${ request.receiver_id }` : ''}`;
     }
-    let subject = `Confirm Transaction from: ${ accountId }${ request ? ` to: ${ request.receiver_id }` : ''}`;
     let text = `
 NEAR Wallet security code: ${securityCode}\n\n
 Important: By entering this code, you are authorizing the following transaction:\n\n
@@ -111,7 +112,7 @@ If you'd like to proceed, enter this security code: ${securityCode}
 
     const html = get2faHtml(isAddingFAK, securityCode, requestDetails);
     // require for tests
-    console.log(securityCode)
+    console.log(securityCode);
 
     if (method.kind === '2fa-phone') {
         await sendSms({
