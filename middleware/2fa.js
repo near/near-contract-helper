@@ -110,6 +110,8 @@ If you'd like to proceed, enter this security code: ${securityCode}
     }
 
     const html = get2faHtml(isAddingFAK, securityCode, requestDetails);
+    // require for tests
+    console.log(securityCode)
 
     if (method.kind === '2fa-phone') {
         await sendSms({
