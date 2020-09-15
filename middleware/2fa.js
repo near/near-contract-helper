@@ -73,7 +73,7 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
     }
     method.detail = escape(method.detail);
     let isAddingFAK = false;
-    let requestDetails = `Verify ${method.detail} as your 2FA method`;
+    let requestDetails = `Verify ${method.detail} as the 2FA method for account ${ accountId }`;
     if (request) {
         const { receiver_id, actions } = request;
         requestDetails = [];
