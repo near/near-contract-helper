@@ -47,7 +47,13 @@ afterEach(() => {
     console.log = ctx.savedLog;
 });
 
-const getCodeFromLogs = () => ctx.logs.find((log) => log[0].length === 6)[0];
+const getCodeFromLogs = () => {
+    const sendLog = ctx.logs.find((log) => log[0] == 'sendSms:' || log[0] == 'sendMail:');
+    if (sendLog) {
+        const { text } = sendLog[1];
+        return /NEAR Wallet security code: (\d+)/.exec(text)[1];
+    }
+};
 
 const keyStore = new nearAPI.keyStores.InMemoryKeyStore();
 
