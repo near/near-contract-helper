@@ -80,12 +80,12 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
         actions.forEach((a) => {
             // format amount, deposit args
             if (a.args) {
-                a.args = JSON.parse(Buffer.from(a.args, 'base64').toString())
-                if (a.args.amount) a.args.amount = fmtNear(a.args.amount)
-                if (a.args.deposit) a.args.deposit = fmtNear(a.args.deposit)
+                a.args = JSON.parse(Buffer.from(a.args, 'base64').toString());
+                if (a.args.amount) a.args.amount = fmtNear(a.args.amount);
+                if (a.args.deposit) a.args.deposit = fmtNear(a.args.deposit);
             }
             switch (a.type) {
-            case 'FunctionCall': requestDetails += escape(`Calling method: ${ a.method_name } with args ${  } in contract: @${ receiver_id }`); break;
+            case 'FunctionCall': requestDetails += escape(`Calling method: ${ a.method_name } with args ${ JSON.stringify(a.args) } in contract: @${ receiver_id }`); break;
             case 'Transfer': requestDetails += escape(`Transferring ${ fmtNear(a.amount) } to: @${ receiver_id }`); break;
             case 'Stake': requestDetails += escape(`Staking: ${ fmtNear(a.amount) } to validator: ${ receiver_id }`); break;
             case 'AddKey': requestDetails += escape(`Adding key ${ a.public_key }`); break;
