@@ -18,6 +18,7 @@ const changeMethods = ['confirm'];
 const DETERM_KEY_SEED = process.env.DETERM_KEY_SEED || creatorKeyJson.private_key;
 const MULTISIG_CONTRACT_HASHES = process.env.MULTISIG_CONTRACT_HASHES ? process.env.MULTISIG_CONTRACT_HASHES.split() :['7GQStUCd8bmCK43bzD8PRh7sD2uyyeMJU5h8Rj3kXXJk','AEE3vt6S3pS2s7K6HXnZc46VyMyJcjygSMsaafFh67DF', '45gayUD7tUKFc3vvGwzoPEeFS6RjdQWu7SHGpxAJe13F'];
 const CODE_EXPIRY = 300000;
+const GAS_2FA_CONFIRM = process.env.GAS_2FA_CONFIRM || '100000000000000';
 
 const fmtNear = (amount) => nearAPI.utils.format.formatNearAmount(amount, 4) + 'Ⓝ';
 
@@ -41,7 +42,7 @@ const getContract = async (accountId) => {
     const contract = new nearAPI.Contract(contractAccount, accountId, {
         viewMethods,
         changeMethods,
-    }, '100000000000000');
+    });
     return contract;
 };
 
@@ -49,7 +50,7 @@ const getContract = async (accountId) => {
 const confirmRequest = async (accountId, request_id) => {
     const contract = await getContract(accountId);
     try {
-        const res = await contract.confirm({ request_id });
+        const res = await contract.confirm({ request_id }, GAS_2FA_CONFIRM);
         return { success: true, res };
     } catch (e) {
         return { success: false, error: JSON.stringify(e) };
@@ -73,7 +74,8 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
     }
     method.detail = escape(method.detail);
     let isAddingFAK = false;
-    let requestDetails = `Verify ${method.detail} as your 2FA method`;
+    let subject = `Confirm 2FA for ${ accountId }`;
+    let requestDetails = `Verify ${method.detail} as the 2FA method for account ${ accountId }`;
     if (request) {
         const { receiver_id, actions } = request;
         requestDetails = [];
@@ -93,8 +95,8 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
             }
             requestDetails += '<br/>';
         });
+        subject = `Confirm Transaction from: ${ accountId }${ request ? ` to: ${ request.receiver_id }` : ''}`;
     }
-    let subject = `Confirm Transaction from: ${ accountId }${ request ? ` to: ${ request.receiver_id }` : ''}`;
     let text = `
 NEAR Wallet security code: ${securityCode}\n\n
 Important: By entering this code, you are authorizing the following transaction:\n\n
