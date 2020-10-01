@@ -62,8 +62,10 @@ const formatArgs = (args) => {
     const argsBuffer = Buffer.from(args, 'base64');
     try {
         const jsonString = argsBuffer.toString('utf-8');
-        JSON.parse(jsonString);
-        return jsonString;
+        const json = JSON.parse(jsonString);
+        if (json.amount) json.amount = fmtNear(json.amount);
+        if (json.deposit) json.deposit = fmtNear(json.deposit);
+        return JSON.stringify(json);
     } catch(e) {
         // Cannot parse JSON, do hex dump
         return hex(argsBuffer);
