@@ -24,18 +24,19 @@
     "@koa/cors": "^3.0.0",
     "bs58": "^4.0.1",
     "escape-html": "^1.0.3",
+    "hexer": "^1.5.0",
     "koa": "^2.13.0",
     "koa-json-body": "^5.3.0",
     "koa-logger": "^3.2.0",
     "koa-router": "^9.4.0",
-    "near-api-js": "^0.29.1",
-    "near-seed-phrase": "^0.0.2",
+    "near-api-js": "^0.30.0",
+    "near-seed-phrase": "^0.1.0",
     "nodemailer": "^6.4.3",
     "pg": "^8.3.3",
     "secure-random-password": "^0.2.1",
-    "sequelize": "^6.3.4",
+    "sequelize": "^6.3.5",
     "tweetnacl": "^1.0.3",
-    "twilio": "^3.49.0"
+    "twilio": "^3.49.4"
   },
   "devDependencies": {
     "dotenv": "^8.2.0",

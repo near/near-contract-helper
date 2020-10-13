@@ -57,6 +57,41 @@ const confirmRequest = async (accountId, request_id) => {
     }
 };
 
+const hex = require('hexer');
+const formatArgs = (args) => {
+    const argsBuffer = Buffer.from(args, 'base64');
+    try {
+        const jsonString = argsBuffer.toString('utf-8');
+        const json = JSON.parse(jsonString);
+        if (json.amount) json.amount = fmtNear(json.amount);
+        if (json.deposit) json.deposit = fmtNear(json.deposit);
+        return JSON.stringify(json);
+    } catch(e) {
+        // Cannot parse JSON, do hex dump
+        return hex(argsBuffer);
+    }
+};
+
+const formatAction = (receiver_id, { type, method_name, args, deposit, amount, public_key, permission }) => {
+    switch (type) {
+    case 'FunctionCall':
+        return escape(`Calling method: ${ method_name } in contract: ${ receiver_id } with amount ${ deposit ? fmtNear(deposit) : '0' } and with args ${formatArgs(args)}`);
+    case 'Transfer':
+        return escape(`Transferring ${ fmtNear(amount) } to: ${ receiver_id }`);
+    case 'Stake':
+        return escape(`Staking: ${ fmtNear(amount) } to validator: ${ receiver_id }`);
+    case 'AddKey':
+        if (permission) {
+            const { allowance, receiver_id, method_names } = permission;
+            const methodsMessage = method_names && method_names.length > 0 ? `${method_names.join(', ')} methods` : 'any method';
+            return escape(`Adding key ${ public_key } limited to call ${methodsMessage} on ${receiver_id} and spend up to ${fmtNear(allowance)} on gas`);
+        }
+        return escape(`Adding key ${ public_key } with FULL ACCESS to account`);
+    case 'DeleteKey':
+        return escape(`Deleting key ${ public_key }`);
+    }
+};
+
 const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId = '') => {
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
     await twoFactorMethod.update({ securityCode, requestId });
@@ -75,26 +110,16 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
     method.detail = escape(method.detail);
     let isAddingFAK = false;
     let subject = `Confirm 2FA for ${ accountId }`;
-    let requestDetails = `Verify ${method.detail} as the 2FA method for account ${ accountId }`;
+    let requestDetails = [`Verify ${method.detail} as the 2FA method for account ${ accountId }`];
     if (request) {
         const { receiver_id, actions } = request;
-        requestDetails = [];
-        actions.forEach((a) => {
-            switch (a.type) {
-            case 'FunctionCall': requestDetails += escape(`Calling method: ${ a.method_name } in contract: @${ receiver_id } with amount ${ a.deposit ? fmtNear(a.deposit) : '0' } and with args ${ Buffer.from(a.args, 'base64').toString() }`); break;
-            case 'Transfer': requestDetails += escape(`Transferring ${ fmtNear(a.amount) } to: @${ receiver_id }`); break;
-            case 'Stake': requestDetails += escape(`Staking: ${ fmtNear(a.amount) } to validator: ${ receiver_id }`); break;
-            case 'AddKey': requestDetails += escape(`Adding key ${ a.public_key }`); break;
-            case 'DeleteKey': requestDetails += escape(`Deleting key ${ a.public_key }`); break;
-            }
-            requestDetails += '<br/>';
-        });
+        requestDetails = actions.map(a => formatAction(receiver_id, a));
         subject = `Confirm Transaction from: ${ accountId }${ request ? ` to: ${ request.receiver_id }` : ''}`;
     }
     let text = `
 NEAR Wallet security code: ${securityCode}\n\n
 Important: By entering this code, you are authorizing the following transaction:\n\n
-${ requestDetails.replace('<br/>', '\n') }
+${ requestDetails.join('\n') }
 `;
 
     // check if adding full access key to account (AddKey with no permission)
@@ -110,7 +135,7 @@ If you'd like to proceed, enter this security code: ${securityCode}
 `;
     }
 
-    const html = get2faHtml(isAddingFAK, securityCode, requestDetails);
+    const html = get2faHtml(isAddingFAK, securityCode, requestDetails.join('<br>'));
 
     if (method.kind === '2fa-phone') {
         await sendSms({
@@ -125,8 +150,8 @@ If you'd like to proceed, enter this security code: ${securityCode}
             html,
         });
     }
-    return securityCode;
 };
+
 /********************************
 Checking code_hash (is multisig deployed)
 ********************************/
