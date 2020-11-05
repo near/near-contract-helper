@@ -294,11 +294,11 @@ app
     .use(router.allowedMethods());
 
 if (!module.parent) {
-    const SENTRY_DSN = process.env.SENTRY_DSN
+    const SENTRY_DSN = process.env.SENTRY_DSN;
     if (SENTRY_DSN) {
-        const Sentry = require('@sentry/node')
+        const Sentry = require('@sentry/node');
         Sentry.init({ dsn: SENTRY_DSN });
-        app.on("error", (err, ctx) => {
+        app.on('error', (err, ctx) => {
             Sentry.withScope(function (scope) {
                 scope.addEventProcessor(function (event) {
                     return Sentry.Handlers.parseRequest(event, ctx.request);
