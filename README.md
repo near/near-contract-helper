@@ -49,9 +49,20 @@ Now you can add an `ACCOUNT_CREATOR_KEY` to your `.env`. Running a local NEAR ne
 
     yarn start
 
-### Create account
+### Create account (works only on test networks)
 
     http post http://localhost:3000/account newAccountId=nosuchuseryet newAccountPublicKey=22skMptHjFWNyuEWY22ftn2AbLPSYpmYwGJRGwpNHbTV
+
+### Lookup account by public key
+
+    http http://localhost:3000/publicKey/ed25519:EKveJ28ocxfHXQEfH42AowPL7HgXHkKp3kmMoSXNjiRF/accounts
+    http https://helper.mainnet.near.org/publicKey/ed25519:EKveJ28ocxfHXQEfH42AowPL7HgXHkKp3kmMoSXNjiRF/accounts
+
+#### Sample response
+    
+    [
+        "heyheyhey.near"
+    ]
 
 
 ## Running tests
