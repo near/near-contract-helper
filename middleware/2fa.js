@@ -125,11 +125,13 @@ ${ requestDetails.join('\n') }
     // check if adding full access key to account (AddKey with no permission)
     if (request && request.receiver_id === accountId && request.actions.length && request.actions.some((a) => a.type === 'AddKey' && !a.permission)) {
         isAddingFAK = true;
-        subject = 'Confirm Transaction - Warning Adding Full Access Key';
+        subject = 'Confirm Transaction - Warning Adding Full Access Key to Account: ' + accountId;
         text = `
-WARNING: Entering the code below will authorize full access to your NEAR account. If you did not initiate this action, please DO NOT continue.
+WARNING: Entering the code below will authorize full access to your NEAR account: "${ accountId }". If you did not initiate this action, please DO NOT continue.
 
 This should only be done if you are adding a new seed phrase to your account. In all other cases, this is very dangerous.
+
+The public key you are adding is: ${ a.public_key }
 
 If you'd like to proceed, enter this security code: ${securityCode}
 `;
