@@ -122,7 +122,7 @@ ${ requestDetails.join('\n') }
 `;
 
     // check if adding full access key to account (AddKey with no permission)
-    const addingFakAction = request.actions.find((a) => a.type === 'AddKey' && !a.permission);
+    const addingFakAction = request && request.actions.find((a) => a.type === 'AddKey' && !a.permission);
     if (addingFakAction && request.receiver_id === accountId) {
         subject = 'Confirm Transaction - Warning Adding Full Access Key to Account: ' + accountId;
         text = `
