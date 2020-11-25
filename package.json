@@ -32,7 +32,7 @@
     "koa-router": "^9.4.0",
     "near-api-js": "^0.34.0",
     "near-seed-phrase": "^0.1.0",
-    "nodemailer": "^6.4.3",
+    "nodemailer": "^6.4.16",
     "pg": "^8.3.3",
     "secure-random-password": "^0.2.1",
     "sequelize": "^6.3.5",
