@@ -108,7 +108,6 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
         }
     }
     method.detail = escape(method.detail);
-    let isAddingFAK = false;
     let subject = `Confirm 2FA for ${ accountId }`;
     let requestDetails = [`Verify ${method.detail} as the 2FA method for account ${ accountId }`];
     if (request) {
@@ -125,7 +124,6 @@ ${ requestDetails.join('\n') }
     // check if adding full access key to account (AddKey with no permission)
     const addingFakAction = request.actions.find((a) => a.type === 'AddKey' && !a.permission);
     if (addingFakAction && request.receiver_id === accountId) {
-        isAddingFAK = true;
         subject = 'Confirm Transaction - Warning Adding Full Access Key to Account: ' + accountId;
         text = `
 WARNING: Entering the code below will authorize full access to your NEAR account: "${ accountId }". If you did not initiate this action, please DO NOT continue.
@@ -138,7 +136,10 @@ If you'd like to proceed, enter this security code: ${securityCode}
 `;
     }
 
-    const html = get2faHtml(isAddingFAK, securityCode, requestDetails.join('<br>'));
+    const html = get2faHtml(securityCode, requestDetails.join('<br>'), {
+        public_key: addingFakAction && addingFakAction.public_key,
+        accountId
+    });
 
     if (method.kind === '2fa-phone') {
         await sendSms({
