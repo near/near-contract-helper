@@ -104,6 +104,9 @@ router.get('/publicKey/:publicKey/accounts', findAccountsByPublicKey);
 router.get('/staking-deposits/:accountId', findStakingDeposits);
 router.get('/account/:accountId/activity', findAccountActivity);
 
+const { findReceivers } = require('./middleware/explorer-indexer');
+router.get('/account/:accountId/callReceivers', findReceivers);
+
 const password = require('secure-random-password');
 const models = require('./models');
 const SECURITY_CODE_DIGITS = 6;
