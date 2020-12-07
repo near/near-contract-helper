@@ -6,8 +6,8 @@ module.exports = {
             return Promise.all([
                 queryInterface.addConstraint(
                     'RecoveryMethods',
-                    ['kind'],
                     {
+                        fields: ['kind'],
                         name: 'kind_constraint',
                         type: 'check',
                         where: {
@@ -20,8 +20,8 @@ module.exports = {
                 // this doesn't prevent having two duplicate records both with NULL publicKey
                 queryInterface.addConstraint(
                     'RecoveryMethods',
-                    ['AccountId', 'kind', 'publicKey'],
                     {
+                        fields: ['AccountId', 'kind', 'publicKey'],
                         name: 'unique_constraint',
                         type: 'unique',
                     },

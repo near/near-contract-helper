@@ -4,8 +4,8 @@ module.exports = {
     up: (queryInterface) => {
         return queryInterface.addConstraint(
             'RecoveryMethods',
-            ['AccountId', 'publicKey', 'kind', 'detail'],
             {
+                fields: ['AccountId', 'publicKey', 'kind', 'detail'],
                 name: 'constraint_publicKey_kind_detail',
                 type: 'unique',
             }

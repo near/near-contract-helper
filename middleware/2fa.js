@@ -16,7 +16,18 @@ const twoFactorMethods = ['2fa-email', '2fa-phone'];
 const viewMethods = ['get_request'];
 const changeMethods = ['confirm'];
 const DETERM_KEY_SEED = process.env.DETERM_KEY_SEED || creatorKeyJson.private_key;
-const MULTISIG_CONTRACT_HASHES = process.env.MULTISIG_CONTRACT_HASHES ? process.env.MULTISIG_CONTRACT_HASHES.split() :['7GQStUCd8bmCK43bzD8PRh7sD2uyyeMJU5h8Rj3kXXJk','AEE3vt6S3pS2s7K6HXnZc46VyMyJcjygSMsaafFh67DF', '45gayUD7tUKFc3vvGwzoPEeFS6RjdQWu7SHGpxAJe13F'];
+
+const MULTISIG_CONTRACT_HASHES = process.env.MULTISIG_CONTRACT_HASHES ? process.env.MULTISIG_CONTRACT_HASHES.split() : [
+    // https://github.com/near/core-contracts/blob/fa3e2c6819ef790fdb1ec9eed6b4104cd13eb4b7/multisig/src/lib.rs
+    '7GQStUCd8bmCK43bzD8PRh7sD2uyyeMJU5h8Rj3kXXJk',
+    // https://github.com/near/core-contracts/blob/fb595e6ec09014d392e9874c2c5d6bbc910362c7/multisig/src/lib.rs
+    'AEE3vt6S3pS2s7K6HXnZc46VyMyJcjygSMsaafFh67DF',
+    // https://github.com/near/core-contracts/blob/636e7e43f1205f4d81431fad0be39c5cb65455f1/multisig/src/lib.rs
+    '8DKTSceSbxVgh4ANXwqmRqGyPWCuZAR1fCqGPXUjD5nZ',
+    // https://github.com/near/core-contracts/blob/f93c146d87a779a2063a30d2c1567701306fcae4/multisig/res/multisig.wasm
+    '55E7imniT2uuYrECn17qJAk9fLcwQW4ftNSwmCJL5Di',
+];
+
 const CODE_EXPIRY = 300000;
 const GAS_2FA_CONFIRM = process.env.GAS_2FA_CONFIRM || '100000000000000';
 
@@ -108,7 +119,6 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
         }
     }
     method.detail = escape(method.detail);
-    let isAddingFAK = false;
     let subject = `Confirm 2FA for ${ accountId }`;
     let requestDetails = [`Verify ${method.detail} as the 2FA method for account ${ accountId }`];
     if (request) {
@@ -123,19 +133,24 @@ ${ requestDetails.join('\n') }
 `;
 
     // check if adding full access key to account (AddKey with no permission)
-    if (request && request.receiver_id === accountId && request.actions.length && request.actions.some((a) => a.type === 'AddKey' && !a.permission)) {
-        isAddingFAK = true;
-        subject = 'Confirm Transaction - Warning Adding Full Access Key';
+    const addingFakAction = request && request.actions.find((a) => a.type === 'AddKey' && !a.permission);
+    if (addingFakAction && request.receiver_id === accountId) {
+        subject = 'Confirm Transaction - Warning Adding Full Access Key to Account: ' + accountId;
         text = `
-WARNING: Entering the code below will authorize full access to your NEAR account. If you did not initiate this action, please DO NOT continue.
+WARNING: Entering the code below will authorize full access to your NEAR account: "${ accountId }". If you did not initiate this action, please DO NOT continue.
 
 This should only be done if you are adding a new seed phrase to your account. In all other cases, this is very dangerous.
+
+The public key you are adding is: ${ addingFakAction.public_key }
 
 If you'd like to proceed, enter this security code: ${securityCode}
 `;
     }
 
-    const html = get2faHtml(isAddingFAK, securityCode, requestDetails.join('<br>'));
+    const html = get2faHtml(securityCode, requestDetails.join('<br>'), {
+        public_key: addingFakAction && addingFakAction.public_key,
+        accountId
+    });
 
     if (method.kind === '2fa-phone') {
         await sendSms({
