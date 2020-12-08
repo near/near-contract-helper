@@ -32,10 +32,10 @@ async function getStakingTxs(ctx) {
             args->>'deposit' != '0' or
             convert_from(decode(args->>'args_base64', 'base64'), 'utf8')::jsonb->>'amount' != '0'
         )
-        limit 9999;
+        limit 9999
     `, [accountId]);
     
-    ctx.body = rows.map(({ account_id }) => account_id);
+    ctx.body = rows;
 }
 
 module.exports = {
