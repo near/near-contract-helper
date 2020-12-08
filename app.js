@@ -77,6 +77,11 @@ const { findAccountsByPublicKey, findAccountsByPublicKeyIndexer } = require('./m
 router.get('/publicKey/:publicKey/accounts', findAccountsByPublicKey);
 router.get('/publicKey/:publicKey/accountsIndexer', findAccountsByPublicKeyIndexer);
 
+
+// Staking Transactions
+router.get('/staking-txs/:accountId', require('./middleware/staking').getStakingTxs);
+
+
 const password = require('secure-random-password');
 const models = require('./models');
 const SECURITY_CODE_DIGITS = 6;
