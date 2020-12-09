@@ -28,11 +28,7 @@ async function getStakingTxs(ctx) {
         where
         predecessor_account_id = $1 and
         action_kind = 'FUNCTION_CALL' and 
-        args->>'method_name' in ('stake', 'deposit_and_stake', 'unstake', 'unstake_all') and
-        (
-            args->>'deposit' != '0' or
-            convert_from(decode(args->>'args_base64', 'base64'), 'utf8')::jsonb->>'amount' != '0'
-        )
+        args->>'method_name' in ('stake', 'deposit_and_stake', 'unstake', 'unstake_all')
         limit 9999
     `, [accountId]);
     
