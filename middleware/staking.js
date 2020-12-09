@@ -19,7 +19,7 @@ async function getStakingTxs(ctx) {
     const client = await getPgClient();
     const { rows } = await client.query(`
         select 
-        receiver_account_id validatorId,
+        receiver_account_id validator_id,
         args->>'method_name' method_name,
         coalesce(nullif(args->>'deposit', '0'), convert_from(decode(args->>'args_base64', 'base64'), 'utf8')::jsonb->>'amount', '0') amount,
         included_in_block_timestamp ts
