@@ -5,7 +5,7 @@ let client;
 async function getPgClient() {
     if (!client) {
         client = new Client({
-            connectionString: process.env.INDEXER_DB_CONNECTION_2,
+            connectionString: process.env.INDEXER_DB_CONNECTION,
         });
         await client.connect();
     }
