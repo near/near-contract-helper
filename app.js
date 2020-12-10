@@ -72,14 +72,10 @@ router.post('/account', async ctx => {
 });
 
 
-const { findAccountsByPublicKey, findAccountsByPublicKeyIndexer } = require('./middleware/indexer');
-// TODO: Remove kludge when indexer returns up to date data
+const { findAccountsByPublicKey, getStakingTxs } = require('./middleware/indexer');
+
 router.get('/publicKey/:publicKey/accounts', findAccountsByPublicKey);
-router.get('/publicKey/:publicKey/accountsIndexer', findAccountsByPublicKeyIndexer);
-
-
-// Staking Transactions
-router.get('/staking-txs/:accountId', require('./middleware/staking').getStakingTxs);
+router.get('/staking-txs/:accountId', getStakingTxs);
 
 
 const password = require('secure-random-password');
