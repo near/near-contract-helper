@@ -72,10 +72,10 @@ router.post('/account', async ctx => {
 });
 
 
-const { findAccountsByPublicKey, getStakingTxs } = require('./middleware/indexer');
+const { findAccountsByPublicKey, findStakingTxs } = require('./middleware/indexer');
 
 router.get('/publicKey/:publicKey/accounts', findAccountsByPublicKey);
-router.get('/staking-txs/:accountId', getStakingTxs);
+router.get('/staking-txs/:accountId', findStakingTxs);
 
 
 const password = require('secure-random-password');
