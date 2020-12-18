@@ -72,9 +72,10 @@ router.post('/account', async ctx => {
 });
 
 
-const { findAccountsByPublicKey, findStakingTxs } = require('./middleware/indexer');
+const { findAccountsByPublicKey, findStakingTxs, findStakingDeposits } = require('./middleware/indexer');
 
 router.get('/publicKey/:publicKey/accounts', findAccountsByPublicKey);
+router.get('/staking-deposits/:accountId', findStakingDeposits);
 router.get('/staking-txs/:accountId', findStakingTxs);
 
 
