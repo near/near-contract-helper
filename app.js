@@ -67,6 +67,11 @@ router.post('/account', async ctx => {
     }
 
     const { newAccountId, newAccountPublicKey } = ctx.request.body;
+
+    if (newAccountId.includes('dzarezenko')) {
+        ctx.throw(403);
+    }
+
     const masterAccount = await ctx.near.account(creatorKeyJson.account_id);
     ctx.body = await masterAccount.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT);
 });
