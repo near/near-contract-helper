@@ -62,7 +62,7 @@ const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT;
 
 const ratelimit = require('koa-ratelimit');
 
-router.post('/account', ratelimit({ duration: 15 * 60000, max: 10 }), async ctx => {
+router.post('/account', ratelimit({ driver: 'memory', duration: 15 * 60000, max: 10 }), async ctx => {
     if (!creatorKeyJson) {
         console.warn('ACCOUNT_CREATOR_KEY is not set up, cannot create accounts.');
         ctx.throw(404);
