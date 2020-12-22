@@ -85,12 +85,10 @@ router.post('/account', ratelimit({
 });
 
 
-const { findAccountsByPublicKey, findStakingTxs, findStakingDeposits } = require('./middleware/indexer');
+const { findAccountsByPublicKey, findStakingDeposits } = require('./middleware/indexer');
 
 router.get('/publicKey/:publicKey/accounts', findAccountsByPublicKey);
 router.get('/staking-deposits/:accountId', findStakingDeposits);
-router.get('/staking-txs/:accountId', findStakingTxs);
-
 
 const password = require('secure-random-password');
 const models = require('./models');
