@@ -54,17 +54,19 @@ const getNewAccountEmail = (accountId, recoverUrl, securityCode) => template({
     }],
 });
 
-const get2faHtml = (isAddingFAK, securityCode, requestDetails) => {
+const get2faHtml = (securityCode, requestDetails, fakConfig = {}) => {
     const content = [{
         html: 'Important: By entering this code, you are authorizing the following transaction:'
     }];
 
-    if (isAddingFAK) {
+    if (fakConfig.public_key) {
         content.push({
             blockquote: true,
-            html: '<strong>WARNING: entering this code will authorize full access to your NEAR account. If you did not initiate this action DO NOT continue.</strong>'
+            html: `<strong>WARNING: entering this code will authorize full access to your NEAR account: "${ fakConfig.accountId }". If you did not initiate this action DO NOT continue.</strong>`
         }, {
             html: 'This should only be done if you are adding a new seed phrase to your account. In all other cases, this is very dangerous.'
+        }, {
+            html: `The public key you are adding is: ${ fakConfig.public_key }`
         }, {
             html: `If you'd like to proceed, enter the security code: ${securityCode}`
         });

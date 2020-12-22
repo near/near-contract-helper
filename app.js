@@ -60,13 +60,26 @@ router.post('/2fa/verify', checkAccountOwnership, verifyCode);
 
 const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT;
 
-router.post('/account', async ctx => {
+const ratelimit = require('koa-ratelimit');
+const ratelimitDb = new Map();
+router.post('/account', ratelimit({
+    driver: 'memory',
+    db: ratelimitDb,
+    duration: 15 * 60000,
+    max: 10,
+    whitelist: () => process.env.NODE_ENV === 'test'
+}), async ctx => {
     if (!creatorKeyJson) {
         console.warn('ACCOUNT_CREATOR_KEY is not set up, cannot create accounts.');
         ctx.throw(404);
     }
 
     const { newAccountId, newAccountPublicKey } = ctx.request.body;
+
+    if (newAccountId.includes('dzarezenko')) {
+        ctx.throw(403);
+    }
+
     const masterAccount = await ctx.near.account(creatorKeyJson.account_id);
     ctx.body = await masterAccount.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT);
 });
@@ -275,7 +288,7 @@ const completeRecoveryValidation = ({ isNew } = {}) => async ctx => {
             }
         }
     }
-    
+
     await recoveryMethod.update({ securityCode: null });
 
     ctx.body = await recoveryMethodsFor(account);
@@ -296,6 +309,20 @@ app
     .use(router.allowedMethods());
 
 if (!module.parent) {
+    const SENTRY_DSN = process.env.SENTRY_DSN;
+    if (SENTRY_DSN) {
+        const Sentry = require('@sentry/node');
+        Sentry.init({ dsn: SENTRY_DSN });
+        app.on('error', (err, ctx) => {
+            Sentry.withScope(function (scope) {
+                scope.addEventProcessor(function (event) {
+                    return Sentry.Handlers.parseRequest(event, ctx.request);
+                });
+                Sentry.captureException(err);
+            });
+        });
+    }
+
     app.listen(process.env.PORT);
 } else {
     module.exports = app;
