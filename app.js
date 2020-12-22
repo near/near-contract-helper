@@ -84,10 +84,11 @@ router.post('/account', ratelimit({
     ctx.body = await masterAccount.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT);
 });
 
-const { findAccountsByPublicKey, findAccountsByPublicKeyIndexer } = require('./middleware/indexer');
-// TODO: Remove kludge when indexer returns up to date data
+
+const { findAccountsByPublicKey, findStakingDeposits } = require('./middleware/indexer');
+
 router.get('/publicKey/:publicKey/accounts', findAccountsByPublicKey);
-router.get('/publicKey/:publicKey/accountsIndexer', findAccountsByPublicKeyIndexer);
+router.get('/staking-deposits/:accountId', findStakingDeposits);
 
 const password = require('secure-random-password');
 const models = require('./models');
