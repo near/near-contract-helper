@@ -60,22 +60,35 @@ router.post('/2fa/verify', checkAccountOwnership, verifyCode);
 
 const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT;
 
-router.post('/account', async ctx => {
+const ratelimit = require('koa-ratelimit');
+const ratelimitDb = new Map();
+router.post('/account', ratelimit({
+    driver: 'memory',
+    db: ratelimitDb,
+    duration: 15 * 60000,
+    max: 10,
+    whitelist: () => process.env.NODE_ENV === 'test'
+}), async ctx => {
     if (!creatorKeyJson) {
         console.warn('ACCOUNT_CREATOR_KEY is not set up, cannot create accounts.');
         ctx.throw(404);
     }
 
     const { newAccountId, newAccountPublicKey } = ctx.request.body;
+
+    if (newAccountId.includes('dzarezenko')) {
+        ctx.throw(403);
+    }
+
     const masterAccount = await ctx.near.account(creatorKeyJson.account_id);
     ctx.body = await masterAccount.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT);
 });
 
 
-const { findAccountsByPublicKey, findAccountsByPublicKeyIndexer } = require('./middleware/indexer');
-// TODO: Remove kludge when indexer returns up to date data
+const { findAccountsByPublicKey, findStakingDeposits } = require('./middleware/indexer');
+
 router.get('/publicKey/:publicKey/accounts', findAccountsByPublicKey);
-router.get('/publicKey/:publicKey/accountsIndexer', findAccountsByPublicKeyIndexer);
+router.get('/staking-deposits/:accountId', findStakingDeposits);
 
 const password = require('secure-random-password');
 const models = require('./models');
@@ -273,7 +286,7 @@ const completeRecoveryValidation = ({ isNew } = {}) => async ctx => {
             }
         }
     }
-    
+
     await recoveryMethod.update({ securityCode: null });
 
     ctx.body = await recoveryMethodsFor(account);

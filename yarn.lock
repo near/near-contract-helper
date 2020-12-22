@@ -887,6 +887,11 @@ astral-regex@^1.0.0:
   resolved "https://registry.yarnpkg.com/astral-regex/-/astral-regex-1.0.0.tgz#6c8c3fb827dd43ee3918f27b82782ab7658a6fd9"
   integrity sha512-+Ryf6g3BKoRc7jfp7ad8tM4TtMiaWvbF/1/sQcZPkkS7ag3D5nMBCe2UfOTONtAkaG0tO0ij3C5Lwmf1EiyjHg==
 
+async-ratelimiter@^1.2.8:
+  version "1.2.8"
+  resolved "https://registry.yarnpkg.com/async-ratelimiter/-/async-ratelimiter-1.2.8.tgz#36ae3381d5b88e931d571d2529b775837844adaf"
+  integrity sha512-6DcoWTptBIuVXLuqa93helQrF9bKRaGV9cvXUgSPNfMv6SHwnRrLTVW+9MlwhwxYIgraatSHJnEUjpA7mwyAww==
+
 asynckit@^0.4.0:
   version "0.4.0"
   resolved "https://registry.yarnpkg.com/asynckit/-/asynckit-0.4.0.tgz#c79ed97f7f34cb8f2ba1bc9790bcc366474b4b79"
@@ -3259,6 +3264,15 @@ koa-logger@^3.2.0:
     humanize-number "0.0.2"
     passthrough-counter "^1.0.0"
 
+koa-ratelimit@^5.0.0:
+  version "5.0.0"
+  resolved "https://registry.yarnpkg.com/koa-ratelimit/-/koa-ratelimit-5.0.0.tgz#187497a57c0d7c1efed4238e27b09471273c8e70"
+  integrity sha512-iUNvd1jVpoev0OrVsqNDP2Lk9TxEejd3kRPi7WLuhqOMnntFaYV9VPZm3EpEwsg0IBgC0dm/JyZEQvVAZaggNw==
+  dependencies:
+    async-ratelimiter "^1.2.8"
+    debug "^4.1.1"
+    ms "^2.1.2"
+
 koa-router@^9.4.0:
   version "9.4.0"
   resolved "https://registry.yarnpkg.com/koa-router/-/koa-router-9.4.0.tgz#7bd3cd4f6247256e4b56fbb2203bde3851acc15a"
@@ -3572,6 +3586,11 @@ ms@2.1.2, ms@^2.1.1:
   resolved "https://registry.yarnpkg.com/ms/-/ms-2.1.2.tgz#d09d1f357b443f493382a8eb3ccd183872ae6009"
   integrity sha512-sGkPx+VjMtmA6MX27oA4FBFELFCZZ4S4XqeGOXCv68tT+jb3vk/RyaKWP0PTKyWtmLSM0b+adUTEvbs1PEaH2w==
 
+ms@^2.1.2:
+  version "2.1.3"
+  resolved "https://registry.yarnpkg.com/ms/-/ms-2.1.3.tgz#574c8138ce1d2b5861f0b44579dbadd60c6615b2"
+  integrity sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==
+
 mustache@^4.0.0:
   version "4.0.1"
   resolved "https://registry.yarnpkg.com/mustache/-/mustache-4.0.1.tgz#d99beb031701ad433338e7ea65e0489416c854a2"
@@ -3599,10 +3618,10 @@ natural-compare@^1.4.0:
   resolved "https://registry.yarnpkg.com/natural-compare/-/natural-compare-1.4.0.tgz#4abebfeed7541f2c27acfb29bdbbd15c8d5ba4f7"
   integrity sha1-Sr6/7tdUHywnrPspvbvRXI1bpPc=
 
-near-api-js@^0.34.0:
-  version "0.34.0"
-  resolved "https://registry.yarnpkg.com/near-api-js/-/near-api-js-0.34.0.tgz#2deba01d877859edb87d9f338b3446e3240d7db2"
-  integrity sha512-wYSPerV5/AcdlMvJ1Ntzxb1RxeiETrLqBplv2yF0/Fi8USXhZV0Kk5svrA1Uxx4OI2diTY46+rvXs7gQqtkgPA==
+near-api-js@^0.35.0:
+  version "0.35.0"
+  resolved "https://registry.yarnpkg.com/near-api-js/-/near-api-js-0.35.0.tgz#6db2731ad6c817c7fb098f7f9cf87f998cd4a2d7"
+  integrity sha512-/PLudJayQIgoS+OUFNsv0HyHAPbBQU0se61ujzc064X7fCLQiHFvSSE6RpXEx4jdeZmhncUF+Kn49JOBpWONVg==
   dependencies:
     "@types/bn.js" "^4.11.5"
     bn.js "^5.0.0"
