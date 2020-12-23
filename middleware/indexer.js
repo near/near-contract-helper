@@ -1,14 +1,13 @@
 const { Client } = require('pg');
 
 let client;
-async function getPgClient(useWalletIndexer = false) {
-    if (!client || useWalletIndexer) {
+async function getPgClient() {
+    if (!client) {
         client = new Client({
-            connectionString: useWalletIndexer ? process.env.WALLET_INDEXER_DB_CONNECTION : process.env.INDEXER_DB_CONNECTION,
+            connectionString: process.env.INDEXER_DB_CONNECTION,
         });
         await client.connect();
     }
-
     return client;
 }
 
@@ -46,13 +45,20 @@ async function findStakingDeposits(ctx) {
 }
 
 // TODO remove this extra client when explorer indexer is fixed to return implicit accountIds and caught up
-let walletIndexerClient;
+let clientWallet;
+async function getPgClientWallet() {
+    if (!clientWallet) {
+        clientWallet = new Client({
+            connectionString: process.env.WALLET_INDEXER_DB_CONNECTION,
+        });
+        await clientWallet.connect();
+    }
+    return clientWallet;
+}
 async function findAccountsByPublicKey(ctx) {
     const { publicKey } = ctx.params;
-    if (!walletIndexerClient) {
-        walletIndexerClient = await getPgClient(true);
-    }
-    const { rows } = await walletIndexerClient.query('SELECT DISTINCT account_id FROM access_keys WHERE public_key = $1', [publicKey]);
+    const client = await getPgClientWallet();
+    const { rows } = await client.query('SELECT DISTINCT account_id FROM access_keys WHERE public_key = $1', [publicKey]);
     ctx.body = rows.map(({ account_id }) => account_id);
 }
 
