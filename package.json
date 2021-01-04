@@ -42,7 +42,7 @@
   },
   "devDependencies": {
     "dotenv": "^8.2.0",
-    "eslint": "^7.7.0",
+    "eslint": "^7.17.0",
     "jest": "^26.4.2",
     "sequelize-cli": "^6.2.0",
     "supertest": "^4.0.2",
