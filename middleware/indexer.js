@@ -55,6 +55,7 @@ async function findAccountActivity(ctx) {
         where 
             predecessor_account_id != 'system' and
             (predecessor_account_id = $1 or receiver_account_id = $1)
+        order by included_in_block_timestamp desc
         offset $2        
         limit $3
         ;
