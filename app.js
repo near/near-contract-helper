@@ -89,7 +89,7 @@ const { findAccountsByPublicKey, findStakingDeposits, findAccountActivity } = re
 
 router.get('/publicKey/:publicKey/accounts', findAccountsByPublicKey);
 router.get('/staking-deposits/:accountId', findStakingDeposits);
-router.get('/account-activity/:accountId', findAccountActivity);
+router.get('/account-activity/:accountId/:offset/:limit', findAccountActivity);
 
 const password = require('secure-random-password');
 const models = require('./models');

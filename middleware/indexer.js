@@ -45,7 +45,7 @@ async function findStakingDeposits(ctx) {
 }
 
 async function findAccountActivity(ctx) {
-    const { accountId } = ctx.params;
+    const { accountId, offset = 0, limit = 10 } = ctx.params;
     const client = await getPgClient();
     const { rows } = await client.query(`
         select 
@@ -55,8 +55,10 @@ async function findAccountActivity(ctx) {
         where 
             predecessor_account_id != 'system' and
             (predecessor_account_id = $1 or receiver_account_id = $1)
-        limit 10;
-    `, [accountId]);
+        offset $2        
+        limit $3
+        ;
+    `, [accountId, offset, limit]);
     
     ctx.body = rows;
 }
