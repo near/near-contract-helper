@@ -56,7 +56,7 @@ async function findAccountActivity(ctx) {
             included_in_block_hash block_hash,
             included_in_block_timestamp block_timestamp,
             originated_from_transaction_hash hash,
-            index_in_action_receipt index,
+            index_in_action_receipt action_index,
             predecessor_account_id signer_id,
             receiver_account_id receiver_id,
             action_kind,
