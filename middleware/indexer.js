@@ -63,11 +63,11 @@ async function findAccountActivity(ctx) {
             args
         from receipts
         join action_receipt_actions using(receipt_id)
-        where 
-            signer_id != 'system' and
-            (signer_id = $1 or receiver_id = $1) and
-            $2 > block_timestamp 
-        order by block_timestamp desc     
+        where
+            predecessor_account_id != 'system' and
+            (predecessor_account_id = $1 or receiver_account_id = $1) and
+            $2 > included_in_block_timestamp 
+        order by included_in_block_timestamp desc     
         limit $3
         ;
     `, [accountId, offset, limit]);
