@@ -46,6 +46,10 @@ async function findStakingDeposits(ctx) {
 
 async function findAccountActivity(ctx) {
     const { accountId, offset = 0, limit = 10 } = ctx.params;
+    const { offset, limit = 10 } = ctx.request.query;
+    if (!offset) {
+        offset = '9999999999999999999'
+    }
     const client = await getPgClient();
     const { rows } = await client.query(`
         select 
@@ -54,9 +58,9 @@ async function findAccountActivity(ctx) {
         join action_receipt_actions using(receipt_id)
         where 
             predecessor_account_id != 'system' and
-            (predecessor_account_id = $1 or receiver_account_id = $1)
-        order by included_in_block_timestamp desc
-        offset $2        
+            (predecessor_account_id = $1 or receiver_account_id = $1) and
+            $2 > included_in_block_timestamp 
+        order by included_in_block_timestamp desc     
         limit $3
         ;
     `, [accountId, offset, limit]);
