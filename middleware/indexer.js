@@ -45,7 +45,7 @@ async function findStakingDeposits(ctx) {
 }
 
 async function findAccountActivity(ctx) {
-    const { accountId, offset = 0, limit = 10 } = ctx.params;
+    const { accountId } = ctx.params;
     const { offset, limit = 10 } = ctx.request.query;
     if (!offset) {
         offset = '9999999999999999999'
