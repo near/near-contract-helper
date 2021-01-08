@@ -44,6 +44,37 @@ async function findStakingDeposits(ctx) {
     ctx.body = rows;
 }
 
+async function findAccountActivity(ctx) {
+    const { accountId } = ctx.params;
+    let { offset, limit = 10 } = ctx.request.query;
+    if (!offset) {
+        offset = '9999999999999999999';
+    }
+    const client = await getPgClient();
+    const { rows } = await client.query(`
+        select 
+            included_in_block_hash block_hash,
+            included_in_block_timestamp block_timestamp,
+            originated_from_transaction_hash hash,
+            index_in_action_receipt action_index,
+            predecessor_account_id signer_id,
+            receiver_account_id receiver_id,
+            action_kind,
+            args
+        from receipts
+        join action_receipt_actions using(receipt_id)
+        where
+            predecessor_account_id != 'system' and
+            (predecessor_account_id = $1 or receiver_account_id = $1) and
+            $2 > included_in_block_timestamp 
+        order by included_in_block_timestamp desc     
+        limit $3
+        ;
+    `, [accountId, offset, limit]);
+    
+    ctx.body = rows;
+}
+
 // TODO remove this extra client when explorer indexer is fixed to return implicit accountIds and caught up
 let clientWallet;
 async function getPgClientWallet() {
@@ -64,5 +95,6 @@ async function findAccountsByPublicKey(ctx) {
 
 module.exports = {
     findStakingDeposits,
+    findAccountActivity,
     findAccountsByPublicKey
 };
