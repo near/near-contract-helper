@@ -84,9 +84,10 @@ router.post('/account', ratelimit({
     ctx.body = await masterAccount.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT);
 });
 
+const { signURL } = require('./middleware/moonpay');
+router.get('/moonpay/signURL', signURL);
 
 const { findAccountsByPublicKey, findStakingDeposits, findAccountActivity } = require('./middleware/indexer');
-
 router.get('/publicKey/:publicKey/accounts', findAccountsByPublicKey);
 router.get('/staking-deposits/:accountId', findStakingDeposits);
 router.get('/account/:accountId/activity', findAccountActivity);
