@@ -1,19 +1,25 @@
-const { Client } = require('pg');
+const { Pool } = require('pg');
 
-let client;
-async function getPgClient() {
-    if (!client) {
-        client = new Client({
+let pool;
+const withPgClient = (fn) => async (ctx) => {
+    if (!pool) {
+        pool = new Pool({
             connectionString: process.env.INDEXER_DB_CONNECTION,
         });
-        await client.connect();
     }
-    return client;
+
+    const client = await pool.connect();
+    ctx.client = client;
+    try {
+        return fn(ctx);
+    } finally {
+        client.release();
+    }
 }
 
-async function findStakingDeposits(ctx) {
+const findStakingDeposits = withPgClient(async (ctx) => {
     const { accountId } = ctx.params;
-    const client = await getPgClient();
+    const { client } = ctx;
     const { rows } = await client.query(`
         with deposit_in as (
             select SUM(to_number(args ->> 'deposit', '99999999999999999999999999999999999999')) deposit, receiver_account_id validator_id
@@ -42,15 +48,15 @@ async function findStakingDeposits(ctx) {
     `, [accountId]);
     
     ctx.body = rows;
-}
+});
 
-async function findAccountActivity(ctx) {
+const findAccountActivity = withPgClient(async (ctx) => {
     const { accountId } = ctx.params;
     let { offset, limit = 10 } = ctx.request.query;
     if (!offset) {
         offset = '9999999999999999999';
     }
-    const client = await getPgClient();
+    const { client } = ctx;
     const { rows } = await client.query(`
         select 
             included_in_block_hash block_hash,
@@ -73,11 +79,11 @@ async function findAccountActivity(ctx) {
     `, [accountId, offset, limit]);
     
     ctx.body = rows;
-}
+});
 
-async function findAccountsByPublicKey(ctx) {
+const findAccountsByPublicKey = withPgClient(async (ctx) => {
     const { publicKey } = ctx.params;
-    const client = await getPgClient();
+    const { client } = ctx;
     const { rows } = await client.query(`
         SELECT DISTINCT account_id
         FROM access_keys
@@ -88,7 +94,7 @@ async function findAccountsByPublicKey(ctx) {
             AND access_keys.last_update_block_height >= accounts.last_update_block_height
     `, [publicKey]);
     ctx.body = rows.map(({ account_id }) => account_id);
-}
+});
 
 module.exports = {
     findStakingDeposits,
