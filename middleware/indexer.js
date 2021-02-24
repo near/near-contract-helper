@@ -75,21 +75,18 @@ async function findAccountActivity(ctx) {
     ctx.body = rows;
 }
 
-// TODO remove this extra client when explorer indexer is fixed to return implicit accountIds and caught up
-let clientWallet;
-async function getPgClientWallet() {
-    if (!clientWallet) {
-        clientWallet = new Client({
-            connectionString: process.env.WALLET_INDEXER_DB_CONNECTION,
-        });
-        await clientWallet.connect();
-    }
-    return clientWallet;
-}
 async function findAccountsByPublicKey(ctx) {
     const { publicKey } = ctx.params;
-    const client = await getPgClientWallet();
-    const { rows } = await client.query('SELECT DISTINCT account_id FROM access_keys WHERE public_key = $1', [publicKey]);
+    const client = await getPgClient();
+    const { rows } = await client.query(`
+        SELECT DISTINCT account_id
+        FROM access_keys
+        JOIN accounts USING (account_id)
+        WHERE public_key = $1
+            AND accounts.deleted_by_receipt_id IS NULL
+            AND access_keys.deleted_by_receipt_id IS NULL
+            AND access_keys.last_update_block_height >= accounts.last_update_block_height
+    `, [publicKey]);
     ctx.body = rows.map(({ account_id }) => account_id);
 }
 
