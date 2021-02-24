@@ -15,7 +15,7 @@ const withPgClient = (fn) => async (ctx) => {
     } finally {
         client.release();
     }
-}
+};
 
 const findStakingDeposits = withPgClient(async (ctx) => {
     const { accountId } = ctx.params;
