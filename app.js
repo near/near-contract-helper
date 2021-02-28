@@ -8,11 +8,22 @@ app.use(require('koa-logger')());
 app.use(body({ limit: '500kb', fallback: true }));
 app.use(cors({ credentials: true }));
 
+let reportException = () => {};
+const SENTRY_DSN = process.env.SENTRY_DSN;
+if (SENTRY_DSN && !module.parent) {
+    const { requestHandler, tracingMiddleware: tracingMiddleWare, captureException } = require('./middleware/sentry');
+    app.use(requestHandler);
+    app.use(tracingMiddleWare);
+    reportException = captureException;
+}
+
 // Middleware to passthrough HTTP errors from node
 app.use(async function(ctx, next) {
     try {
         await next();
     } catch(e) {
+        reportException(e);
+
         if (e.response) {
             ctx.throw(e.response.status, e.response.text);
         }
@@ -309,18 +320,9 @@ app
     .use(router.allowedMethods());
 
 if (!module.parent) {
-    const SENTRY_DSN = process.env.SENTRY_DSN;
     if (SENTRY_DSN) {
-        const Sentry = require('@sentry/node');
-        Sentry.init({ dsn: SENTRY_DSN });
-        app.on('error', (err, ctx) => {
-            Sentry.withScope(function (scope) {
-                scope.addEventProcessor(function (event) {
-                    return Sentry.Handlers.parseRequest(event, ctx.request);
-                });
-                Sentry.captureException(err);
-            });
-        });
+        const { setupErrorHandler} = require('./middleware/sentry');
+        setupErrorHandler(app, SENTRY_DSN);
     }
 
     app.listen(process.env.PORT);
