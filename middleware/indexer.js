@@ -44,6 +44,15 @@ async function findStakingDeposits(ctx) {
     ctx.body = rows;
 }
 
+
+async function findAllStakingPools(ctx) {
+    const client = await getPgClient();
+    const { rows } = await client.query(`
+        SELECT account_id FROM accounts WHERE account_id like '%poolv1%';
+    `);
+    ctx.body = rows.map(({ account_id }) => account_id);
+}
+
 async function findAccountActivity(ctx) {
     const { accountId } = ctx.params;
     let { offset, limit = 10 } = ctx.request.query;
@@ -94,6 +103,7 @@ async function findAccountsByPublicKey(ctx) {
 }
 
 module.exports = {
+    findAllStakingPools,
     findStakingDeposits,
     findAccountActivity,
     findAccountsByPublicKey

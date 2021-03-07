@@ -85,8 +85,9 @@ router.post('/account', ratelimit({
 });
 
 
-const { findAccountsByPublicKey, findStakingDeposits, findAccountActivity } = require('./middleware/indexer');
+const { findAccountsByPublicKey, findStakingDeposits, findAccountActivity, findAllStakingPools } = require('./middleware/indexer');
 
+router.get('/stakingPools/all', findAllStakingPools);
 router.get('/publicKey/:publicKey/accounts', findAccountsByPublicKey);
 router.get('/staking-deposits/:accountId', findStakingDeposits);
 router.get('/account/:accountId/activity', findAccountActivity);
