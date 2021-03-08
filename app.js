@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 const Koa = require('koa');
 const app = new Koa();
 
