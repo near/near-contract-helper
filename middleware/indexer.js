@@ -96,8 +96,22 @@ const findAccountsByPublicKey = withPgClient(async (ctx) => {
     ctx.body = rows.map(({ account_id }) => account_id);
 });
 
+const findReceivers = withPgClient(async (ctx) => {
+    const { accountId } = ctx.params;
+    const { client } = ctx;
+
+    const { rows } = await client.query(`
+        select distinct receiver_account_id from receipts
+        join action_receipt_actions on action_receipt_actions.receipt_id = receipts.receipt_id
+        where predecessor_account_id = $1
+            and action_kind = 'FUNCTION_CALL'
+    `, [accountId]);
+    ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
+});
+
 module.exports = {
     findStakingDeposits,
     findAccountActivity,
-    findAccountsByPublicKey
+    findAccountsByPublicKey,
+    findReceivers
 };

@@ -99,12 +99,10 @@ router.post('/account', ratelimit({
 const { signURL } = require('./middleware/moonpay');
 router.get('/moonpay/signURL', signURL);
 
-const { findAccountsByPublicKey, findStakingDeposits, findAccountActivity } = require('./middleware/indexer');
+const { findAccountsByPublicKey, findStakingDeposits, findAccountActivity, findReceivers } = require('./middleware/indexer');
 router.get('/publicKey/:publicKey/accounts', findAccountsByPublicKey);
 router.get('/staking-deposits/:accountId', findStakingDeposits);
 router.get('/account/:accountId/activity', findAccountActivity);
-
-const { findReceivers } = require('./middleware/explorer-indexer');
 router.get('/account/:accountId/callReceivers', findReceivers);
 
 const password = require('secure-random-password');
