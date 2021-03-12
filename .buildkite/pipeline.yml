@@ -1,0 +1,16 @@
+steps:
+    - label: publish docker app
+      command: ./scripts/docker-release.sh contract-helper-app Dockerfile.app
+      plugins:
+      - docker-login#v2.0.1:
+          username: nearprotocol
+          password-env: DOCKER_LOGIN_PASSWORD
+      branches: "master | mhala-docker"
+
+    - label: publish docker db
+      command: ./scripts/docker-release.sh contract-helper-db Dockerfile.db
+      plugins:
+      - docker-login#v2.0.1:
+          username: nearprotocol
+          password-env: DOCKER_LOGIN_PASSWORD
+      branches: "master | mhala-docker"
