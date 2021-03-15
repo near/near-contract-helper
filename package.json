@@ -32,7 +32,7 @@
     "koa-logger": "^3.2.0",
     "koa-ratelimit": "^5.0.0",
     "koa-router": "^9.4.0",
-    "near-api-js": "^0.35.0",
+    "near-api-js": "^0.38.0",
     "near-seed-phrase": "^0.1.1",
     "nodemailer": "^6.5.0",
     "pg": "^8.5.1",
