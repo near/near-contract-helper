@@ -1,4 +1,5 @@
 const nearAPI = require('near-api-js');
+const { utils: { serialize: { base_encode } } } = nearAPI;
 const nacl = require('tweetnacl');
 const crypto = require('crypto');
 const bs58 = require('bs58');
@@ -78,9 +79,18 @@ const creatorKeyJson = (() => {
     }
 })();
 
+const DETERM_KEY_SEED = process.env.DETERM_KEY_SEED || creatorKeyJson.private_key;
+
 const keyStore = {
-    async getKey() {
-        return nearAPI.KeyPair.fromString(creatorKeyJson.secret_key || creatorKeyJson.private_key);
+    async getKey(networkId, accountId) {
+        if (creatorKeyJson && accountId == creatorKeyJson.account_id) {
+            return nearAPI.KeyPair.fromString(creatorKeyJson.secret_key || creatorKeyJson.private_key);
+        }
+
+        // return 2FA confirm key for account
+        const hash = crypto.createHash('sha256').update(accountId + DETERM_KEY_SEED).digest();
+        const keyPair = nacl.sign.keyPair.fromSeed(hash);
+        return nearAPI.KeyPair.fromString(base_encode(keyPair.secretKey));
     },
 };
 
