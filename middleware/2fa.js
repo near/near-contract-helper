@@ -174,8 +174,9 @@ const getAccountAndMethod = async(ctx, accountId) => {
 // Call this to get the public key of the access key that contract-helper will be using to confirm multisig requests
 const getAccessKey = async (ctx) => {
     const { accountId } = ctx.request.body;
-    ctx.body = { publicKey: (await getKeyStore(accountId).getKey()).publicKey.toString() };
+    ctx.body = { publicKey: (await ctx.near.connection.signer.getPublicKey(accountId, 'default')).toString() };
 };
+
 // http post http://localhost:3000/2fa/init accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
 // Call ONCE to enable 2fa on this account. Adds a twoFactorMethod (passed in body) where kind should start with '2fa-'
 // This WILL send the initial code to the method specified ['2fa-email', '2fa-phone']
