@@ -1,8 +1,4 @@
 const nearAPI = require('near-api-js');
-const { utils: { serialize: { base_encode } } } = nearAPI;
-const crypto = require('crypto');
-const nacl = require('tweetnacl');
-const { creatorKeyJson } = require('./near');
 const { sendSms } = require('../utils/sms');
 const { sendMail, get2faHtml } = require('../utils/email');
 const models = require('../models');
@@ -10,12 +6,9 @@ const Sequelize = require('sequelize');
 const Op = Sequelize.Op;
 const password = require('secure-random-password');
 const escape = require('escape-html');
-// constants
+
 const SECURITY_CODE_DIGITS = 6;
 const twoFactorMethods = ['2fa-email', '2fa-phone'];
-const viewMethods = ['get_request'];
-const changeMethods = ['confirm'];
-const DETERM_KEY_SEED = process.env.DETERM_KEY_SEED || creatorKeyJson.private_key;
 
 const MULTISIG_CONTRACT_HASHES = process.env.MULTISIG_CONTRACT_HASHES ? process.env.MULTISIG_CONTRACT_HASHES.split() : [
     // https://github.com/near/core-contracts/blob/fa3e2c6819ef790fdb1ec9eed6b4104cd13eb4b7/multisig/src/lib.rs
@@ -33,39 +26,11 @@ const GAS_2FA_CONFIRM = process.env.GAS_2FA_CONFIRM || '100000000000000';
 
 const fmtNear = (amount) => nearAPI.utils.format.formatNearAmount(amount, 4) + 'Ⓝ';
 
-// generates a deterministic key based on the accountId
-const getKeyStore = (accountId) => ({
-    async getKey() {
-        const hash = crypto.createHash('sha256').update(accountId + DETERM_KEY_SEED).digest();
-        const keyPair = nacl.sign.keyPair.fromSeed(hash);
-        return nearAPI.KeyPair.fromString(base_encode(keyPair.secretKey));
-    },
-});
-
-// get the accountId's multisig contract instance
-const getContract = async (accountId) => {
-    const keyStore = getKeyStore(accountId);
-    const near = await nearAPI.connect({
-        deps: { keyStore },
-        nodeUrl: process.env.NODE_URL
-    });
-    const contractAccount = new nearAPI.Account(near.connection, accountId);
-    const contract = new nearAPI.Contract(contractAccount, accountId, {
-        viewMethods,
-        changeMethods,
-    });
-    return contract;
-};
-
 // confirms a multisig request
-const confirmRequest = async (accountId, request_id) => {
-    const contract = await getContract(accountId);
-    try {
-        const res = await contract.confirm({ request_id }, GAS_2FA_CONFIRM);
-        return { success: true, res };
-    } catch (e) {
-        return { success: false, error: JSON.stringify(e) };
-    }
+const confirmRequest = async (near, accountId, request_id) => {
+    const account = await near.account(accountId);
+
+    return await account.functionCall(accountId, 'confirm', { request_id }, GAS_2FA_CONFIRM);
 };
 
 const hex = require('hexer');
@@ -109,9 +74,9 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
     // get request data from chain
     let request;
     if (requestId !== -1) {
-        const contract = await getContract(accountId);
+        const account = await ctx.near.account(accountId);
         try {
-            request = await contract.get_request({ request_id: parseInt(requestId) });
+            request = await account.viewFunction(accountId, 'get_request', { request_id: parseInt(requestId) });
         } catch (e) {
             const message = `could not find request id ${requestId} for account ${accountId}. ${e}`;
             console.warn(message);
@@ -209,8 +174,9 @@ const getAccountAndMethod = async(ctx, accountId) => {
 // Call this to get the public key of the access key that contract-helper will be using to confirm multisig requests
 const getAccessKey = async (ctx) => {
     const { accountId } = ctx.request.body;
-    ctx.body = { publicKey: (await getKeyStore(accountId).getKey()).publicKey.toString() };
+    ctx.body = { publicKey: (await ctx.near.connection.signer.getPublicKey(accountId, 'default')).toString() };
 };
+
 // http post http://localhost:3000/2fa/init accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
 // Call ONCE to enable 2fa on this account. Adds a twoFactorMethod (passed in body) where kind should start with '2fa-'
 // This WILL send the initial code to the method specified ['2fa-email', '2fa-phone']
@@ -248,14 +214,13 @@ const initCode = async (ctx) => {
     if (recoveryMethod) {
         // client should deploy contract
         ctx.body = {
-            success: true, confirmed: true, message: '2fa initialized and set up using recovery method verification'
+            confirmed: true, message: '2fa initialized and set up using recovery method verification'
         };
         return;
     }
     // client waits to deploy contract until code is verified
     await sendCode(ctx, method, twoFactorMethod);
     ctx.body = {
-        success: true,
         message: '2fa initialized and code sent to verify method',
     };
 };
@@ -270,7 +235,7 @@ const sendNewCode = async (ctx) => {
     }
     await sendCode(ctx, method, twoFactorMethod, requestId, accountId);
     ctx.body = {
-        success: true, message: '2fa code sent'
+        message: '2fa code sent'
     };
 };
 // http post http://localhost:3000/2fa/verify accountId=mattlock securityCode=430888
@@ -307,11 +272,11 @@ const verifyCode = async (ctx) => {
     //security code valid
     await twoFactorMethod.update({ requestId: -1, securityCode: null });
     if (requestId !== -1) {
-        ctx.body = await confirmRequest(accountId, parseInt(requestId, 10));
+        ctx.body = await confirmRequest(ctx.near, accountId, parseInt(requestId, 10));
         return;
     }
     ctx.body = {
-        success: true, message: '2fa code verified', requestId: twoFactorMethod.requestId,
+        message: '2fa code verified', requestId: twoFactorMethod.requestId,
     };
 };
 
