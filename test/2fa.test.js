@@ -121,7 +121,7 @@ describe('setting up 2fa method', () => {
             })
             .expect('Content-Type', /json/)
             .expect((res) => {
-                assert.equal(res.body.success, true);
+                assert.ok(res.ok);
                 securityCode = getCodeFromLogs();
             })
             .expect(200);
@@ -139,7 +139,7 @@ describe('setting up 2fa method', () => {
             })
             .expect('Content-Type', /json/)
             .expect((res) => {
-                assert.equal(res.body.success, true);
+                assert.ok(res.ok);
                 securityCode = getCodeFromLogs();
             })
             .expect(200);
@@ -155,7 +155,7 @@ describe('setting up 2fa method', () => {
                 ...(await signatureFor(accountId))
             })
             .expect((res) => {
-                assert.equal(res.body.success, true);
+                assert.ok(res.ok);
             })
             .expect(200);
     });
@@ -180,7 +180,7 @@ describe('after deploying contract', () => {
             })
             .expect('Content-Type', /json/)
             .expect((res) => {
-                assert.equal(res.body.success, true);
+                assert.ok(res.ok);
                 securityCode = getCodeFromLogs();
             })
             .expect(200);
@@ -209,7 +209,7 @@ describe('after deploying contract', () => {
             })
             .expect('Content-Type', /json/)
             .expect((res) => {
-                assert.equal(res.body.success, true);
+                assert.ok(res.ok);
             })
             .expect(200);
     });
@@ -234,7 +234,7 @@ describe('code older than 5min should fail', () => {
             })
             .expect('Content-Type', /json/)
             .expect((res) => {
-                assert.equal(res.body.success, true);
+                assert.ok(res.ok);
                 securityCode = getCodeFromLogs();
             })
             .expect(200);
