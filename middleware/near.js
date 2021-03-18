@@ -58,11 +58,15 @@ async function checkAccountOwnership(ctx, next) {
 
 async function checkAccountDoesNotExist(ctx, next) {
     const { accountId } = ctx.request.body;
+    // TODO: near-api-js should have explicit accoutn existence check
     let remoteAccount = null;
     try {
-        remoteAccount = (await ctx.near.account(accountId)).state();
+        remoteAccount = await (await ctx.near.account(accountId)).state();
     } catch (e) {
-        return await next();
+        if (e.type === 'AccountDoesNotExist') {
+            return await next();
+        }
+        throw e;
     }
     if (remoteAccount) {
         ctx.throw(403, 'Account ' + accountId + ' already exists.');
