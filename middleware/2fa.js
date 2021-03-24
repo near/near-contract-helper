@@ -1,14 +1,23 @@
+const escapeHtml = require('escape-html');
 const nearAPI = require('near-api-js');
-const { sendSms } = require('../utils/sms');
-const { sendMail, get2faHtml } = require('../utils/email');
-const models = require('../models');
-const Sequelize = require('sequelize');
-const Op = Sequelize.Op;
 const password = require('secure-random-password');
-const escape = require('escape-html');
+const Sequelize = require('sequelize');
+
+const models = require('../models');
+const messageContentCreaters = require('./2fa/messageContent');
+const { sendMail, get2faHtml } = require('../utils/email');
+const { sendSms } = require('../utils/sms');
+
+const Op = Sequelize.Op;
 
 const SECURITY_CODE_DIGITS = 6;
 const twoFactorMethods = ['2fa-email', '2fa-phone'];
+
+const {
+    getVerify2faMethodMessageContent,
+    getConfirmTransactionMessageContent,
+    getAddingFullAccessKeyMessageContent
+} = messageContentCreaters;
 
 const MULTISIG_CONTRACT_HASHES = process.env.MULTISIG_CONTRACT_HASHES ? process.env.MULTISIG_CONTRACT_HASHES.split() : [
     // https://github.com/near/core-contracts/blob/fa3e2c6819ef790fdb1ec9eed6b4104cd13eb4b7/multisig/src/lib.rs
@@ -24,8 +33,6 @@ const MULTISIG_CONTRACT_HASHES = process.env.MULTISIG_CONTRACT_HASHES ? process.
 const CODE_EXPIRY = 30 * 60000;
 const GAS_2FA_CONFIRM = process.env.GAS_2FA_CONFIRM || '100000000000000';
 
-const fmtNear = (amount) => nearAPI.utils.format.formatNearAmount(amount, 4) + 'Ⓝ';
-
 // confirms a multisig request
 const confirmRequest = async (near, accountId, request_id) => {
     const account = await near.account(accountId);
@@ -33,102 +40,116 @@ const confirmRequest = async (near, accountId, request_id) => {
     return await account.functionCall(accountId, 'confirm', { request_id }, GAS_2FA_CONFIRM);
 };
 
-const hex = require('hexer');
-const formatArgs = (args) => {
-    const argsBuffer = Buffer.from(args, 'base64');
-    try {
-        const jsonString = argsBuffer.toString('utf-8');
-        const json = JSON.parse(jsonString);
-        if (json.amount) json.amount = fmtNear(json.amount);
-        if (json.deposit) json.deposit = fmtNear(json.deposit);
-        return JSON.stringify(json);
-    } catch(e) {
-        // Cannot parse JSON, do hex dump
-        return hex(argsBuffer);
-    }
-};
-
-const formatAction = (receiver_id, { type, method_name, args, deposit, amount, public_key, permission }) => {
-    switch (type) {
-    case 'FunctionCall':
-        return escape(`Calling method: ${ method_name } in contract: ${ receiver_id } with amount ${ deposit ? fmtNear(deposit) : '0' } and with args ${formatArgs(args)}`);
-    case 'Transfer':
-        return escape(`Transferring ${ fmtNear(amount) } to: ${ receiver_id }`);
-    case 'Stake':
-        return escape(`Staking: ${ fmtNear(amount) } to validator: ${ receiver_id }`);
-    case 'AddKey':
-        if (permission) {
-            const { allowance, receiver_id, method_names } = permission;
-            const methodsMessage = method_names && method_names.length > 0 ? `${method_names.join(', ')} methods` : 'any method';
-            return escape(`Adding key ${ public_key } limited to call ${methodsMessage} on ${receiver_id} and spend up to ${fmtNear(allowance)} on gas`);
-        }
-        return escape(`Adding key ${ public_key } with FULL ACCESS to account`);
-    case 'DeleteKey':
-        return escape(`Deleting key ${ public_key }`);
-    }
-};
-
-const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId = '') => {
-    const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
-    await twoFactorMethod.update({ securityCode, requestId });
-    // get request data from chain
+async function getRequestDataFromChain({requestId, ctx, accountId}) {
     let request;
-    if (requestId !== -1) {
-        const account = await ctx.near.account(accountId);
-        try {
-            request = await account.viewFunction(accountId, 'get_request', { request_id: parseInt(requestId) });
-        } catch (e) {
-            const message = `could not find request id ${requestId} for account ${accountId}. ${e}`;
-            console.warn(message);
-            ctx.throw(401, message);
-        }
+
+    // What if this throws? Why catch all failures to account.viewFunction() but not errors for this call?
+    const account = await ctx.near.account(accountId);
+
+    try {
+        request = await account.viewFunction(accountId, 'get_request', {request_id: parseInt(requestId)});
+    } catch (e) {
+        // Should this really be a generic catch()? This will fire due to e.g. network transport errors
+        const message = `could not find request id ${requestId} for account ${accountId}. ${e}`;
+        console.warn(message);
+        ctx.throw(401, message);
     }
-    method.detail = escape(method.detail);
-    let subject = `Confirm 2FA for ${ accountId }`;
-    let requestDetails = [`Verify ${method.detail} as the 2FA method for account ${ accountId }`];
-    if (request) {
-        const { receiver_id, actions } = request;
-        requestDetails = actions.map(a => formatAction(receiver_id, a));
-        subject = `Confirm Transaction from: ${ accountId }${ request ? ` to: ${ request.receiver_id }` : ''}`;
-    }
-    let text = `
-NEAR Wallet security code: ${securityCode}\n\n
-Important: By entering this code, you are authorizing the following transaction:\n\n
-${ requestDetails.join('\n') }
-`;
 
-    // check if adding full access key to account (AddKey with no permission)
-    const addingFakAction = request && request.actions.find((a) => a.type === 'AddKey' && !a.permission);
-    if (addingFakAction && request.receiver_id === accountId) {
-        subject = 'Confirm Transaction - Warning Adding Full Access Key to Account: ' + accountId;
-        text = `
-WARNING: Entering the code below will authorize full access to your NEAR account: "${ accountId }". If you did not initiate this action, please DO NOT continue.
+    return request;
+}
 
-This should only be done if you are adding a new seed phrase to your account. In all other cases, this is very dangerous.
+async function sendRequestedMessageType({
+    deliveryOpts: {kind, recipient},
+    contentData: {securityCode, publicKey, accountId, messageContent}
+}) {
 
-The public key you are adding is: ${ addingFakAction.public_key }
-
-If you'd like to proceed, enter this security code: ${securityCode}
-`;
-    }
+    const { subject, text, requestDetails } = messageContent;
 
     const html = get2faHtml(securityCode, requestDetails.join('<br>'), {
-        public_key: addingFakAction && addingFakAction.public_key,
+        public_key: publicKey,
         accountId
     });
 
-    if (method.kind === '2fa-phone') {
+    if (kind === '2fa-phone') {
         await sendSms({
-            to: method.detail,
+            to: recipient,
             text,
         });
-    } else if (method.kind === '2fa-email') {
+    } else if (kind === '2fa-email') {
         await sendMail({
-            to: method.detail,
+            to: recipient,
             subject,
             text,
             html,
         });
+    } else {
+        // FIXME: Should we throw an error if we get a request for an unsupported kind?
+    }
+}
+
+const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId = '') => {
+    const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
+    await twoFactorMethod.update({ securityCode, requestId });
+
+    const deliveryOpts = {
+        kind: method.kind,
+        recipient: escapeHtml(method.detail)
+    };
+
+    if(requestId === -1) {
+        // No requestId means this is a brand new 2fa verification, not transactions being approved
+        return sendRequestedMessageType({
+            deliveryOpts,
+            contentData: {
+                accountId,
+                securityCode,
+                messageContent: getVerify2faMethodMessageContent({
+                    accountId,
+                    recipient: method.detail,
+                    securityCode
+                })
+            }
+        });
+    } else {
+        // Could be confirming 'generic' transactions, or might be a request for adding full access key (special warning case)
+        const request = await getRequestDataFromChain({requestId, ctx, accountId});
+
+        const addingFakAction = request && request.actions && request.actions.find((a) => a.type === 'AddKey' && !a.permission);
+        if(addingFakAction && request.receiver_id === accountId) {
+            const publicKey = addingFakAction.public_key;
+
+            // adding full access key to account (AddKey with no permission)
+            return sendRequestedMessageType({
+                deliveryOpts,
+                contentData: {
+                    accountId,
+                    securityCode,
+                    publicKey,
+                    messageContent: getAddingFullAccessKeyMessageContent( {
+                        accountId,
+                        securityCode,
+                        recipient: method.detail,
+                        publicKey,
+                    })
+                }
+            });
+
+        } else {
+            // 'normal' transactions
+            return sendRequestedMessageType({
+                deliveryOpts,
+                contentData: {
+                    accountId,
+                    securityCode,
+                    messageContent:  getConfirmTransactionMessageContent({
+                        accountId,
+                        request,
+                        securityCode
+                    })
+                }
+            });
+
+        }
     }
 };
 
