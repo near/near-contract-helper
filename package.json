@@ -50,6 +50,7 @@
     "supervisor": "^0.12.0"
   },
   "jest": {
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "setupFiles": ["dotenv/config"]
   }
 }

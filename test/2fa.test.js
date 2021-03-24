@@ -1,5 +1,3 @@
-const dotenv = require('dotenv');
-dotenv.config('../.env');
 const assert = require('assert');
 const supertest = require('supertest');
 const models = require('../models');
@@ -215,7 +213,6 @@ describe('after deploying contract', () => {
     });
 
 });
-
 
 describe('code older than 5min should fail', () => {
     let accountId = 'testing' + Date.now();

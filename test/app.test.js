@@ -1,5 +1,3 @@
-const dotenv = require('dotenv');
-dotenv.config('../.env');
 const assert = require('assert');
 const supertest = require('supertest');
 const models = require('../models');
