@@ -129,7 +129,7 @@ const findLikelyTokens = withPgClient(async (ctx) => {
                 args->>'method_name' = 'mint'
         ) minted_with_bridge
         where account_id = $1
-    `
+    `;
 
     const calledByUser = `
         select distinct receiver_account_id from receipts
@@ -137,7 +137,7 @@ const findLikelyTokens = withPgClient(async (ctx) => {
         where predecessor_account_id = $1
             and action_kind = 'FUNCTION_CALL'
             and args->>'method_name' like 'ft_%'
-    `
+    `;
 
     const { rows } = await client.query([mintedWithBridge, calledByUser].join(' union '), [accountId, BRIDGE_TOKEN_FACTORY_ACCOUNT_ID]);
     ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
