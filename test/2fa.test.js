@@ -265,7 +265,7 @@ describe('2fa method management', () => {
         });
 
         test('verify 2fa method', async () => {
-            const result = await request.post('/2fa/verify')
+            return request.post('/2fa/verify')
                 .send({
                     accountId,
                     requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
