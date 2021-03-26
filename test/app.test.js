@@ -82,7 +82,7 @@ async function createNearAccount(accountId) {
 describe('/account/initializeRecoveryMethodForTempAccount', () => {
 
     let savedSecurityCode = '';
-    let accountId = 'doesnotexistonchain' + Date.now();
+    const accountId = 'doesnotexistonchain' + Date.now();
     const method = recoveryMethods[0];
 
     test('send security code', async () => {
@@ -132,9 +132,9 @@ describe('/account/initializeRecoveryMethodForTempAccount', () => {
 describe('Two people send recovery methods for the same account before created', () => {
     // const method = recoveryMethods[0];
     let savedSecurityCode = '';
-    let accountId = 'doesnotexistonchain' + Date.now();
-    let alice = recoveryMethods[0];
-    let bob = recoveryMethods[1];
+    const accountId = 'doesnotexistonchain' + Date.now();
+    const alice = recoveryMethods[0];
+    const bob = recoveryMethods[1];
     
     test('send security code alice', async () => {
         const response = await request.post('/account/initializeRecoveryMethodForTempAccount')
@@ -183,7 +183,7 @@ describe('/account/initializeRecoveryMethod', () => {
 
     let savedSecurityCode = '';
     let accountId = '';
-    let testing = true;
+    const testing = true;
     const method = { kind: 'email', detail: 'test@dispostable.com' };
 
     test('send security code', async () => {
@@ -400,7 +400,7 @@ describe('/account/deleteRecoveryMethod', () => {
         const accountId = await createNearAccount();
         await models.Account.create({ accountId });
 
-        let response = await request.post('/account/deleteRecoveryMethod')
+        const response = await request.post('/account/deleteRecoveryMethod')
             .send({
                 accountId,
                 kind: 'phone',
@@ -418,7 +418,7 @@ describe('/account/deleteRecoveryMethod', () => {
         ));
         const signature = await signatureFor(accountId);
 
-        let response = await request.post('/account/deleteRecoveryMethod')
+        const response = await request.post('/account/deleteRecoveryMethod')
             .send({ accountId, kind: 'phone', ...signature });
         expect(response.status).toBe(400);
     });
@@ -460,7 +460,7 @@ describe('/account/deleteRecoveryMethod', () => {
         await account.createRecoveryMethod({ kind: 'phrase', publicKey: null });
         const signature = await signatureFor(accountId);
 
-        let response = await request.post('/account/deleteRecoveryMethod')
+        const response = await request.post('/account/deleteRecoveryMethod')
             .send({ accountId, kind: 'phrase', publicKey: null, ...signature });
         expect(response.status).toBe(200);
     });

@@ -1,2 +1,5 @@
 env:
-    jest: true
+  jest: true
+rules:
+  prefer-const:
+    - error
