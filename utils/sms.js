@@ -1,5 +1,7 @@
-
 const FROM_PHONE = process.env.TWILIO_FROM_PHONE;
+
+let lastSmsContent = {};
+
 const sendSms = async ({ to, text }) => {
     if (process.env.NODE_ENV == 'production') {
         const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -13,8 +15,11 @@ const sendSms = async ({ to, text }) => {
             });
     } else {
         console.log('sendSms:', { to, text });
+        lastSmsContent = {to, text};
     }
 };
 module.exports = {
-    sendSms
+    sendSms,
+    getLastSmsContent: () => lastSmsContent,
+    clearLastSmsContent: () => { lastSmsContent = undefined; }
 };

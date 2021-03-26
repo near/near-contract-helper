@@ -1,3 +1,4 @@
+let lastEmailContent = {};
 
 const sendMail = async (options) => {
     if (process.env.NODE_ENV == 'production') {
@@ -16,6 +17,7 @@ const sendMail = async (options) => {
         });
     } else {
         console.log('sendMail:', options);
+        lastEmailContent = options;
     }
 };
 
@@ -392,5 +394,8 @@ module.exports = {
     getSecurityCodeEmail,
     getNewAccountEmail,
     get2faHtml,
+    getLastEmailContent: () => lastEmailContent,
+    clearLastEmailContent: () => { lastEmailContent = undefined; }
+
 };
 
