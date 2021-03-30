@@ -83,7 +83,7 @@ class TwoFactorAuthService {
                     to: recipient,
                     text,
                 },
-                (smsContent) => ctx.app.emit('SENT_SMS', smsContent)
+                (smsContent) => ctx.app.emit('SENT_SMS', smsContent) // For test harness
             );
         } else if (kind === '2fa-email') {
             await sendMail(
@@ -93,7 +93,7 @@ class TwoFactorAuthService {
                     text,
                     html,
                 },
-                (emailContent) => ctx.app.emit('SENT_EMAIL', emailContent)
+                (emailContent) => ctx.app.emit('SENT_EMAIL', emailContent) // For test harness
             );
         } else {
             // FIXME: Should we throw an error if we get a request for an unsupported kind?
@@ -105,7 +105,7 @@ class TwoFactorAuthService {
 
         // Emit an event so that any listening test harnesses can use the security code without needing a full
         // integration test with e.g. SMS, e-mail.
-        ctx.app.emit('SECURITY_CODE', { accountId, requestId, securityCode });
+        ctx.app.emit('SECURITY_CODE', { accountId, requestId, securityCode }); // For test harness
 
         await twoFactorMethod.update({ securityCode, requestId });
 
@@ -167,7 +167,8 @@ class TwoFactorAuthService {
                 messageContent: getConfirmTransactionMessageContent({
                     accountId,
                     request,
-                    securityCode
+                    securityCode,
+                    isForSms: (deliveryOpts.kind === '2fa-phone')
                 })
             }
         });

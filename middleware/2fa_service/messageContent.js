@@ -6,24 +6,33 @@ const getVerifyAs2faMethodText = ({recipient, accountId}) => `Verify ${recipient
 
 const fmtNear = (amount) => nearAPI.utils.format.formatNearAmount(amount, 4) + 'Ⓝ';
 
-const formatArgs = (args) => {
+const formatArgs = (args, isForSms) => {
+    let output = '';
+
     const argsBuffer = Buffer.from(args, 'base64');
     try {
         const jsonString = argsBuffer.toString('utf-8');
         const json = JSON.parse(jsonString);
         if (json.amount) json.amount = fmtNear(json.amount);
         if (json.deposit) json.deposit = fmtNear(json.deposit);
-        return JSON.stringify(json);
+        output = JSON.stringify(json);
     } catch (e) {
         // Cannot parse JSON, do hex dump
-        return hex(argsBuffer);
+        output = hex(argsBuffer).slice(0, 252) + '...';
     }
+
+    if(isForSms && output.length >= 252) {
+        // Twilio SMS limits total message size to 1600chars...
+        output = output.slice(0, 252) + '...';
+    }
+
+    return output;
 };
 
-const formatAction = (receiver_id, {type, method_name, args, deposit, amount, public_key, permission}) => {
+const formatAction = (receiver_id, {type, method_name, args, deposit, amount, public_key, permission}, isForSms) => {
     switch (type) {
     case 'FunctionCall':
-        return escapeHtml(`Calling method: ${method_name} in contract: ${receiver_id} with amount ${deposit ? fmtNear(deposit) : '0'} and with args ${formatArgs(args)}`);
+        return escapeHtml(`Calling method: ${method_name} in contract: ${receiver_id} with amount ${deposit ? fmtNear(deposit) : '0'} and with args ${formatArgs(args, isForSms) }`);
     case 'Transfer':
         return escapeHtml(`Transferring ${fmtNear(amount)} to: ${receiver_id}`);
     case 'Stake':
@@ -43,8 +52,10 @@ const formatAction = (receiver_id, {type, method_name, args, deposit, amount, pu
 
 function getSecurityCodeText(securityCode, requestDetails) {
     return `
-NEAR Wallet security code: ${securityCode}\n\n
-Important: By entering this code, you are authorizing the following transaction:\n\n
+NEAR Wallet security code: ${securityCode}
+
+Important: By entering this code, you are authorizing the following transaction:
+
 ${requestDetails.join('\n')}
 `;
 }
@@ -78,10 +89,10 @@ If you'd like to proceed, enter this security code: ${securityCode}
     };
 }
 
-function getConfirmTransactionMessageContent({accountId, request, securityCode}) {
+function getConfirmTransactionMessageContent({accountId, request, securityCode, isForSms}) {
     const {receiver_id, actions} = request;
 
-    const requestDetails = actions.map(action => formatAction(receiver_id, action));
+    const requestDetails = actions.map(action => formatAction(receiver_id, action, isForSms));
 
     return {
         subject: `Confirm Transaction from: ${accountId}${request ? ` to: ${request.receiver_id}` : ''}`,
