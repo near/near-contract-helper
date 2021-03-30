@@ -1,12 +1,13 @@
+const twilio = require('twilio');
+
 const FROM_PHONE = process.env.TWILIO_FROM_PHONE;
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
 
-let lastSmsContent = {};
-
-const sendSms = async ({ to, text }) => {
+const sendSms = async ({ to, text }, emitSmsSentEvent) => {
     if (process.env.NODE_ENV == 'production') {
-        const accountSid = process.env.TWILIO_ACCOUNT_SID;
-        const authToken = process.env.TWILIO_AUTH_TOKEN;
-        const client = require('twilio')(accountSid, authToken);
+        const client = twilio(accountSid, authToken);
+
         await client.messages
             .create({
                 body: text,
@@ -14,12 +15,9 @@ const sendSms = async ({ to, text }) => {
                 to
             });
     } else {
-        console.log('sendSms:', { to, text });
-        lastSmsContent = {to, text};
+        emitSmsSentEvent({to, text});
     }
 };
 module.exports = {
     sendSms,
-    getLastSmsContent: () => lastSmsContent,
-    clearLastSmsContent: () => { lastSmsContent = undefined; }
 };

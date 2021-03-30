@@ -9,15 +9,8 @@ const emailHelper = require('../../utils/email');
 const smsHelper = require('../../utils/sms');
 
 const Op = Sequelize.Op;
-const {sendSms, getLastSmsContent,clearLastSmsContent} = smsHelper;
-const {sendMail, get2faHtml, getLastEmailContent, clearLastEmailContent} = emailHelper;
-
-function moveSmsAndEmailContentToContext(ctx) {
-    ctx.body.emailContent = getLastEmailContent();
-    ctx.body.smsContent = getLastSmsContent();
-    clearLastEmailContent();
-    clearLastSmsContent();
-}
+const { sendSms } = smsHelper;
+const { sendMail, get2faHtml } = emailHelper;
 
 const SECURITY_CODE_DIGITS = 6;
 const twoFactorMethods = ['2fa-email', '2fa-phone'];
@@ -47,20 +40,20 @@ class TwoFactorAuthService {
     constructor() {
     }
 
-    async _confirmRequest({near, accountId, request_id}) {
+    async _confirmRequest({ near, accountId, request_id }) {
         const account = await near.account(accountId);
 
         return account.functionCall(accountId, 'confirm', { request_id }, GAS_2FA_CONFIRM);
     }
 
-    async _getRequestDataFromChain({requestId, ctx, accountId}) {
+    async _getRequestDataFromChain({ requestId, ctx, accountId }) {
         let request;
 
         // What if this throws? Why catch all failures to account.viewFunction() but not errors for this call?
         const account = await ctx.near.account(accountId);
 
         try {
-            request = await account.viewFunction(accountId, 'get_request', {request_id: parseInt(requestId)});
+            request = await account.viewFunction(accountId, 'get_request', { request_id: parseInt(requestId) });
         } catch (e) {
             // Should this really be a generic catch()? This will fire due to e.g. network transport errors
             const message = `could not find request id ${requestId} for account ${accountId}. ${e}`;
@@ -72,8 +65,9 @@ class TwoFactorAuthService {
     }
 
     async _sendRequestedMessageType({
-        deliveryOpts: {kind, recipient},
-        contentData: {securityCode, publicKey, accountId, messageContent}
+        ctx,
+        deliveryOpts: { kind, recipient },
+        contentData: { securityCode, publicKey, accountId, messageContent }
     }) {
 
         const { subject, text, requestDetails } = messageContent;
@@ -84,17 +78,23 @@ class TwoFactorAuthService {
         });
 
         if (kind === '2fa-phone') {
-            await sendSms({
-                to: recipient,
-                text,
-            });
+            await sendSms(
+                {
+                    to: recipient,
+                    text,
+                },
+                (smsContent) => ctx.app.emit('SENT_SMS', smsContent)
+            );
         } else if (kind === '2fa-email') {
-            await sendMail({
-                to: recipient,
-                subject,
-                text,
-                html,
-            });
+            await sendMail(
+                {
+                    to: recipient,
+                    subject,
+                    text,
+                    html,
+                },
+                (emailContent) => ctx.app.emit('SENT_EMAIL', emailContent)
+            );
         } else {
             // FIXME: Should we throw an error if we get a request for an unsupported kind?
         }
@@ -102,6 +102,11 @@ class TwoFactorAuthService {
 
     async _sendCode(ctx, method, twoFactorMethod, requestId = -1, accountId = '') {
         const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
+
+        // Emit an event so that any listening test harnesses can use the security code without needing a full
+        // integration test with e.g. SMS, e-mail.
+        ctx.app.emit('SECURITY_CODE', { accountId, requestId, securityCode });
+
         await twoFactorMethod.update({ securityCode, requestId });
 
         const deliveryOpts = {
@@ -112,6 +117,7 @@ class TwoFactorAuthService {
         if (requestId === -1) {
             // No requestId means this is a brand new 2fa verification, not transactions being approved
             return this._sendRequestedMessageType({
+                ctx,
                 deliveryOpts,
                 contentData: {
                     accountId,
@@ -126,7 +132,7 @@ class TwoFactorAuthService {
         }
 
         // Could be either confirming 'generic' transactions, or might be a request for adding full access key (special warning case)
-        const request = await this._getRequestDataFromChain({requestId, ctx, accountId});
+        const request = await this._getRequestDataFromChain({ requestId, ctx, accountId });
         const addingFakAction = request && request.actions && request.actions.find((a) => a.type === 'AddKey' && !a.permission);
 
         if (addingFakAction && request.receiver_id === accountId) {
@@ -134,6 +140,7 @@ class TwoFactorAuthService {
 
             // adding full access key to account (AddKey with no permission)
             return this._sendRequestedMessageType({
+                ctx,
                 deliveryOpts,
                 contentData: {
                     accountId,
@@ -152,6 +159,7 @@ class TwoFactorAuthService {
 
         // confirming 'normal' transactions
         return this._sendRequestedMessageType({
+            ctx,
             deliveryOpts,
             contentData: {
                 accountId,
@@ -191,11 +199,13 @@ class TwoFactorAuthService {
             return;
         }
 
-        let [twoFactorMethod] = await account.getRecoveryMethods({ where: {
-            kind: {
-                [Op.startsWith]: '2fa-'
-            },
-        }});
+        let [twoFactorMethod] = await account.getRecoveryMethods({
+            where: {
+                kind: {
+                    [Op.startsWith]: '2fa-'
+                },
+            }
+        });
 
         return { account, twoFactorMethod };
     }
@@ -214,7 +224,7 @@ class TwoFactorAuthService {
     // http post http://localhost:3000/2fa/init accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
     // Call ONCE to enable 2fa on this account. Adds a twoFactorMethod (passed in body) where kind should start with '2fa-'
     // This WILL send the initial code to the method specified ['2fa-email', '2fa-phone']
-    async initCode(ctx)  {
+    async initCode(ctx) {
         const { accountId, method, testContractDeployed = false } = ctx.request.body;
 
         if (!method || !method.kind || !method.detail) {
@@ -247,28 +257,27 @@ class TwoFactorAuthService {
 
         // check if 2fa method matches existing recovery method
         // This isn't a `near-js-sdk` account with the same name; it's a sequelize Account model
-        const [recoveryMethod] = await account.getRecoveryMethods({ where: {
-            kind: kind.split('2fa-')[1],
-            detail,
-        }});
+        const [recoveryMethod] = await account.getRecoveryMethods({
+            where: {
+                kind: kind.split('2fa-')[1],
+                detail,
+            }
+        });
 
         if (recoveryMethod) {
             // client should deploy contract
             ctx.body = {
                 confirmed: true, message: '2fa initialized and set up using recovery method verification'
             };
-            moveSmsAndEmailContentToContext(ctx);
             return;
         }
 
         // client waits to deploy contract until code is verified
-        await this._sendCode(ctx, method, twoFactorMethod);
+        await this._sendCode(ctx, method, twoFactorMethod, -1, accountId);
 
         ctx.body = {
             message: '2fa initialized and code sent to verify method',
         };
-
-        moveSmsAndEmailContentToContext(ctx);
     }
 
     // http post http://localhost:3000/2fa/send accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}' requestId=0
@@ -287,8 +296,6 @@ class TwoFactorAuthService {
         ctx.body = {
             message: '2fa code sent'
         };
-
-        moveSmsAndEmailContentToContext(ctx);
     }
 
     // http post http://localhost:3000/2fa/verify accountId=mattlock securityCode=430888
@@ -296,22 +303,25 @@ class TwoFactorAuthService {
     async verifyCode(ctx) {
         const { accountId, securityCode, requestId } = ctx.request.body;
 
+        // FIXME: add explicit response for 'account with provided ID could not be found in SQL'
         const account = await models.Account.findOne({ where: { accountId } });
         if (!securityCode || isNaN(parseInt(securityCode, 10)) || securityCode.length !== 6) {
             console.warn('invalid 2fa code provided');
             ctx.throw(401, 'invalid 2fa code provided');
         }
 
-        const [twoFactorMethod] = await account.getRecoveryMethods({ where: {
-            securityCode,
-            kind: {
-                [Op.startsWith]: '2fa-'
-            },
-        }});
+        const [twoFactorMethod] = await account.getRecoveryMethods({
+            where: {
+                securityCode,
+                kind: {
+                    [Op.startsWith]: '2fa-'
+                },
+            }
+        });
 
         if (!twoFactorMethod) {
             console.warn(`${accountId} has no 2fa method for the provided security code`);
-            ctx.throw(401, '2fa code not valid for request id');
+            ctx.throw(401, `2fa code not a valid code for: ${accountId}`);
         }
 
         // cannot test for requestId equality with negative integer???
@@ -332,15 +342,12 @@ class TwoFactorAuthService {
 
         if (requestId !== -1) {
             ctx.body = await this._confirmRequest(ctx.near, accountId, parseInt(requestId, 10));
-            moveSmsAndEmailContentToContext(ctx);
             return;
         }
 
         ctx.body = {
             message: '2fa code verified', requestId: twoFactorMethod.requestId,
         };
-
-        moveSmsAndEmailContentToContext(ctx);
     }
 
 }

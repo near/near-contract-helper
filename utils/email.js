@@ -1,8 +1,7 @@
-let lastEmailContent = {};
+const nodemailer = require('nodemailer');
 
-const sendMail = async (options) => {
+const sendMail = async (options, emitEmailSentEvent) => {
     if (process.env.NODE_ENV == 'production') {
-        const nodemailer = require('nodemailer');
         const transport = nodemailer.createTransport({
             host: process.env.MAIL_HOST,
             port: process.env.MAIL_PORT,
@@ -16,8 +15,7 @@ const sendMail = async (options) => {
             ...options
         });
     } else {
-        console.log('sendMail:', options);
-        lastEmailContent = options;
+        emitEmailSentEvent(options);
     }
 };
 
@@ -389,13 +387,11 @@ const template = ({
   </body>
 </html>
 `;
+
 module.exports = {
     sendMail,
     getSecurityCodeEmail,
     getNewAccountEmail,
     get2faHtml,
-    getLastEmailContent: () => lastEmailContent,
-    clearLastEmailContent: () => { lastEmailContent = undefined; }
-
 };
 

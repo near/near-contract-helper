@@ -216,7 +216,7 @@ router.post(
     }
 );
 
-const sendSecurityCode = async (securityCode, method, accountId, seedPhrase) => {
+const sendSecurityCode = async ({ ctx, securityCode, method, accountId, seedPhrase }) => {
     let text, html;
     if (seedPhrase) {
         const recoverUrl = getRecoveryUrl(accountId, seedPhrase);
@@ -227,12 +227,19 @@ const sendSecurityCode = async (securityCode, method, accountId, seedPhrase) => 
         html = getSecurityCodeEmail(accountId, securityCode);
     }
     if (method.kind === 'phone') {
-        await sendSms({ to: method.detail, text});
+        await sendSms(
+            { to: method.detail, text},
+            (smsContent) => ctx.app.emit('SENT_SMS', smsContent)
+        );
     } else if (method.kind === 'email') {
-        await sendMail({
-            to: method.detail, text, html,
-            subject: seedPhrase ? `Important: Near Wallet Recovery Email for ${accountId}` : `Your NEAR Wallet security code is: ${securityCode}`,
-        });
+        await sendMail(
+            {
+                to: method.detail, text, html,
+                subject: seedPhrase ? `Important: Near Wallet Recovery Email for ${accountId}` : `Your NEAR Wallet security code is: ${securityCode}`,
+            },
+            (emailContent) => ctx.app.emit('SENT_EMAIl', emailContent)
+
+        );
     }
 };
 
@@ -260,8 +267,9 @@ const completeRecoveryInit = async ctx => {
     }
 
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
+    ctx.app.emit('SECURITY_CODE', { accountId, securityCode });
     await recoveryMethod.update({ securityCode });
-    await sendSecurityCode(securityCode, method, accountId, seedPhrase);
+    await sendSecurityCode({ ctx, securityCode, method, accountId, seedPhrase });
 
     ctx.body = await recoveryMethodsFor(account);
 };
