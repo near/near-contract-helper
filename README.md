@@ -79,11 +79,8 @@ As mentioned in the "Environment Variables" section above, make sure you are run
 
 ### Run `yarn test`
 
-This will run the tests using [jest]
+This will run the tests using [mocha].  Assertions are written using [chai] with [chai-as-promised] for async assertions.
 
-Tests should be run sequentially, i.e.
-```
-jest test --runInBand
-```
-
-  [jest]: https://jestjs.io/
+  [mocha]: https://mochajs.org/
+  [chai]: https://www.chaijs.com/
+  [chai-as-promised]: https://www.chaijs.com/plugins/chai-as-promised/
