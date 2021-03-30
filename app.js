@@ -220,7 +220,7 @@ const sendSecurityCode = async ({ ctx, securityCode, method, accountId, seedPhra
     let text, html;
     if (seedPhrase) {
         const recoverUrl = getRecoveryUrl(accountId, seedPhrase);
-        text = `\nWelcome to NEAR Wallet!\nThis message contains your account activation code and recovery link for ${accountId}. Keep this email safe, and DO NOT SHARE IT. We cannot resend this email.\n\n1. Confirm your activation code to finish creating your account:\n${securityCode}\n\n2. In the event that you need to recover your account, click the link below, and follow the directions in NEAR Wallet.\n${recoverUrl}\n\nKeep this message safe and DO NOT SHARE IT. We cannot resend this message.`;
+        text = `\nWelcome to NEAR Wallet!\nThis message contains your account activation code and recovery link for ${accountId}. Keep this message safe, and DO NOT SHARE IT. We cannot resend this message.\n\n1. Confirm your activation code to finish creating your account:\n${securityCode}\n\n2. In the event that you need to recover your account, click the link below, and follow the directions in NEAR Wallet.\n${recoverUrl}\n\nKeep this message safe and DO NOT SHARE IT. We cannot resend this message.`;
         html = getNewAccountEmail(accountId, recoverUrl, securityCode);
     } else {
         text = `Your NEAR Wallet security code is:\n${securityCode}\nEnter this code to verify your device.`;
@@ -229,15 +229,17 @@ const sendSecurityCode = async ({ ctx, securityCode, method, accountId, seedPhra
     if (method.kind === 'phone') {
         await sendSms(
             { to: method.detail, text},
-            (smsContent) => ctx.app.emit('SENT_SMS', smsContent)
+            (smsContent) => ctx.app.emit('SENT_SMS', smsContent) // For test harness
         );
     } else if (method.kind === 'email') {
         await sendMail(
             {
-                to: method.detail, text, html,
+                to: method.detail,
+                text,
+                html,
                 subject: seedPhrase ? `Important: Near Wallet Recovery Email for ${accountId}` : `Your NEAR Wallet security code is: ${securityCode}`,
             },
-            (emailContent) => ctx.app.emit('SENT_EMAIl', emailContent)
+            (emailContent) => ctx.app.emit('SENT_EMAIl', emailContent) // For test harness
 
         );
     }
@@ -267,7 +269,8 @@ const completeRecoveryInit = async ctx => {
     }
 
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
-    ctx.app.emit('SECURITY_CODE', { accountId, securityCode });
+    ctx.app.emit('SECURITY_CODE', { accountId, securityCode }); // For test harness
+
     await recoveryMethod.update({ securityCode });
     await sendSecurityCode({ ctx, securityCode, method, accountId, seedPhrase });
 
