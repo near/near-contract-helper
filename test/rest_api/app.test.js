@@ -1,4 +1,5 @@
 require('dotenv').config({ path: 'test/.env.test' });
+
 const nearAPI = require('near-api-js');
 const { parseSeedPhrase } = require('near-seed-phrase');
 
