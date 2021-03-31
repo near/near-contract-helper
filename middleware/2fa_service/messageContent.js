@@ -45,22 +45,27 @@ const formatArgs = (args, isForSms) => {
 };
 
 const formatAction = (receiver_id, { type, method_name, args, deposit, amount, public_key, permission }, isForSms) => {
+    function escapeHtmlIfNotSMS(str) {
+        if (isForSms) { return str; }
+        return escapeHtml(str);
+    }
+
     switch (type) {
     case 'FunctionCall':
-        return escapeHtml(`Calling method: ${method_name} in contract: ${receiver_id} with amount ${deposit ? fmtNear(deposit) : '0'} and with args ${formatArgs(args, isForSms)}`);
+        return escapeHtmlIfNotSMS(`Calling method: ${method_name} in contract: ${receiver_id} with amount ${deposit ? fmtNear(deposit) : '0'} and with args ${formatArgs(args, isForSms)}`);
     case 'Transfer':
-        return escapeHtml(`Transferring ${fmtNear(amount)} to: ${receiver_id}`);
+        return escapeHtmlIfNotSMS(`Transferring ${fmtNear(amount)} to: ${receiver_id}`);
     case 'Stake':
-        return escapeHtml(`Staking: ${fmtNear(amount)} to validator: ${receiver_id}`);
+        return escapeHtmlIfNotSMS(`Staking: ${fmtNear(amount)} to validator: ${receiver_id}`);
     case 'AddKey':
         if (permission) {
             const { allowance, receiver_id, method_names } = permission;
             const methodsMessage = method_names && method_names.length > 0 ? `${method_names.join(', ')} methods` : 'any method';
-            return escapeHtml(`Adding key ${public_key} limited to call ${methodsMessage} on ${receiver_id} and spend up to ${fmtNear(allowance)} on gas`);
+            return escapeHtmlIfNotSMS(`Adding key ${public_key} limited to call ${methodsMessage} on ${receiver_id} and spend up to ${fmtNear(allowance)} on gas`);
         }
-        return escapeHtml(`Adding key ${public_key} with FULL ACCESS to account`);
+        return escapeHtmlIfNotSMS(`Adding key ${public_key} with FULL ACCESS to account`);
     case 'DeleteKey':
-        return escapeHtml(`Deleting key ${public_key}`);
+        return escapeHtmlIfNotSMS(`Deleting key ${public_key}`);
     }
 };
 

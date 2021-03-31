@@ -40,7 +40,7 @@ function Base64Thing() {
     }
 
     this.b64ToByteArray = function (b64) {
-        let i, j, l, tmp;
+        let i, j, tmp;
 
         if (b64.length % 4 > 0) {
             throw new Error('Invalid string. Length must be a multiple of 4');
@@ -58,7 +58,7 @@ function Base64Thing() {
         const arr = new Arr(b64.length * 3 / 4 - placeHolders);
 
         // if there are placeholders, only get up to the last complete 4 chars
-        l = placeHolders > 0 ? b64.length - 4 : b64.length;
+        const l = placeHolders > 0 ? b64.length - 4 : b64.length;
 
         let L = 0;
 

@@ -6,7 +6,7 @@ const messageContentFixtures = require('./fixtures');
 const toBase64 = require('../toBase64');
 
 const { expect } = chai;
-const { formatArgs } = messageContentHelpers;
+const { formatArgs, formatAction } = messageContentHelpers;
 const {
     longJSONArgs,
     shortJSONArgs,
@@ -69,6 +69,40 @@ describe('message content', function () {
     });
 
     describe('formatAction()', function () {
+        const args = toBase64(JSON.stringify({ htmlContent: '<a href="somewhere"></a>' }));
 
+        it('should not escape possible HTML sequences when sending to SMS', function () {
+            const actionFormatted = formatAction(
+                'test_account',
+                {
+                    type: 'FunctionCall',
+                    method_name: 'do_something',
+                    args,
+                    deposit: 1000000,
+                    amount: 100000,
+                    public_key: 'fake_public_key',
+                },
+                true
+            );
+
+            expect(actionFormatted).not.includes('&');
+        });
+
+        it('should escape possible HTML sequences when sending to email', function () {
+            const actionFormatted = formatAction(
+                'test_account',
+                {
+                    type: 'FunctionCall',
+                    method_name: 'do_something',
+                    args,
+                    deposit: 1000000,
+                    amount: 100000,
+                    public_key: 'fake_public_key',
+                },
+                false
+            );
+
+            expect(actionFormatted).includes('\\&quot;somewhere\\&quot;');
+        });
     });
 });
