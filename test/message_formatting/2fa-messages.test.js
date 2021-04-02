@@ -1,12 +1,10 @@
 'use strict';
 
-const path = require('path');
-const fs = require('fs');
-
 const messageContentHelpers = require('../../middleware/2fa_service/messageContent');
+const toBase64 = require('../toBase64');
 const chai = require('../chai');
 const messageContentFixtures = require('./fixtures');
-const toBase64 = require('../toBase64');
+const validateAcceptanceTestContent = require('./validateAcceptanceTest');
 
 const { expect } = chai;
 
@@ -52,39 +50,6 @@ Request Details (email only):
 ${messageContent.requestDetails.join('\n')}
 -----------------------------------
 `;
-}
-
-function validateAcceptanceTestContent({ forceUpdateOfExistingSample, sampleFilename, newMessageContent }) {
-    if (forceUpdateOfExistingSample) {
-        console.warn('Updating sample message content for "Verify 2FA Method"');
-        fs.writeFileSync(
-            path.resolve(__dirname, 'samples', sampleFilename),
-            newMessageContent,
-            { encoding: 'UTF-8' }
-        );
-    } else {
-        let existingMessageContent;
-        try {
-            existingMessageContent = fs.readFileSync(
-                path.resolve(__dirname, 'samples', sampleFilename),
-                { encoding: 'UTF-8' }
-            );
-        } catch (e) {
-            console.log(`initializing new sample file: ${sampleFilename}`);
-            fs.writeFileSync(
-                path.resolve(__dirname, 'samples', sampleFilename),
-                newMessageContent,
-                { encoding: 'UTF-8' }
-            );
-            existingMessageContent = newMessageContent;
-        }
-
-        expect(newMessageContent).equal(
-            existingMessageContent,
-            'If you have intentionally changed the message content and your changes look good, ' +
-            'set "forceUpdateOfExistingSample" to true and re-run this test to update the sample file: ' + sampleFilename
-        );
-    }
 }
 
 describe('message content', function messageContent() {
@@ -178,12 +143,12 @@ describe('message content', function messageContent() {
         });
     });
 
-    describe('generate message samples', function () {
+    describe('acceptance tests', function () {
         describe('verify 2FA Method', function () {
             it('should match our sample message', function () {
                 // Acceptance test: run with this set to `true` to regenerate sample.
                 const forceUpdateOfExistingSample = false;
-                const sampleFilename = 'verify2faMethodText';
+                const samplePathSegments = ['text', 'verify2faMethod.txt'];
 
                 const messageContent = getVerify2faMethodMessageContent({
                     accountId: 'exampleaccount3456',
@@ -193,7 +158,7 @@ describe('message content', function messageContent() {
 
                 validateAcceptanceTestContent({
                     forceUpdateOfExistingSample: forceUpdateOfExistingSample,
-                    sampleFilename: sampleFilename,
+                    samplePathSegments,
                     newMessageContent: getSMSMessageAcceptanceTestOutput(messageContent)
                 });
             });
@@ -203,7 +168,7 @@ describe('message content', function messageContent() {
             it('should match our sample message', function () {
                 // Acceptance test: run with this set to `true` to regenerate sample.
                 const forceUpdateOfExistingSample = false;
-                const sampleFilename = 'confirm2faTransactionText';
+                const samplePathSegments = ['text', 'confirm2faTransaction.txt'];
 
                 const messageContent = getConfirmTransactionMessageContent({
                     accountId: 'exampleaccount3456',
@@ -218,7 +183,7 @@ describe('message content', function messageContent() {
 
                 validateAcceptanceTestContent({
                     forceUpdateOfExistingSample: forceUpdateOfExistingSample,
-                    sampleFilename: sampleFilename,
+                    samplePathSegments,
                     newMessageContent: getSMSMessageAcceptanceTestOutput(messageContent)
                 });
             });
@@ -228,7 +193,7 @@ describe('message content', function messageContent() {
             it('should match our sample message', function () {
                 // Acceptance test: run with this set to `true` to regenerate sample.
                 const forceUpdateOfExistingSample = false;
-                const sampleFilename = 'addingFullAccessKeyText';
+                const samplePathSegments = ['text', 'addingFullAccessKey.txt'];
 
                 const messageContent = getAddingFullAccessKeyMessageContent({
                     accountId: 'exampleaccount3456',
@@ -244,7 +209,7 @@ describe('message content', function messageContent() {
 
                 validateAcceptanceTestContent({
                     forceUpdateOfExistingSample: forceUpdateOfExistingSample,
-                    sampleFilename: sampleFilename,
+                    samplePathSegments,
                     newMessageContent: getSMSMessageAcceptanceTestOutput(messageContent)
                 });
             });
