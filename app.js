@@ -13,7 +13,8 @@ app.use(require('koa-logger')());
 app.use(body({ limit: '500kb', fallback: true }));
 app.use(cors({ credentials: true }));
 
-let reportException = () => {};
+let reportException = () => {
+};
 
 const SENTRY_DSN = process.env.SENTRY_DSN;
 if (SENTRY_DSN && !module.parent) {
@@ -185,7 +186,8 @@ router.post(
     }
 );
 
-const { sendMail, getNewAccountEmail, getSecurityCodeEmail } = require('./utils/email');
+const { sendMail } = require('./utils/email');
+const { getNewAccountMessageContent, getSecurityCodeMessageContent } = require('./accountRecoveryMessageContent');
 
 const WALLET_URL = process.env.WALLET_URL;
 const getRecoveryUrl = (accountId, seedPhrase) => `${WALLET_URL}/recover-with-link/${encodeURIComponent(accountId)}/${encodeURIComponent(seedPhrase)}`;
@@ -226,15 +228,14 @@ router.post(
 );
 
 const sendSecurityCode = async ({ ctx, securityCode, method, accountId, seedPhrase }) => {
-    let text, html;
+    let html, subject, text;
     if (seedPhrase) {
         const recoverUrl = getRecoveryUrl(accountId, seedPhrase);
-        text = `\nWelcome to NEAR Wallet!\nThis message contains your account activation code and recovery link for ${accountId}. Keep this message safe, and DO NOT SHARE IT. We cannot resend this message.\n\n1. Confirm your activation code to finish creating your account:\n${securityCode}\n\n2. In the event that you need to recover your account, click the link below, and follow the directions in NEAR Wallet.\n${recoverUrl}\n\nKeep this message safe and DO NOT SHARE IT. We cannot resend this message.`;
-        html = getNewAccountEmail(accountId, recoverUrl, securityCode);
+        ({ html, subject, text} = getNewAccountMessageContent({ accountId, recoverUrl, securityCode }));
     } else {
-        text = `Your NEAR Wallet security code is:\n${securityCode}\nEnter this code to verify your device.`;
-        html = getSecurityCodeEmail(accountId, securityCode);
+        ({ html, subject, text } = getSecurityCodeMessageContent({ accountId, securityCode }));
     }
+
     if (method.kind === RECOVERY_METHOD_KINDS.PHONE) {
         await sendSms(
             { to: method.detail, text },
@@ -246,7 +247,7 @@ const sendSecurityCode = async ({ ctx, securityCode, method, accountId, seedPhra
                 to: method.detail,
                 text,
                 html,
-                subject: seedPhrase ? `Important: Near Wallet Recovery Email for ${accountId}` : `Your NEAR Wallet security code is: ${securityCode}`,
+                subject,
             },
             (emailContent) => ctx.app.emit(SERVER_EVENTS.SENT_EMAIL, emailContent) // For test harness
 

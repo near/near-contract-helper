@@ -1,6 +1,7 @@
 'use strict';
 
-const messageContentHelpers = require('../../middleware/2fa_service/messageContent');
+const twoFactorMessageContentHelpers = require('../../middleware/2fa_service/messageContent');
+const recoveryMessageContentHelpers = require('../../accountRecoveryMessageContent');
 const toBase64 = require('../toBase64');
 const chai = require('../chai');
 const messageContentFixtures = require('./fixtures');
@@ -14,7 +15,9 @@ const {
     getVerify2faMethodMessageContent,
     getConfirmTransactionMessageContent,
     getAddingFullAccessKeyMessageContent
-} = messageContentHelpers;
+} = twoFactorMessageContentHelpers;
+
+const { getNewAccountMessageContent, getSecurityCodeMessageContent } = recoveryMessageContentHelpers;
 
 const {
     longJSONArgs,
@@ -36,7 +39,7 @@ ${messageContent.subject}
 
 Request Details (email only):
 -----------------------------------
-${messageContent.requestDetails.join('\n')}
+${(messageContent.requestDetails || []).join('\n')}
 -----------------------------------
 `;
 }
@@ -189,6 +192,41 @@ describe('message content', function messageContent() {
                     actions: [actionsByType.AddKey.addFullAccessKey]
                 },
                 isForSms: true
+            });
+
+            validateAcceptanceTestContent({
+                forceUpdateOfExistingSample: forceUpdateOfExistingSample,
+                samplePathSegments,
+                newMessageContent: getSMSMessageAcceptanceTestOutput(messageContent)
+            });
+        });
+
+        it('creating a new account should match our samplemessage', function () {
+            // Acceptance test: run with this set to `true` to regenerate sample.
+            const forceUpdateOfExistingSample = false;
+            const samplePathSegments = ['text', 'createNewAccount.txt'];
+
+            const messageContent = getNewAccountMessageContent({
+                accountId: 'exampleaccount3456',
+                securityCode: '123456',
+                recoverUrl: 'http://www.example.recover.url/'
+            });
+
+            validateAcceptanceTestContent({
+                forceUpdateOfExistingSample: forceUpdateOfExistingSample,
+                samplePathSegments,
+                newMessageContent: getSMSMessageAcceptanceTestOutput(messageContent)
+            });
+        });
+
+        it('getting a security code should match our samplemessage', function () {
+            // Acceptance test: run with this set to `true` to regenerate sample.
+            const forceUpdateOfExistingSample = false;
+            const samplePathSegments = ['text', 'getSecurityCode.txt'];
+
+            const messageContent = getSecurityCodeMessageContent({
+                accountId: 'exampleaccount3456',
+                securityCode: '123456',
             });
 
             validateAcceptanceTestContent({
