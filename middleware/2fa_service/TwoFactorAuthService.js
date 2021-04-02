@@ -114,6 +114,8 @@ class TwoFactorAuthService {
             recipient: escapeHtml(method.detail)
         };
 
+        const isForSms = deliveryOpts.kind === '2fa-phone';
+
         if (requestId === -1) {
             // No requestId means this is a brand new 2fa verification, not transactions being approved
             return this._sendRequestedMessageType({
@@ -125,7 +127,7 @@ class TwoFactorAuthService {
                     messageContent: getVerify2faMethodMessageContent({
                         accountId,
                         recipient: method.detail,
-                        securityCode
+                        securityCode,
                     })
                 }
             });
@@ -151,6 +153,7 @@ class TwoFactorAuthService {
                         securityCode,
                         recipient: method.detail,
                         publicKey,
+                        isForSms
                     })
                 }
             });
@@ -168,7 +171,7 @@ class TwoFactorAuthService {
                     accountId,
                     request,
                     securityCode,
-                    isForSms: (deliveryOpts.kind === '2fa-phone')
+                    isForSms
                 })
             }
         });

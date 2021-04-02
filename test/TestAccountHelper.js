@@ -107,7 +107,7 @@ class TestAccountHelper {
             .send({ accountId, ...signature });
     }
 
-    async init2FAMethod({ accountId, method, valid, testContractDeployed }) {
+    async init2faMethod({ accountId, method, valid, testContractDeployed }) {
         const signature = await this.signatureForLatestBlock({ accountId, valid });
 
         const result = await this._request
@@ -117,7 +117,7 @@ class TestAccountHelper {
         return result;
     }
 
-    async verify2FAMethod({ accountId, requestId, securityCode, valid }) {
+    async verify2faMethod({ accountId, requestId, securityCode, valid }) {
         const signature = await this.signatureForLatestBlock({ accountId, valid });
 
         return this._request
@@ -163,12 +163,12 @@ class TestAccountHelper {
         return newAccountId;
     }
 
-    async create2FAEnabledNEARAccount({
+    async create2faEnabledNEARAccount({
         requestedAccountId,
         method,
     }) {
         const accountId = await this.createNEARAccount(requestedAccountId);
-        await this.init2FAMethod({ accountId, method });
+        await this.init2faMethod({ accountId, method });
 
         return accountId;
     }

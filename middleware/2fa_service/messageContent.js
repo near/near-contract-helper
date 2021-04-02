@@ -44,7 +44,18 @@ const formatArgs = (args, isForSms) => {
     return output;
 };
 
-const formatAction = (receiver_id, { type, method_name, args, deposit, amount, public_key, permission }, isForSms) => {
+const formatAction = (
+    { receiver_id, isForSms },
+    {
+        type,
+        method_name,
+        args,
+        deposit,
+        amount,
+        public_key,
+        permission
+    }
+) => {
     function escapeHtmlIfNotSMS(str) {
         if (isForSms) { return str; }
         return escapeHtml(str);
@@ -63,7 +74,7 @@ const formatAction = (receiver_id, { type, method_name, args, deposit, amount, p
             const methodsMessage = method_names && method_names.length > 0 ? `${method_names.join(', ')} methods` : 'any method';
             return escapeHtmlIfNotSMS(`Adding key ${public_key} limited to call ${methodsMessage} on ${receiver_id} and spend up to ${fmtNear(allowance)} on gas`);
         }
-        return escapeHtmlIfNotSMS(`Adding key ${public_key} with FULL ACCESS to account`);
+        return escapeHtmlIfNotSMS(`Adding key ${public_key} with FULL ACCESS to account: "${receiver_id}"`);
     case 'DeleteKey':
         return escapeHtmlIfNotSMS(`Deleting key ${public_key}`);
     }
@@ -74,7 +85,7 @@ function getSecurityCodeText(securityCode, requestDetails) {
     return `
 NEAR Wallet security code: ${securityCode}
 
-Important: By entering this code, you are authorizing the following transaction:
+Important: By entering this code, you are authorizing the following transaction${requestDetails.length > 1 ? 's' : ''}:
 
 ${requestDetails.join('\n')}
 `;
@@ -90,9 +101,12 @@ function getVerify2faMethodMessageContent({ accountId, recipient, securityCode }
     };
 }
 
-function getAddingFullAccessKeyMessageContent({ accountId, recipient, publicKey, securityCode }) {
-    const requestDetails = [getVerifyAs2faMethodText({ accountId, recipient })];
-    const subject = 'Confirm Transaction - Warning Adding Full Access Key to Account: ' + accountId;
+function getAddingFullAccessKeyMessageContent({ accountId, publicKey, request, securityCode, isForSms }) {
+    const { receiver_id, actions } = request;
+
+    const requestDetails = actions.map(action => formatAction({ receiver_id, isForSms }, action));
+
+    const subject = 'Confirm Transaction WARNING - Adding FULL ACCESS KEY to Account: ' + accountId;
     const text = `
 WARNING: Entering the code below will authorize full access to your NEAR account: "${accountId}". If you did not initiate this action, please DO NOT continue.
 
@@ -112,10 +126,10 @@ If you'd like to proceed, enter this security code: ${securityCode}
 function getConfirmTransactionMessageContent({ accountId, request, securityCode, isForSms }) {
     const { receiver_id, actions } = request;
 
-    const requestDetails = actions.map(action => formatAction(receiver_id, action, isForSms));
+    const requestDetails = actions.map(action => formatAction({ accountId, receiver_id, isForSms }, action));
 
     return {
-        subject: `Confirm Transaction from: ${accountId}${request ? ` to: ${request.receiver_id}` : ''}`,
+        subject: `Confirm Transaction from: ${accountId} to: ${receiver_id}`,
         text: getSecurityCodeText(securityCode, requestDetails),
         requestDetails,
     };

@@ -56,7 +56,7 @@ const getNewAccountEmail = (accountId, recoverUrl, securityCode) => template({
 
 const get2faHtml = (securityCode, requestDetails, fakConfig = {}) => {
     const content = [{
-        html: 'Important: By entering this code, you are authorizing the following transaction:'
+        html: `Important: By entering this code, you are authorizing the following transaction${requestDetails.length > 1 ? 's' : ''}:`
     }];
 
     if (fakConfig.public_key) {
