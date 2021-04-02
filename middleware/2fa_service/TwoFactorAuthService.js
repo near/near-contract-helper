@@ -74,7 +74,7 @@ class TwoFactorAuthService {
 
         const { subject, text, requestDetails } = messageContent;
 
-        const html = get2faHtml(securityCode, requestDetails.join('<br>'), {
+        const html = get2faHtml(securityCode, requestDetails, {
             public_key: publicKey,
             accountId
         });
