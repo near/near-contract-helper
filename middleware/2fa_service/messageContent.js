@@ -86,7 +86,6 @@ function getSecurityCodeText(securityCode, requestDetails) {
 NEAR Wallet security code: ${securityCode}
 
 Important: By entering this code, you are authorizing the following transaction${requestDetails.length > 1 ? 's' : ''}:
-
 ${requestDetails.join('\n')}
 `;
 }

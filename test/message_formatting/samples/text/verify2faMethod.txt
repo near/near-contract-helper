@@ -4,7 +4,6 @@ Text content for SMS and rich text incapable email clients:
 NEAR Wallet security code: 123456
 
 Important: By entering this code, you are authorizing the following transaction:
-
 Verify +1 555-555-5555 as the 2FA method for account exampleaccount3456
 
 -----------------------------------

@@ -19,20 +19,9 @@ const {
 const {
     longJSONArgs,
     shortJSONArgs,
-    actionsByType
+    actionsByType,
+    allActions
 } = messageContentFixtures;
-
-const allActions = Object.values(actionsByType)
-    .reduce(
-        (actionsFlat, byType) => {
-            Object.values(byType).forEach((action) => {
-                actionsFlat.push(action);
-            });
-            return actionsFlat;
-        },
-        []
-    );
-
 
 function getSMSMessageAcceptanceTestOutput(messageContent) {
     return `Text content for SMS and rich text incapable email clients:
@@ -144,74 +133,68 @@ describe('message content', function messageContent() {
     });
 
     describe('acceptance tests', function () {
-        describe('verify 2FA Method', function () {
-            it('should match our sample message', function () {
-                // Acceptance test: run with this set to `true` to regenerate sample.
-                const forceUpdateOfExistingSample = false;
-                const samplePathSegments = ['text', 'verify2faMethod.txt'];
+        it('verify 2FA Method should match our sample message', function () {
+            // Acceptance test: run with this set to `true` to regenerate sample.
+            const forceUpdateOfExistingSample = false;
+            const samplePathSegments = ['text', 'verify2faMethod.txt'];
 
-                const messageContent = getVerify2faMethodMessageContent({
-                    accountId: 'exampleaccount3456',
-                    recipient: '+1 555-555-5555',
-                    securityCode: '123456'
-                });
+            const messageContent = getVerify2faMethodMessageContent({
+                accountId: 'exampleaccount3456',
+                recipient: '+1 555-555-5555',
+                securityCode: '123456'
+            });
 
-                validateAcceptanceTestContent({
-                    forceUpdateOfExistingSample: forceUpdateOfExistingSample,
-                    samplePathSegments,
-                    newMessageContent: getSMSMessageAcceptanceTestOutput(messageContent)
-                });
+            validateAcceptanceTestContent({
+                forceUpdateOfExistingSample: forceUpdateOfExistingSample,
+                samplePathSegments,
+                newMessageContent: getSMSMessageAcceptanceTestOutput(messageContent)
             });
         });
 
-        describe('confirm transactions with 2fa', function () {
-            it('should match our sample message', function () {
-                // Acceptance test: run with this set to `true` to regenerate sample.
-                const forceUpdateOfExistingSample = false;
-                const samplePathSegments = ['text', 'confirm2faTransaction.txt'];
+        it('confirm transactions with 2fa should match our sample message', function () {
+            // Acceptance test: run with this set to `true` to regenerate sample.
+            const forceUpdateOfExistingSample = false;
+            const samplePathSegments = ['text', 'confirm2faTransaction.txt'];
 
-                const messageContent = getConfirmTransactionMessageContent({
-                    accountId: 'exampleaccount3456',
-                    recipient: '+1 555-555-5555',
-                    securityCode: '123456',
-                    request: {
-                        receiver_id: 'testreceiveraccount',
-                        actions: allActions.filter(({ type, permission }) => !(type === 'AddKey' && !permission))
-                    },
-                    isForSms: true
-                });
+            const messageContent = getConfirmTransactionMessageContent({
+                accountId: 'exampleaccount3456',
+                recipient: '+1 555-555-5555',
+                securityCode: '123456',
+                request: {
+                    receiver_id: 'testreceiveraccount',
+                    actions: allActions.filter(({ type, permission }) => !(type === 'AddKey' && !permission))
+                },
+                isForSms: true
+            });
 
-                validateAcceptanceTestContent({
-                    forceUpdateOfExistingSample: forceUpdateOfExistingSample,
-                    samplePathSegments,
-                    newMessageContent: getSMSMessageAcceptanceTestOutput(messageContent)
-                });
+            validateAcceptanceTestContent({
+                forceUpdateOfExistingSample: forceUpdateOfExistingSample,
+                samplePathSegments,
+                newMessageContent: getSMSMessageAcceptanceTestOutput(messageContent)
             });
         });
 
-        describe('adding a full access key with 2fa', function () {
-            it('should match our sample message', function () {
-                // Acceptance test: run with this set to `true` to regenerate sample.
-                const forceUpdateOfExistingSample = false;
-                const samplePathSegments = ['text', 'addingFullAccessKey.txt'];
+        it('adding a full access key with 2fa should match our sample message', function () {
+            // Acceptance test: run with this set to `true` to regenerate sample.
+            const forceUpdateOfExistingSample = false;
+            const samplePathSegments = ['text', 'addingFullAccessKey.txt'];
 
-                const messageContent = getAddingFullAccessKeyMessageContent({
-                    accountId: 'exampleaccount3456',
-                    recipient: '+1 555-555-5555',
-                    securityCode: '123456',
-                    publicKey: actionsByType.AddKey.addFullAccessKey.public_key,
-                    request: {
-                        receiver_id: 'exampleaccount3456',
-                        actions: [actionsByType.AddKey.addFullAccessKey]
-                    },
-                    isForSms: true
-                });
+            const messageContent = getAddingFullAccessKeyMessageContent({
+                accountId: 'exampleaccount3456',
+                recipient: '+1 555-555-5555',
+                securityCode: '123456',
+                publicKey: actionsByType.AddKey.addFullAccessKey.public_key,
+                request: {
+                    receiver_id: 'exampleaccount3456',
+                    actions: [actionsByType.AddKey.addFullAccessKey]
+                },
+                isForSms: true
+            });
 
-                validateAcceptanceTestContent({
-                    forceUpdateOfExistingSample: forceUpdateOfExistingSample,
-                    samplePathSegments,
-                    newMessageContent: getSMSMessageAcceptanceTestOutput(messageContent)
-                });
+            validateAcceptanceTestContent({
+                forceUpdateOfExistingSample: forceUpdateOfExistingSample,
+                samplePathSegments,
+                newMessageContent: getSMSMessageAcceptanceTestOutput(messageContent)
             });
         });
     });

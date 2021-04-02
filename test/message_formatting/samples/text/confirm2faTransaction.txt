@@ -4,7 +4,6 @@ Text content for SMS and rich text incapable email clients:
 NEAR Wallet security code: 123456
 
 Important: By entering this code, you are authorizing the following transactions:
-
 Calling method: DoAThingWithShortJSONArgs in contract: testreceiveraccount with amount 100,000Ⓝ and with args {"amount":"1,000Ⓝ","deposit":"100,000Ⓝ","someArg":"shortArg"}
 Calling method: DoAThingWithLongJSONArgs in contract: testreceiveraccount with amount 18,000,000Ⓝ and with args {"amount":"110,000Ⓝ","deposit":"103,000Ⓝ","someArg":"longestArgsAreTheBestArgs","someArg2":"longestArgsAreTheBestArgs","someArg3":"longestArgsAreTheBestArgs","someArg4":"longestArgsAreTheBestArgs","someArg5":"longestArgsAreTheBestArgs","someArg6":...
 Transferring 10.5Ⓝ to: testreceiveraccount

@@ -80,8 +80,20 @@ const actionsByType = {
     }
 };
 
+const allActions = Object.values(actionsByType)
+    .reduce(
+        (actionsFlat, byType) => {
+            Object.values(byType).forEach((action) => {
+                actionsFlat.push(action);
+            });
+            return actionsFlat;
+        },
+        []
+    );
+
 module.exports = {
     shortJSONArgs,
     longJSONArgs,
-    actionsByType
+    actionsByType,
+    allActions
 };
