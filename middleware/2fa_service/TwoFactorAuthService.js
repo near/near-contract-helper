@@ -3,6 +3,7 @@ const escapeHtml = require('escape-html');
 const password = require('secure-random-password');
 const Sequelize = require('sequelize');
 
+const constants = require('../../constants');
 const models = require('../../models');
 const messageContentCreaters = require('./messageContent');
 const emailHelper = require('../../utils/email');
@@ -11,9 +12,10 @@ const smsHelper = require('../../utils/sms');
 const Op = Sequelize.Op;
 const { sendSms } = smsHelper;
 const { sendMail, get2faHtml } = emailHelper;
+const { SERVER_EVENTS, TWO_FACTOR_AUTH_KINDS } = constants;
 
 const SECURITY_CODE_DIGITS = 6;
-const twoFactorMethods = ['2fa-email', '2fa-phone'];
+const twoFactorMethods = Object.values(TWO_FACTOR_AUTH_KINDS);
 
 const {
     getVerify2faMethodMessageContent,
@@ -77,15 +79,15 @@ class TwoFactorAuthService {
             accountId
         });
 
-        if (kind === '2fa-phone') {
+        if (kind === TWO_FACTOR_AUTH_KINDS.PHONE) {
             await sendSms(
                 {
                     to: recipient,
                     text,
                 },
-                (smsContent) => ctx.app.emit('SENT_SMS', smsContent) // For test harness
+                (smsContent) => ctx.app.emit(SERVER_EVENTS.SENT_SMS, smsContent) // For test harness
             );
-        } else if (kind === '2fa-email') {
+        } else if (kind === TWO_FACTOR_AUTH_KINDS.EMAIL) {
             await sendMail(
                 {
                     to: recipient,
@@ -93,7 +95,7 @@ class TwoFactorAuthService {
                     text,
                     html,
                 },
-                (emailContent) => ctx.app.emit('SENT_EMAIL', emailContent) // For test harness
+                (emailContent) => ctx.app.emit(SERVER_EVENTS.SENT_EMAIL, emailContent) // For test harness
             );
         } else {
             // FIXME: Should we throw an error if we get a request for an unsupported kind?
@@ -105,7 +107,7 @@ class TwoFactorAuthService {
 
         // Emit an event so that any listening test harnesses can use the security code without needing a full
         // integration test with e.g. SMS, e-mail.
-        ctx.app.emit('SECURITY_CODE', { accountId, requestId, securityCode }); // For test harness
+        ctx.app.emit(SERVER_EVENTS.SECURITY_CODE, { accountId, requestId, securityCode }); // For test harness
 
         await twoFactorMethod.update({ securityCode, requestId });
 
@@ -114,7 +116,7 @@ class TwoFactorAuthService {
             recipient: escapeHtml(method.detail)
         };
 
-        const isForSms = deliveryOpts.kind === '2fa-phone';
+        const isForSms = deliveryOpts.kind === TWO_FACTOR_AUTH_KINDS.PHONE;
 
         if (requestId === -1) {
             // No requestId means this is a brand new 2fa verification, not transactions being approved

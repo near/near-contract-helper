@@ -1,12 +1,40 @@
 const nearAPI = require('near-api-js');
 
+const constants = require('../constants');
+
+const { SERVER_EVENTS } = constants;
+
+function extractValueFromHash(hash, key) {
+    const value = hash[key];
+    delete hash[key];
+
+    return value;
+}
+
 class TestAccountHelper {
-    constructor({ keyPair, keyStore, request }) {
+    constructor({
+        app,
+        ECHO_SECURITY_CODES = false,
+        keyPair,
+        keyStore,
+        request,
+    }) {
         this._keyPair = keyPair;
         this._keyStore = keyStore;
         this._request = request;
+        this._app = app;
 
         this._signer = new nearAPI.InMemorySigner(this._keyStore);
+        this._securityCodesByAccountId = {};
+
+        if (this._app) {
+            app.on(SERVER_EVENTS.SECURITY_CODE, ({ accountId, securityCode, requestId }) => {
+                if (ECHO_SECURITY_CODES) {
+                    console.log('Got security code', { accountId, securityCode, requestId });
+                }
+                this._securityCodesByAccountId[accountId] = securityCode;
+            });
+        }
     }
 
     async ensureNEARApiClientInitialized() {
@@ -34,6 +62,14 @@ class TestAccountHelper {
         return this._signer;
     }
 
+    clearSecurityCodeForAccount(accountId) {
+        delete this._securityCodesByAccountId[accountId];
+    }
+
+    getSecurityCodeForAccount(accountId) {
+        return extractValueFromHash(this._securityCodesByAccountId, accountId);
+    }
+
     async getLatestBlockHeight() {
         await this.ensureNEARApiClientInitialized();
 
@@ -55,17 +91,21 @@ class TestAccountHelper {
     }
 
     async initRecoveryMethodForTempAccount({ accountId, method }) {
+        this.clearSecurityCodeForAccount(accountId);
+
         const result = await this._request.post('/account/initializeRecoveryMethodForTempAccount')
             .send({
                 accountId,
                 method,
             });
 
-        return result;
+        return { result, securityCode: this.getSecurityCodeForAccount(accountId) };
     }
 
     async initRecoveryMethod({ accountId, method, testing, valid }) {
         const signature = await this.signatureForLatestBlock({ accountId, valid });
+
+        this.clearSecurityCodeForAccount(accountId);
 
         const result = await this._request.post('/account/initializeRecoveryMethod')
             .send({
@@ -75,7 +115,7 @@ class TestAccountHelper {
                 ...signature,
             });
 
-        return result;
+        return { result, securityCode: this.getSecurityCodeForAccount(accountId) };
     }
 
     async validateSecurityCode({ accountId, method, securityCode, valid }) {
@@ -110,11 +150,13 @@ class TestAccountHelper {
     async init2faMethod({ accountId, method, valid, testContractDeployed }) {
         const signature = await this.signatureForLatestBlock({ accountId, valid });
 
+        this.clearSecurityCodeForAccount(accountId);
+
         const result = await this._request
             .post('/2fa/init')
             .send({ accountId, method, testContractDeployed, ...signature });
 
-        return result;
+        return { result, securityCode: this.getSecurityCodeForAccount(accountId) };
     }
 
     async verify2faMethod({ accountId, requestId, securityCode, valid }) {
@@ -168,9 +210,9 @@ class TestAccountHelper {
         method,
     }) {
         const accountId = await this.createNEARAccount(requestedAccountId);
-        await this.init2faMethod({ accountId, method });
+        const { securityCode } = await this.init2faMethod({ accountId, method });
 
-        return accountId;
+        return { accountId, securityCode };
     }
 }
 

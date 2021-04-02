@@ -3,8 +3,10 @@ require('dotenv').config({ path: 'test/.env.test' });
 const nearAPI = require('near-api-js');
 const { parseSeedPhrase } = require('near-seed-phrase');
 
+const constants = require('../../constants');
 const models = require('../../models');
 const chai = require('../chai');
+const attachEchoMessageListeners = require('./attachEchoMessageListeners');
 const createTestServerInstance = require('./createTestServerInstance');
 const expectRequestHelpers = require('./expectRequestHelpers');
 const TestAccountHelper = require('../TestAccountHelper');
@@ -15,17 +17,32 @@ const {
     expectFailedWithCode
 } = expectRequestHelpers;
 
+const { RECOVERY_METHOD_KINDS } = constants;
+
 const recoveryMethods = {
-    email: { kind: 'email', detail: 'hello@example.com', publicKey: 'pkemail' },
-    phone: { kind: 'phone', detail: '+1 717 555 0101', publicKey: 'pkphone' },
-    phrase: { kind: 'phrase', publicKey: 'pkphrase' },
+    [RECOVERY_METHOD_KINDS.EMAIL]: {
+        kind: RECOVERY_METHOD_KINDS.EMAIL,
+        detail: 'hello@example.com',
+        publicKey: 'pkemail'
+    },
+    [RECOVERY_METHOD_KINDS.PHONE]: {
+        kind: RECOVERY_METHOD_KINDS.PHONE,
+        detail: '+1 717 555 0101',
+        publicKey: 'pkphone'
+    },
+    [RECOVERY_METHOD_KINDS.PHRASE]: {
+        kind: RECOVERY_METHOD_KINDS.PHRASE,
+        publicKey: 'pkphrase'
+    },
 };
 
 const SEED_PHRASE = 'shoot island position soft burden budget tooth cruel issue economy destroy above';
 
-const config = {
-    ECHO_SECURITY_CODES: process.env.VERBOSE || false,
-    ECHO_MESSAGE_CONTENT: process.env.VERBOSE || false
+const VERBOSE_OUTPUT = process.env.VERBOSE_OUTPUT || false;
+
+const VERBOSE_OUTPUT_CONFIG = {
+    ECHO_SECURITY_CODES: VERBOSE_OUTPUT || false,
+    ECHO_MESSAGE_CONTENT: VERBOSE_OUTPUT || false
 };
 
 function createAllRecoveryMethods(account) {
@@ -34,66 +51,41 @@ function createAllRecoveryMethods(account) {
     );
 }
 
-function extractValueFromHash(hash, key) {
-    const value = hash[key];
-    delete hash[key];
-
-    return value;
-}
-
 describe('app routes', function () {
     this.timeout(15000);
-
-    const securityCodesByAccountId = {};
-    // const messageContentByAccountId = {};
 
     let app, request, testAccountHelper;
 
     before(async () => {
-        await models.sequelize.sync({ force: true });
-
         const keyStore = new nearAPI.keyStores.InMemoryKeyStore();
         const keyPair = nearAPI.KeyPair.fromString(parseSeedPhrase(SEED_PHRASE).secretKey);
 
         ({ request, app } = createTestServerInstance());
-
-        app.on('SECURITY_CODE', ({ accountId, securityCode, requestId }) => {
-            if (config.ECHO_SECURITY_CODES) {
-                console.info('Got security code', { accountId, securityCode, requestId });
-            }
-            securityCodesByAccountId[accountId] = securityCode;
-        });
-
-        app.on('SENT_SMS', (smsContent) => {
-            if (config.ECHO_MESSAGE_CONTENT) {
-                console.info('Got SMS content', smsContent);
-            }
-        });
-
-        app.on('SENT_EMAIL', (emailContent) => {
-            if (config.ECHO_MESSAGE_CONTENT) {
-                console.info('Got Email content', emailContent);
-            }
-        });
+        attachEchoMessageListeners({ app, ECHO_MESSAGE_CONTENT: VERBOSE_OUTPUT_CONFIG.ECHO_MESSAGE_CONTENT });
 
         testAccountHelper = new TestAccountHelper({
+            app,
+            ECHO_SECURITY_CODES: VERBOSE_OUTPUT_CONFIG.ECHO_SECURITY_CODES,
             keyPair,
             keyStore,
-            request
+            request,
         });
 
+        await models.sequelize.sync({ force: true });
     });
 
     describe('/account/initializeRecoveryMethodForTempAccount', () => {
-        let savedSecurityCode = '';
+        let savedSecurityCode = '', result;
         const accountId = 'doesnotexistonchain' + Date.now();
-        const method = recoveryMethods.email;
+        const method = recoveryMethods[RECOVERY_METHOD_KINDS.EMAIL];
 
         it('send security code', async () => {
-            await testAccountHelper.initRecoveryMethodForTempAccount({ accountId, method })
-                .then(expectJSONResponse);
+            ({ result, securityCode: savedSecurityCode } = await testAccountHelper.initRecoveryMethodForTempAccount({
+                accountId,
+                method
+            }));
 
-            savedSecurityCode = extractValueFromHash(securityCodesByAccountId, accountId);
+            expectJSONResponse(result);
 
             expect(savedSecurityCode)
                 .a('string')
@@ -132,30 +124,24 @@ describe('app routes', function () {
     });
 
     describe('Two people send recovery methods for the same account before created', () => {
-        // const method = recoveryMethods.email;
-        let savedSecurityCode = '';
+        let savedSecurityCode = '', result;
         const accountId = 'doesnotexistonchain' + Date.now();
-        const alice = recoveryMethods.email;
-        const bob = recoveryMethods.phone;
+        const alice = recoveryMethods[RECOVERY_METHOD_KINDS.EMAIL];
+        const bob = recoveryMethods[RECOVERY_METHOD_KINDS.PHONE];
 
         it('send security code alice', async () => {
-            await request.post('/account/initializeRecoveryMethodForTempAccount')
-                .send({
-                    accountId,
-                    method: alice,
-                })
-                .then(expectJSONResponse);
+            ({ result, securityCode: savedSecurityCode } = await testAccountHelper.initRecoveryMethodForTempAccount({
+                accountId,
+                method: alice
+            }));
 
-            savedSecurityCode = extractValueFromHash(securityCodesByAccountId, accountId);
+            expectJSONResponse(result);
         });
 
         it('send security code bob', async () => {
-            return request.post('/account/initializeRecoveryMethodForTempAccount')
-                .send({
-                    accountId,
-                    method: bob,
-                })
-                .then(expectJSONResponse);
+            const { result } = await testAccountHelper.initRecoveryMethodForTempAccount(({ accountId, method: bob }));
+
+            expectJSONResponse(result);
         });
 
         it('validate security code alice (new account) and other methods should be removed leaving 1 recoveryMethod', async () => {
@@ -178,18 +164,21 @@ describe('app routes', function () {
     });
 
     describe('/account/initializeRecoveryMethod', () => {
-        let savedSecurityCode = '';
+        let savedSecurityCode = '', result;
         let accountId = '';
         const testing = true;
-        const method = { kind: 'email', detail: 'test@dispostable.com' };
+        const method = { kind: RECOVERY_METHOD_KINDS.EMAIL, detail: 'test@dispostable.com' };
 
         it('send security code', async () => {
             accountId = await testAccountHelper.createNEARAccount();
 
-            await testAccountHelper.initRecoveryMethod({ accountId, method, testing })
-                .then(expectJSONResponse);
+            ({ result, securityCode: savedSecurityCode } = await testAccountHelper.initRecoveryMethod({
+                accountId,
+                method,
+                testing
+            }));
 
-            savedSecurityCode = extractValueFromHash(securityCodesByAccountId, accountId);
+            expectJSONResponse(result);
         });
 
         it('validate security code (wrong code)', async () => {
@@ -210,7 +199,7 @@ describe('app routes', function () {
                 .then(expectJSONResponse);
 
             expect(result).property('detail', 'test@dispostable.com');
-            expect(result).property('kind', 'email');
+            expect(result).property('kind', RECOVERY_METHOD_KINDS.EMAIL);
         });
 
     });
@@ -261,9 +250,9 @@ describe('app routes', function () {
             const { body: methods } = await testAccountHelper.getRecoveryMethods({ accountId })
                 .then(expectJSONResponse);
 
-            const email = methods.find(m => m.kind === 'email');
-            const phone = methods.find(m => m.kind === 'phone');
-            const phrase = methods.find(m => m.kind === 'phrase');
+            const email = methods.find(m => m.kind === RECOVERY_METHOD_KINDS.EMAIL);
+            const phone = methods.find(m => m.kind === RECOVERY_METHOD_KINDS.PHONE);
+            const phrase = methods.find(m => m.kind === RECOVERY_METHOD_KINDS.PHRASE);
 
             expect(email).property('detail', 'hello@example.com');
             expect(email).property('publicKey', 'pkemail');
@@ -319,7 +308,7 @@ describe('app routes', function () {
                 })
                 .then(expectJSONResponse);
 
-            expect(phrase).property('kind', 'phrase');
+            expect(phrase).property('kind', RECOVERY_METHOD_KINDS.PHRASE);
             const account = await models.Account.findOne({ where: { accountId } });
             expect(account).ok;
         });
@@ -358,7 +347,7 @@ describe('app routes', function () {
                 })
                 .then(expectJSONResponse);
 
-            expect(result).property('kind', 'ledger');
+            expect(result).property('kind', RECOVERY_METHOD_KINDS.LEDGER);
 
             return expect(models.Account.findOne({ where: { accountId } })).eventually.ok;
         });
@@ -381,7 +370,7 @@ describe('app routes', function () {
             return request.post('/account/deleteRecoveryMethod')
                 .send({
                     accountId: 'illegitimate',
-                    kind: 'phone',
+                    kind: RECOVERY_METHOD_KINDS.PHONE,
                 })
                 .then(expectFailedWithCode(404, 'Could not find account with accountId: \'illegitimate\''));
         });
@@ -394,7 +383,7 @@ describe('app routes', function () {
             return request.post('/account/deleteRecoveryMethod')
                 .send({
                     accountId,
-                    kind: 'phone',
+                    kind: RECOVERY_METHOD_KINDS.PHONE,
                     ...(await testAccountHelper.signatureForLatestBlock({ accountId, valid: false }))
                 })
                 .then((res) => {
@@ -412,7 +401,7 @@ describe('app routes', function () {
             const signature = await testAccountHelper.signatureForLatestBlock({ accountId });
 
             return request.post('/account/deleteRecoveryMethod')
-                .send({ accountId, kind: 'phone', ...signature })
+                .send({ accountId, kind: RECOVERY_METHOD_KINDS.PHONE, ...signature })
                 .then(expectFailedWithCode(400, 'Must provide valid publicKey'));
         });
 
@@ -421,44 +410,48 @@ describe('app routes', function () {
             const account = await models.Account.create({ accountId });
             await createAllRecoveryMethods(account);
 
-            await account.createRecoveryMethod({ kind: 'email', detail: 'hello@example.com', publicKey: 'pkemail2' });
+            await account.createRecoveryMethod({
+                kind: RECOVERY_METHOD_KINDS.EMAIL,
+                detail: 'hello@example.com',
+                publicKey: 'pkemail2'
+            });
             const signature = await testAccountHelper.signatureForLatestBlock({ accountId });
 
             const { body: initialMethods } = await request.post('/account/deleteRecoveryMethod')
-                .send({ accountId, kind: 'phone', publicKey: 'pkphone', ...signature })
+                .send({ accountId, kind: RECOVERY_METHOD_KINDS.PHONE, publicKey: 'pkphone', ...signature })
                 .then(expectJSONResponse);
             expect(initialMethods).length(3);
-            expect(initialMethods.map(m => m.kind).sort()).deep.equal(['email', 'email', 'phrase']);
+            expect(initialMethods.map(m => m.kind).sort()).deep.equal([RECOVERY_METHOD_KINDS.EMAIL, RECOVERY_METHOD_KINDS.EMAIL, RECOVERY_METHOD_KINDS.PHRASE]);
 
             await account.reload();
 
             const { body: methodsAfterDeletingOne } = await request.post('/account/deleteRecoveryMethod')
-                .send({ accountId, kind: 'email', publicKey: 'pkemail', ...signature })
+                .send({ accountId, kind: RECOVERY_METHOD_KINDS.EMAIL, publicKey: 'pkemail', ...signature })
                 .then(expectJSONResponse);
 
             expect(methodsAfterDeletingOne).length(2);
-            expect(methodsAfterDeletingOne.map(m => m.kind).sort()).deep.equal(['email', 'phrase']);
+            expect(methodsAfterDeletingOne.map(m => m.kind).sort()).deep.equal([RECOVERY_METHOD_KINDS.EMAIL, RECOVERY_METHOD_KINDS.PHRASE]);
 
             await account.reload();
 
             const { body: methodsAfterDeletingTwo } = await request.post('/account/deleteRecoveryMethod')
-                .send({ accountId, kind: 'phrase', publicKey: 'pkphrase', ...signature })
+                .send({ accountId, kind: RECOVERY_METHOD_KINDS.PHRASE, publicKey: 'pkphrase', ...signature })
                 .then(expectJSONResponse);
 
             await account.reload();
             expect(methodsAfterDeletingTwo).length(1);
-            expect(methodsAfterDeletingTwo.map(m => m.kind).sort()).deep.equal(['email']);
+            expect(methodsAfterDeletingTwo.map(m => m.kind).sort()).deep.equal([RECOVERY_METHOD_KINDS.EMAIL]);
         });
 
         it('does not return 400 for old accounts with publicKey=NULL', async () => {
             const accountId = await testAccountHelper.createNEARAccount();
             const account = await models.Account.create({ accountId });
-            await account.createRecoveryMethod({ kind: 'phrase', publicKey: null });
+            await account.createRecoveryMethod({ kind: RECOVERY_METHOD_KINDS.PHRASE, publicKey: null });
 
             const signature = await testAccountHelper.signatureForLatestBlock({ accountId });
 
             return request.post('/account/deleteRecoveryMethod')
-                .send({ accountId, kind: 'phrase', publicKey: null, ...signature })
+                .send({ accountId, kind: RECOVERY_METHOD_KINDS.PHRASE, publicKey: null, ...signature })
                 .then(expectJSONResponse);
         });
     });
