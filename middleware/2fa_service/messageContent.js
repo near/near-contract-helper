@@ -2,11 +2,6 @@ const hex = require('hexer');
 const nearAPI = require('near-api-js');
 const escapeHtml = require('escape-html');
 
-const getVerifyAs2faMethodText = ({
-    recipient,
-    accountId
-}) => `Verify ${recipient} as the 2FA method for account ${accountId}`;
-
 const fmtNear = (amount) => nearAPI.utils.format.formatNearAmount(amount, 4) + 'Ⓝ';
 
 const TRUNCATE_ARGUMENTS_LENGTH = 247;
@@ -91,7 +86,7 @@ ${requestDetails.join('\n')}
 }
 
 function getVerify2faMethodMessageContent({ accountId, recipient, securityCode }) {
-    const requestDetails = [getVerifyAs2faMethodText({ accountId, recipient })];
+    const requestDetails = [`Verify ${recipient} as the 2FA method for account ${accountId}`];
 
     return {
         subject: `Confirm 2FA for ${accountId}`,
