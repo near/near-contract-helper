@@ -235,7 +235,7 @@ const initCode = async (ctx) => {
         return;
     }
     // client waits to deploy contract until code is verified
-    await sendCode(ctx, method, twoFactorMethod);
+    await sendCode(ctx, method, twoFactorMethod, -1, accountId);
     ctx.body = {
         message: '2fa initialized and code sent to verify method',
     };
