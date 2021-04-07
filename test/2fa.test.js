@@ -1,257 +1,254 @@
-const dotenv = require('dotenv');
-dotenv.config('../.env');
-const assert = require('assert');
-const supertest = require('supertest');
-const models = require('../models');
-const MASTER_KEY_INFO = {
-    account_id: 'test.near',
-    secret_key: 'ed25519:2wyRcSwSuHtRVmkMCGjPwnzZmQLeXLzLLyED1NDMt4BjnKgQL6tF85yBx6Jr26D2dUNeC716RBoTxntVHsegogYw'
-};
-process.env = {
-    ...process.env,
-    ACCOUNT_CREATOR_KEY: JSON.stringify(MASTER_KEY_INFO),
-    WALLET_URL: 'https://wallet.nearprotocol.com',
-    NEW_ACCOUNT_AMOUNT: '500000001000000000000000000',
-    NODE_URL: 'https://rpc.ci-testnet.near.org',
-};
-const app = require('../app');
+require('dotenv').config({ path: 'test/.env.test' });
 
 const nearAPI = require('near-api-js');
+const { parseSeedPhrase } = require('near-seed-phrase');
+const sinon = require('sinon');
 
-const ctx = {};
-const request = supertest(app.callback());
+const attachEchoMessageListeners = require('./attachEchoMessageListeners');
+const expectRequestHelpers = require('./expectRequestHelpers');
+const constants = require('../constants');
+const chai = require('./chai');
+const createTestServerInstance = require('./createTestServerInstance');
+const models = require('../models');
+const TestAccountHelper = require('./TestAccountHelper');
 
-jest.setTimeout(15000);
+const { expect } = chai;
+const {
+    expectJSONResponse,
+    expectFailedWithCode
+} = expectRequestHelpers;
 
-beforeAll(async () => {
-    await models.sequelize.sync({ force: true });
-    ctx.near = await nearAPI.connect({
-        deps: { keyStore },
-        nodeUrl: process.env.NODE_URL
-    });
-    // ctx.accountId = 'testing' + Date.now();
-    // ctx.signature = await signatureFor(ctx.accountId);
-});
+const { TWO_FACTOR_AUTH_KINDS, } = constants;
 
-afterAll(async () => {
-    await models.sequelize.close();
-});
+const REQUEST_ID_FOR_INITIALIZING_2FA = -1;
 
-beforeEach(() => {
-    ctx.savedLog = console.log;
-    ctx.logs = [];
-    console.log = (...args) => ctx.logs.push(args);
-});
-
-afterEach(() => {
-    console.log = ctx.savedLog;
-});
-
-const getCodeFromLogs = () => {
-    const sendLog = ctx.logs.find((log) => log[0] == 'sendSms:' || log[0] == 'sendMail:');
-    if (sendLog) {
-        const { text } = sendLog[1];
-        return /NEAR Wallet security code: (\d+)/.exec(text)[1];
-    }
+const twoFactorMethods = {
+    email: { kind: TWO_FACTOR_AUTH_KINDS.EMAIL, detail: 'hello@example.com', publicKey: 'pkemail2fa' },
+    phone: { kind: TWO_FACTOR_AUTH_KINDS.PHONE, detail: '+1 717 555 0101', publicKey: 'pkphone2fa' },
 };
 
-const keyStore = new nearAPI.keyStores.InMemoryKeyStore();
-
-const twoFactorMethods = [
-    { kind: '2fa-email', detail: 'hello@example.com', publicKey: 'pkemail2fa' },
-    { kind: '2fa-phone', detail: '+1 717 555 0101', publicKey: 'pkphone2fa' },
-];
-
-const inMemorySigner = new nearAPI.InMemorySigner(keyStore);
-async function signatureFor(accountId, valid = true) {
-    let blockNumber = (await ctx.near.connection.provider.status()).sync_info.latest_block_height;
-    if (!valid) blockNumber = blockNumber - 101;
-    blockNumber = String(blockNumber);
-    const message = Buffer.from(blockNumber);
-    const signedHash = await inMemorySigner.signMessage(message, accountId);
-    const blockNumberSignature = Buffer.from(signedHash.signature).toString('base64');
-    return { blockNumber, blockNumberSignature };
-}
-
-const { parseSeedPhrase } = require('near-seed-phrase');
 const SEED_PHRASE = 'table island position soft burden budget tooth cruel issue economy destroy above';
-const keyPair = nearAPI.KeyPair.fromString(parseSeedPhrase(SEED_PHRASE).secretKey);
-async function createNearAccount(accountId) {
-    if (!accountId) {
-        accountId = `helper-test-${Date.now()}`;
-    }
-    const response = await request.post('/account')
-        .send({
-            newAccountId: accountId,
-            newAccountPublicKey: keyPair.publicKey.toString()
+
+const VERBOSE_OUTPUT = process.env.VERBOSE_OUTPUT;
+
+const VERBOSE_OUTPUT_CONFIG = {
+    ECHO_SECURITY_CODES: VERBOSE_OUTPUT || false,
+    ECHO_MESSAGE_CONTENT: VERBOSE_OUTPUT || false
+};
+
+describe('2fa method management', function () {
+    this.timeout(15000);
+
+    let app, request, testAccountHelper;
+
+    before(async () => {
+        const keyStore = new nearAPI.keyStores.InMemoryKeyStore();
+        const keyPair = nearAPI.KeyPair.fromString(parseSeedPhrase(SEED_PHRASE).secretKey);
+
+        ({ request, app } = createTestServerInstance());
+        attachEchoMessageListeners({ app, ECHO_MESSAGE_CONTENT: VERBOSE_OUTPUT_CONFIG.ECHO_MESSAGE_CONTENT });
+
+        testAccountHelper = new TestAccountHelper({
+            app,
+            ECHO_SECURITY_CODES: VERBOSE_OUTPUT_CONFIG.ECHO_SECURITY_CODES,
+            keyPair,
+            keyStore,
+            request,
         });
-    await keyStore.setKey(undefined, accountId, keyPair);
-    assert.equal(response.status, 200);
-    return accountId;
-}
 
-describe('setting up 2fa method', () => {
-    let accountId = 'testing' + Date.now();
-    let method = twoFactorMethods[0];
-    let securityCode = '';
-    let requestId = -1;
-
-    test('generate a deterministic public key for an account', async () => {
-        await createNearAccount(accountId);
-
-        await request.post('/2fa/getAccessKey')
-            .send({
-                accountId,
-                ...(await signatureFor(accountId))
-            })
-            .expect('Content-Type', /json/)
-            .expect((res) => {
-                assert(res.body.publicKey.length > 80);
-            })
-            .expect(200);
+        await models.sequelize.sync({ force: true });
     });
 
-    test('initCode for an account, sets up 2fa method', async () => {
+    describe('setting up 2fa method', () => {
+        let accountId;
 
-        await request.post('/2fa/init')
-            .send({
+        // Would prefer beforeAll, but `testContext.logs` is cleared in the global beforeEach() that would run after beforeAll here
+        beforeEach(async () => {
+            if (!accountId) {
+                accountId = await testAccountHelper.createNEARAccount();
+            }
+        });
+
+        // TODO: Should we be cleaning up accounts just in case this is running against e.g. testnet?
+        // afterAll(async () => {
+        //     console.log('cleaning up account', accountId);
+        //     const account = await testAccountHelper.near.account(accountId);
+        //     try {
+        //         const result = await account.deleteAccount('example.testnet');
+        //         console.log('deleted account!', result);
+        //     } catch (e) {
+        //         console.warn('failed to delete test account!', e);
+        //     }
+        // });
+
+        it('should generate a deterministic public key for an account', async () => {
+            const { body } = await testAccountHelper.getAccessKey({ accountId })
+                .then(expectJSONResponse);
+
+            expect(body)
+                .property('publicKey')
+                .a('string').satisfy((key) => key.startsWith('ed25519:'))
+                .length.within(50, 60);
+        });
+
+        it('should return a 200 with appropriate message for the requested 2fa method when we post to initCode', async () => {
+            const { result } = await testAccountHelper.init2faMethod({
                 accountId,
-                method,
-                ...(await signatureFor(accountId))
-            })
-            .expect('Content-Type', /json/)
-            .expect((res) => {
-                assert.ok(res.ok);
-                securityCode = getCodeFromLogs();
-            })
-            .expect(200);
+                method: twoFactorMethods.email
+            });
+
+            expectJSONResponse(result);
+
+            expect(result.body).property('message', '2fa initialized and code sent to verify method');
+        });
     });
 
-    test('should be able to call init again with different method', async () => {
+    describe('changing an already requested 2fa method', () => {
+        const initialMethod = twoFactorMethods.email;
+        const secondMethod = twoFactorMethods.phone;
 
-        method = twoFactorMethods[1];
+        let accountId;
+        let initialSecurityCode;
 
-        await request.post('/2fa/init')
-            .send({
+        // Would prefer beforeAll, but `testContext.logs` is cleared in the global beforeEach() that would run after beforeAll here
+        beforeEach(async () => {
+            if (!accountId) {
+                ({
+                    accountId,
+                    securityCode: initialSecurityCode
+                } = await testAccountHelper.create2faEnabledNEARAccount({ method: initialMethod }));
+            }
+
+            expect(initialSecurityCode).length(6);
+            const securityCodeAsNumber = parseInt(initialSecurityCode, 10);
+            expect(securityCodeAsNumber).not.NaN;
+        });
+
+        it('should allow verification using the code generated by the second request', async () => {
+            const { result, securityCode: newSecurityCode } = await testAccountHelper.init2faMethod({
                 accountId,
-                method,
-                ...(await signatureFor(accountId))
+                method: secondMethod
+            });
+
+            expectJSONResponse(result);
+
+            expect(newSecurityCode)
+                .a('string')
+                .length(6)
+                .not.equal(initialSecurityCode);
+
+            const { body } = await testAccountHelper.verify2faMethod({
+                accountId,
+                requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
+                securityCode: newSecurityCode
             })
-            .expect('Content-Type', /json/)
-            .expect((res) => {
-                assert.ok(res.ok);
-                securityCode = getCodeFromLogs();
-            })
-            .expect(200);
+                .then(expectJSONResponse);
+
+            expect(body).property('message', '2fa code verified');
+            expect(body).property('requestId', REQUEST_ID_FOR_INITIALIZING_2FA);
+        });
     });
 
-    test('verify 2fa method', async () => {
+    describe('contract already deployed', () => {
+        const testContractDeployed = true;
+        let accountId;
 
-        await request.post('/2fa/verify')
-            .send({
-                accountId,
-                requestId,
-                securityCode,
-                ...(await signatureFor(accountId))
-            })
-            .expect((res) => {
-                assert.ok(res.ok);
-            })
-            .expect(200);
-    });
+        // Would prefer beforeAll, but `testContext.logs` is cleared in the global beforeEach() that would run after beforeAll here
+        beforeEach(async () => {
+            if (!accountId) {
+                ({ accountId } = await testAccountHelper.create2faEnabledNEARAccount({ method: twoFactorMethods.email }));
+            }
+        });
 
-});
-
-describe('after deploying contract', () => {
-    let accountId = 'testing' + Date.now();
-    let method = twoFactorMethods[0];
-    let securityCode = '';
-    let requestId = -1;
-    let testContractDeployed = true;
-
-    test('initCode for an account, sets up 2fa method', async () => {
-        await createNearAccount(accountId);
-
-        await request.post('/2fa/init')
-            .send({
-                accountId,
-                method,
-                ...(await signatureFor(accountId))
-            })
-            .expect('Content-Type', /json/)
-            .expect((res) => {
-                assert.ok(res.ok);
-                securityCode = getCodeFromLogs();
-            })
-            .expect(200);
-    });
-
-    test('initCode for an account with contract deployed', async () => {
-
-        await request.post('/2fa/init')
-            .send({
+        it('initCode for an account with contract deployed', async () => {
+            const { result } = await testAccountHelper.init2faMethod({
                 testContractDeployed,
                 accountId,
-                method,
-                ...(await signatureFor(accountId))
-            })
-            .expect(401);
+                method: twoFactorMethods.email,
+            });
+            expectFailedWithCode(401, 'account with multisig contract already has 2fa method')(result);
+        });
     });
 
-    test('verify 2fa method', async () => {
+    describe('/verify', function () {
+        let accountId;
+        let securityCode;
 
-        await request.post('/2fa/verify')
-            .send({
-                accountId,
-                requestId,
-                securityCode,
-                ...(await signatureFor(accountId))
-            })
-            .expect('Content-Type', /json/)
-            .expect((res) => {
-                assert.ok(res.ok);
-            })
-            .expect(200);
+        // Would prefer beforeAll, but `testContext.logs` is cleared in the global beforeEach() that would run after beforeAll here
+        beforeEach(async () => {
+            if (!accountId) {
+                ({
+                    accountId,
+                    securityCode
+                } = await testAccountHelper.create2faEnabledNEARAccount({ method: twoFactorMethods.email }));
+            }
+        });
+
+        // FIXME: Cover service with unit tests for this case, so we don't need a mock global date
+        describe('expired codes', () => {
+            let clock;
+
+            beforeEach(async function () {
+                clock = sinon.useFakeTimers({
+                    now: new Date(2030, 1, 1, 0, 0),
+                    shouldAdvanceTime: true,
+                    advanceTimeDelta: 20
+                });
+            });
+
+            afterEach(function () {
+                clock.restore();
+            });
+
+            it('securityCode that is more than 5 minutes old should fail', async () => {
+                return testAccountHelper.verify2faMethod({
+                    accountId,
+                    requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
+                    securityCode
+                })
+                    .then(expectFailedWithCode(401, '2fa code expired'));
+            });
+        });
+
+        describe('malformed security codes should be rejected', () => {
+            const expectInvalid2faCodeProvidedError = expectFailedWithCode(401, 'invalid 2fa code provided');
+
+            it('verify 2fa method should fail when given code that is too long', async () => {
+                return testAccountHelper.verify2faMethod({
+                    accountId,
+                    requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
+                    securityCode: '1234567',
+
+                })
+                    .then(expectInvalid2faCodeProvidedError);
+            });
+
+            it('verify 2fa method should fail when given code that is too short', async () => {
+                return testAccountHelper.verify2faMethod({
+                    accountId,
+                    requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
+                    securityCode: '123',
+
+                })
+                    .then(expectInvalid2faCodeProvidedError);
+            });
+
+            it('verify 2fa method should fail when given code that is not numeric', async () => {
+                return testAccountHelper.verify2faMethod({
+                    accountId,
+                    requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
+                    securityCode: 'dsfasdsgah3y',
+                })
+                    .then(expectInvalid2faCodeProvidedError);
+            });
+
+            it('verify 2fa method should fail when no code is provided', async () => {
+                return testAccountHelper.verify2faMethod({
+                    accountId,
+                    requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
+                })
+                    .then(expectInvalid2faCodeProvidedError);
+            });
+        });
     });
-
-});
-
-
-describe('code older than 5min should fail', () => {
-    let accountId = 'testing' + Date.now();
-    let method = twoFactorMethods[0];
-    let securityCode = '';
-    let requestId = -1;
-
-    test('initCode for an account, sets up 2fa method', async () => {
-        await createNearAccount(accountId);
-
-        await request.post('/2fa/init')
-            .send({
-                accountId,
-                method,
-                ...(await signatureFor(accountId))
-            })
-            .expect('Content-Type', /json/)
-            .expect((res) => {
-                assert.ok(res.ok);
-                securityCode = getCodeFromLogs();
-            })
-            .expect(200);
-    });
-
-    test('verify 2fa method', async () => {
-
-        global.Date.now = () => Date.parse('2030-01-01');
-
-        await request.post('/2fa/verify')
-            .send({
-                accountId,
-                requestId,
-                securityCode,
-                ...(await signatureFor(accountId))
-            })
-            .expect(401);
-    });
-
 });
