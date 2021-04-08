@@ -39,24 +39,34 @@ const formatArgs = (args, isForSmsDelivery = false) => {
     return output;
 };
 
-const formatAction = (receiver_id, { type, method_name, args, deposit, amount, public_key, permission }, isForSmsDelivery) => {
+const formatAction = (receiver_id, { type, method_name, args, deposit, amount, public_key, permission }, isForSmsDelivery = false) => {
+    let output;
+
     switch (type) {
     case 'FunctionCall':
-        return escapeHtml(`Calling method: ${ method_name } in contract: ${ receiver_id } with amount ${ deposit ? fmtNear(deposit) : '0' } and with args ${formatArgs(args, isForSmsDelivery)}`);
+        output = `Calling method: ${ method_name } in contract: ${ receiver_id } with amount ${ deposit ? fmtNear(deposit) : '0' } and with args ${formatArgs(args, isForSmsDelivery)}`;
+        break;
     case 'Transfer':
-        return escapeHtml(`Transferring ${ fmtNear(amount) } to: ${ receiver_id }`);
+        output =  `Transferring ${ fmtNear(amount) } to: ${ receiver_id }`;
+        break;
     case 'Stake':
-        return escapeHtml(`Staking: ${ fmtNear(amount) } to validator: ${ receiver_id }`);
+        output =  `Staking: ${ fmtNear(amount) } to validator: ${ receiver_id }`;
+        break;
     case 'AddKey':
         if (permission) {
             const { allowance, receiver_id, method_names } = permission;
             const methodsMessage = method_names && method_names.length > 0 ? `${method_names.join(', ')} methods` : 'any method';
-            return escapeHtml(`Adding key ${ public_key } limited to call ${methodsMessage} on ${receiver_id} and spend up to ${fmtNear(allowance)} on gas`);
+            output = `Adding key ${ public_key } limited to call ${methodsMessage} on ${receiver_id} and spend up to ${fmtNear(allowance)} on gas`;
+        } else {
+            output =  `Adding key ${ public_key } with FULL ACCESS to account`;
         }
-        return escapeHtml(`Adding key ${ public_key } with FULL ACCESS to account`);
+        break;
     case 'DeleteKey':
-        return escapeHtml(`Deleting key ${ public_key }`);
+        output = `Deleting key ${ public_key }`;
+        break;
     }
+
+    return isForSmsDelivery ? output :  escapeHtml(output);
 };
 
 function getSecurityCodeText(securityCode, requestDetails) {
