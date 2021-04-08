@@ -1,0 +1,16 @@
+Text content for SMS and rich text incapable email clients:
+-----------------------------------
+Your NEAR Wallet security code is:
+123456
+Enter this code to verify your device.
+-----------------------------------
+
+Subject (included in email only):
+-----------------------------------                
+Your NEAR Wallet security code is: 123456
+-----------------------------------
+
+Request Details (included in email only):
+-----------------------------------
+
+-----------------------------------

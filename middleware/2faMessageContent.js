@@ -47,8 +47,8 @@ ${requestDetails.join('\n')}
 `;
 }
 
-function getVerify2faMethodMessageContent({ accountId, recipient, securityCode }) {
-    const requestDetails = [`Verify ${recipient} as the 2FA method for account ${accountId}`];
+function getVerify2faMethodMessageContent({ accountId, destination, securityCode }) {
+    const requestDetails = [`Verify ${destination} as the 2FA method for account ${accountId}`];
 
     return {
         subject: `Confirm 2FA for ${accountId}`,
