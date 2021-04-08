@@ -206,7 +206,6 @@ describe('message content acceptance tests', function () {
                         receiver_id: 'testreceiveraccount',
                         actions: allActions.filter(({ type, permission }) => !(type === 'AddKey' && !permission))
                     },
-                    isForSms: true
                 });
 
                 validateAcceptanceTestContent({
