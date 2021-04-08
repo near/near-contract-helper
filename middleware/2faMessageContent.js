@@ -5,17 +5,31 @@ const escapeHtml = require('escape-html');
 const fmtNear = (amount) => nearAPI.utils.format.formatNearAmount(amount, 4) + 'Ⓝ';
 
 const formatArgs = (args) => {
+    let output = '';
+
     const argsBuffer = Buffer.from(args, 'base64');
     try {
         const jsonString = argsBuffer.toString('utf-8');
-        const json = JSON.parse(jsonString);
-        if (json.amount) json.amount = fmtNear(json.amount);
-        if (json.deposit) json.deposit = fmtNear(json.deposit);
-        return JSON.stringify(json);
-    } catch(e) {
+        const parsed = JSON.parse(jsonString);
+
+        // Composing new obj in specific order so `amount` and `deposit` will likely be in the first 250chars
+        const { amount, deposit, ...json } = parsed;
+
+        const formattedNear = {
+            ...Object.hasOwnProperty.call(parsed, 'amount') && { amount: fmtNear(amount) },
+            ...Object.hasOwnProperty.call(parsed, 'deposit') && { deposit: fmtNear(deposit) },
+        };
+
+        output = JSON.stringify({
+            ...formattedNear,
+            ...json
+        });
+    } catch (e) {
         // Cannot parse JSON, do hex dump
-        return hex(argsBuffer);
+        output = hex(argsBuffer);
     }
+
+    return output;
 };
 
 const formatAction = (receiver_id, { type, method_name, args, deposit, amount, public_key, permission }) => {
