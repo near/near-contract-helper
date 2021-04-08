@@ -252,5 +252,29 @@ describe('message content acceptance tests', function () {
                 });
             });
         });
+
+        describe('confirm transactions with 2fa - SMS delivery should not HTML escape', function () {
+
+            it('confirm transactions with 2fa should match our acceptance message', function () {
+                // Acceptance test: run with this set to `true` to regenerate sample.
+                const forceUpdateAcceptanceTestContent = false;
+
+                const messageContent = getConfirmTransactionMessageContent({
+                    accountId: 'exampleaccount3456',
+                    securityCode: '123456',
+                    request: {
+                        receiver_id: 'testreceiveraccount',
+                        actions: allActions.filter(({ type, permission }) => !(type === 'AddKey' && !permission))
+                    },
+                    isForSmsDelivery: true
+                });
+
+                validateAcceptanceTestContent({
+                    forceUpdateAcceptanceTestContent: forceUpdateAcceptanceTestContent,
+                    output: inTestOutputDir('confirmTransactions2fa', 'confirmTransactions2fa-sms.txt'),
+                    newMessageContent: getMessageContentAcceptanceOutput(messageContent)
+                });
+            });
+        });
     });
 });
