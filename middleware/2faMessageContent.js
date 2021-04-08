@@ -126,5 +126,7 @@ function getConfirmTransactionMessageContent({ accountId, request, securityCode,
 module.exports = {
     getVerify2faMethodMessageContent,
     getConfirmTransactionMessageContent,
-    getAddingFullAccessKeyMessageContent
+    getAddingFullAccessKeyMessageContent,
+    formatArgs,
+    formatAction
 };
