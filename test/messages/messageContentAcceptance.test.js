@@ -3,7 +3,7 @@ const path = require('path');
 
 const recoveryMessageContentHelpers = require('../../accountRecoveryMessageContent');
 const messageContent2faHelpers = require('../../middleware/2faMessageContent');
-const { getSecurityCodeEmail, getNewAccountEmail, get2faHtml } = require('../../utils/email');
+const { get2faHtml } = require('../../utils/email');
 const messageContentFixtures = require('./fixtures');
 const validateAcceptanceTestContent = require('./validateAcceptanceTest');
 
