@@ -69,18 +69,6 @@ describe('2fa method management', function () {
             }
         });
 
-        // TODO: Should we be cleaning up accounts just in case this is running against e.g. testnet?
-        // afterAll(async () => {
-        //     console.log('cleaning up account', accountId);
-        //     const account = await testAccountHelper.near.account(accountId);
-        //     try {
-        //         const result = await account.deleteAccount('example.testnet');
-        //         console.log('deleted account!', result);
-        //     } catch (e) {
-        //         console.warn('failed to delete test account!', e);
-        //     }
-        // });
-
         it('should generate a deterministic public key for an account', async () => {
             const { body } = await testAccountHelper.getAccessKey({ accountId })
                 .then(expectJSONResponse);
