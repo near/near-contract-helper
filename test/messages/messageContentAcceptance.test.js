@@ -47,71 +47,86 @@ ${(messageContent.requestDetails || []).join('\n')}
 
 describe('message content acceptance tests', function () {
     describe('get security code', function () {
-        const accountId = 'exampleaccount3456';
-        const securityCode = '123456';
+        let messageContent;
+
+        before(function() {
+            messageContent = getSecurityCodeMessageContent({
+                accountId: 'exampleaccount3456',
+                securityCode: '123456'
+            });
+        });
 
         it('security code html should match our acceptance html', function () {
             // Acceptance test: run with this set to `true` to regenerate acceptance.
             const forceUpdateAcceptanceTestContent = false;
-            const messageContent = getSecurityCodeEmail(accountId, securityCode);
+
+            const { html } = messageContent;
 
             validateAcceptanceTestContent({
                 forceUpdateAcceptanceTestContent: forceUpdateAcceptanceTestContent,
                 output: inTestOutputDir('getSecurityCode', 'getSecurityCode.html'),
-                newMessageContent: messageContent
+                newMessageContent: html
             });
         });
 
         it('security code message content should match our acceptance message', function () {
             // Acceptance test: run with this set to `true` to regenerate acceptance.
             const forceUpdateAcceptanceTestContent = false;
-            const messageContent = getSecurityCodeMessageContent({ accountId, securityCode });
+
+            const { text, subject } = messageContent;
 
             validateAcceptanceTestContent({
                 forceUpdateAcceptanceTestContent: forceUpdateAcceptanceTestContent,
                 output: inTestOutputDir('getSecurityCode', 'getSecurityCode.txt'),
-                newMessageContent: getMessageContentAcceptanceOutput(messageContent)
+                newMessageContent: getMessageContentAcceptanceOutput({ text, subject })
             });
         });
     });
 
     describe('create new account', function () {
+        let messageContent;
+
+        before(function () {
+            messageContent = getNewAccountMessageContent({
+                accountId: 'exampleaccount3456',
+                securityCode: '123456',
+                recoverUrl: 'http://www.example.recover.url/'
+            });
+        });
+
         it('new account html should match our acceptance html', function () {
             // Acceptance test: run with this set to `true` to regenerate sample.
             const forceUpdateAcceptanceTestContent = false;
-            const messageContent = getNewAccountEmail('exampleaccount3456', 'http://example.recovery.url.com', '123456');
+
+            const { html } = messageContent;
 
             validateAcceptanceTestContent({
                 forceUpdateAcceptanceTestContent: forceUpdateAcceptanceTestContent,
                 output: inTestOutputDir('createNewAccount', 'createNewAccount.html'),
-                newMessageContent: messageContent
+                newMessageContent: html
             });
         });
 
         it('new account message content should match our acceptance message', function () {
             // Acceptance test: run with this set to `true` to regenerate sample.
             const forceUpdateAcceptanceTestContent = false;
-            const messageContent = getNewAccountMessageContent({
-                accountId: 'exampleaccount3456',
-                securityCode: '123456',
-                recoverUrl: 'http://www.example.recover.url/'
-            });
+
+            const { subject, text } = messageContent;
 
             validateAcceptanceTestContent({
                 forceUpdateAcceptanceTestContent: forceUpdateAcceptanceTestContent,
                 output: inTestOutputDir('createNewAccount', 'createNewAccount.txt'),
-                newMessageContent: getMessageContentAcceptanceOutput(messageContent)
+                newMessageContent: getMessageContentAcceptanceOutput({ subject, text })
             });
         });
     });
 
     describe('2fa message contents', function () {
         describe('adding new FULL ACCESS KEY', function () {
-            it('adding new FULL ACCESS KEY should match our acceptance html', function () {
-                // Acceptance test: run with this set to `true` to regenerate sample.
-                const forceUpdateAcceptanceTestContent = false;
+            let messageContent;
 
-                const { requestDetails } = getAddingFullAccessKeyMessageContent({
+            before(function () {
+                messageContent = getAddingFullAccessKeyMessageContent({
                     accountId: 'exampleaccount3456',
                     securityCode: '123456',
                     publicKey: actionsByType.AddKey.addFullAccessKey.public_key,
@@ -120,7 +135,13 @@ describe('message content acceptance tests', function () {
                         actions: [actionsByType.AddKey.addFullAccessKey]
                     }
                 });
+            });
 
+            it('adding new FULL ACCESS KEY should match our acceptance html', function () {
+                // Acceptance test: run with this set to `true` to regenerate sample.
+                const forceUpdateAcceptanceTestContent = false;
+
+                const { requestDetails } = messageContent;
                 const htmlContent = get2faHtml('123456', requestDetails, {
                     accountId: 'exampleaccount3456',
                     public_key: 'fakKey'
@@ -136,16 +157,7 @@ describe('message content acceptance tests', function () {
             it('adding new FULL ACCESS KEY should match our acceptance message', function () {
                 // Acceptance test: run with this set to `true` to regenerate sample.
                 const forceUpdateAcceptanceTestContent = false;
-                const messageContent = getAddingFullAccessKeyMessageContent({
-                    accountId: 'exampleaccount3456',
-                    securityCode: '123456',
-                    publicKey: actionsByType.AddKey.addFullAccessKey.public_key,
-                    request: {
-                        receiver_id: 'exampleaccount3456',
-                        actions: [actionsByType.AddKey.addFullAccessKey]
-                    },
-                    isForSms: true
-                });
+
 
                 validateAcceptanceTestContent({
                     forceUpdateAcceptanceTestContent: forceUpdateAcceptanceTestContent,
@@ -156,10 +168,10 @@ describe('message content acceptance tests', function () {
         });
 
         describe('confirm transactions with 2fa', function () {
-            it('confirm transactions with 2fa should match our acceptance html', function () {
-                // Acceptance test: run with this set to `true` to regenerate sample.
-                const forceUpdateAcceptanceTestContent = false;
-                const { requestDetails } = getConfirmTransactionMessageContent({
+            let messageContent;
+
+            before(function () {
+                messageContent = getConfirmTransactionMessageContent({
                     accountId: 'exampleaccount3456',
                     securityCode: '123456',
                     request: {
@@ -167,6 +179,12 @@ describe('message content acceptance tests', function () {
                         actions: allActions.filter(({ type, permission }) => !(type === 'AddKey' && !permission))
                     }
                 });
+            });
+
+            it('confirm transactions with 2fa should match our acceptance html', function () {
+                // Acceptance test: run with this set to `true` to regenerate sample.
+                const forceUpdateAcceptanceTestContent = false;
+                const { requestDetails } = messageContent;
 
 
                 const htmlContent = get2faHtml('123456', requestDetails);
@@ -200,16 +218,21 @@ describe('message content acceptance tests', function () {
         });
 
         describe('verify add new 2FA Method', function () {
-            it('verify add new 2FA Method should match our acceptance html', function () {
-                // Acceptance test: run with this set to `true` to regenerate sample.
-                const forceUpdateAcceptanceTestContent = false;
-                const { requestDetails } = getVerify2faMethodMessageContent({
+            let messageContent;
+
+            before(function () {
+                messageContent = getVerify2faMethodMessageContent({
                     accountId: 'exampleaccount3456',
                     securityCode: '123456',
                     destination: '+1 555-555-5555',
                 });
+            });
 
+            it('verify add new 2FA Method should match our acceptance html', function () {
+                // Acceptance test: run with this set to `true` to regenerate sample.
+                const forceUpdateAcceptanceTestContent = false;
 
+                const { requestDetails } = messageContent;
                 const htmlContent = get2faHtml('123456', requestDetails);
 
                 validateAcceptanceTestContent({
@@ -222,11 +245,6 @@ describe('message content acceptance tests', function () {
             it('verify add new 2FA Method should match our sample message', function () {
                 // Acceptance test: run with this set to `true` to regenerate sample.
                 const forceUpdateAcceptanceTestContent = false;
-                const messageContent = getVerify2faMethodMessageContent({
-                    accountId: 'exampleaccount3456',
-                    destination: '+1 555-555-5555',
-                    securityCode: '123456'
-                });
 
                 validateAcceptanceTestContent({
                     forceUpdateAcceptanceTestContent: forceUpdateAcceptanceTestContent,
