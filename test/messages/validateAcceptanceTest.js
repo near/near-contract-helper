@@ -1,17 +1,15 @@
-const path = require('path');
 const fs = require('fs');
 const { expect } = require('../chai');
 
 module.exports = function validateAcceptanceTestContent({
     forceUpdateOfExistingSample,
-    samplePathSegments,
+    filePathRelative,
     newMessageContent
 }) {
-    const relativePathDisplayStr = path.join(...samplePathSegments);
     if (forceUpdateOfExistingSample) {
-        console.warn('Updating sample message content for "Verify 2FA Method": ' + relativePathDisplayStr);
+        console.warn('Updating acceptance test message content: ' + filePathRelative);
         fs.writeFileSync(
-            path.resolve(__dirname, 'samples', ...samplePathSegments),
+            filePathRelative,
             newMessageContent,
             { encoding: 'UTF-8' }
         );
@@ -19,13 +17,13 @@ module.exports = function validateAcceptanceTestContent({
         let existingMessageContent;
         try {
             existingMessageContent = fs.readFileSync(
-                path.resolve(__dirname, 'samples', ...samplePathSegments),
+                filePathRelative,
                 { encoding: 'UTF-8' }
             );
         } catch (e) {
-            console.log(`initializing new sample file: ${relativePathDisplayStr}`);
+            console.log(`initializing new acceptance test file: ${filePathRelative}`);
             fs.writeFileSync(
-                path.resolve(__dirname, 'samples', ...samplePathSegments),
+                filePathRelative,
                 newMessageContent,
                 { encoding: 'UTF-8' }
             );
@@ -35,8 +33,8 @@ module.exports = function validateAcceptanceTestContent({
         expect(newMessageContent).equal(
             existingMessageContent,
             'If you have intentionally changed the message content and your changes look good, ' +
-            'set "forceUpdateOfExistingSample" to true and re-run this test to update the sample file: ' +
-            relativePathDisplayStr
+            'set "forceUpdateOfExistingSample" to true and re-run this test to update the acceptance test file: ' +
+            filePathRelative
         );
     }
 };
