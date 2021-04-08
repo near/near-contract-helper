@@ -4,12 +4,6 @@ const constants = require('../constants');
 
 const { SERVER_EVENTS } = constants;
 
-function extractValueFromHash(hash, key) {
-    const value = hash[key];
-    delete hash[key];
-
-    return value;
-}
 
 class TestAccountHelper {
     constructor({
@@ -67,7 +61,10 @@ class TestAccountHelper {
     }
 
     getSecurityCodeForAccount(accountId) {
-        return extractValueFromHash(this._securityCodesByAccountId, accountId);
+        const value = this._securityCodesByAccountId[accountId];
+        delete this._securityCodesByAccountId[accountId];
+
+        return value;
     }
 
     async getLatestBlockHeight() {
