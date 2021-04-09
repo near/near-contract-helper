@@ -93,7 +93,6 @@ const findAccountsByPublicKey = withPgClient(async (ctx) => {
         WHERE public_key = $1
             AND accounts.deleted_by_receipt_id IS NULL
             AND access_keys.deleted_by_receipt_id IS NULL
-            AND access_keys.last_update_block_height >= accounts.last_update_block_height
     `, [publicKey]);
     ctx.body = rows.map(({ account_id }) => account_id);
 });
