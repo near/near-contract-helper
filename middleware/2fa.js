@@ -1,14 +1,20 @@
 const nearAPI = require('near-api-js');
-const { sendSms } = require('../utils/sms');
-const { sendMail, get2faHtml } = require('../utils/email');
-const models = require('../models');
-const Sequelize = require('sequelize');
-const Op = Sequelize.Op;
+const escapeHtml = require('escape-html');
 const password = require('secure-random-password');
-const escape = require('escape-html');
+const Sequelize = require('sequelize');
+
+const constants = require('../constants');
+const models = require('../models');
+const emailHelper = require('../utils/email');
+const smsHelper = require('../utils/sms');
+
+const Op = Sequelize.Op;
+const { sendSms } = smsHelper;
+const { sendMail, get2faHtml } = emailHelper;
+const { SERVER_EVENTS, TWO_FACTOR_AUTH_KINDS } = constants;
 
 const SECURITY_CODE_DIGITS = 6;
-const twoFactorMethods = ['2fa-email', '2fa-phone'];
+const twoFactorMethods = Object.values(TWO_FACTOR_AUTH_KINDS);
 
 const MULTISIG_CONTRACT_HASHES = process.env.MULTISIG_CONTRACT_HASHES ? process.env.MULTISIG_CONTRACT_HASHES.split() : [
     // https://github.com/near/core-contracts/blob/fa3e2c6819ef790fdb1ec9eed6b4104cd13eb4b7/multisig/src/lib.rs
@@ -51,25 +57,30 @@ const formatArgs = (args) => {
 const formatAction = (receiver_id, { type, method_name, args, deposit, amount, public_key, permission }) => {
     switch (type) {
     case 'FunctionCall':
-        return escape(`Calling method: ${ method_name } in contract: ${ receiver_id } with amount ${ deposit ? fmtNear(deposit) : '0' } and with args ${formatArgs(args)}`);
+        return escapeHtml(`Calling method: ${ method_name } in contract: ${ receiver_id } with amount ${ deposit ? fmtNear(deposit) : '0' } and with args ${formatArgs(args)}`);
     case 'Transfer':
-        return escape(`Transferring ${ fmtNear(amount) } to: ${ receiver_id }`);
+        return escapeHtml(`Transferring ${ fmtNear(amount) } to: ${ receiver_id }`);
     case 'Stake':
-        return escape(`Staking: ${ fmtNear(amount) } to validator: ${ receiver_id }`);
+        return escapeHtml(`Staking: ${ fmtNear(amount) } to validator: ${ receiver_id }`);
     case 'AddKey':
         if (permission) {
             const { allowance, receiver_id, method_names } = permission;
             const methodsMessage = method_names && method_names.length > 0 ? `${method_names.join(', ')} methods` : 'any method';
-            return escape(`Adding key ${ public_key } limited to call ${methodsMessage} on ${receiver_id} and spend up to ${fmtNear(allowance)} on gas`);
+            return escapeHtml(`Adding key ${ public_key } limited to call ${methodsMessage} on ${receiver_id} and spend up to ${fmtNear(allowance)} on gas`);
         }
-        return escape(`Adding key ${ public_key } with FULL ACCESS to account`);
+        return escapeHtml(`Adding key ${ public_key } with FULL ACCESS to account`);
     case 'DeleteKey':
-        return escape(`Deleting key ${ public_key }`);
+        return escapeHtml(`Deleting key ${ public_key }`);
     }
 };
 
 const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId = '') => {
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
+
+    // Emit an event so that any listening test harnesses can use the security code without needing a full
+    // integration test with e.g. SMS, e-mail.
+    ctx.app.emit(SERVER_EVENTS.SECURITY_CODE, { accountId, requestId, securityCode }); // For test harness
+
     await twoFactorMethod.update({ securityCode, requestId });
     // get request data from chain
     let request;
@@ -83,7 +94,7 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
             ctx.throw(401, message);
         }
     }
-    method.detail = escape(method.detail);
+    method.detail = escapeHtml(method.detail);
     let subject = `Confirm 2FA for ${ accountId }`;
     let requestDetails = [`Verify ${method.detail} as the 2FA method for account ${ accountId }`];
     if (request) {
@@ -117,18 +128,23 @@ If you'd like to proceed, enter this security code: ${securityCode}
         accountId
     });
 
-    if (method.kind === '2fa-phone') {
-        await sendSms({
-            to: method.detail,
-            text,
-        });
-    } else if (method.kind === '2fa-email') {
+    if (method.kind === TWO_FACTOR_AUTH_KINDS.PHONE) {
+        await sendSms(
+            {
+                to: method.detail,
+                text,
+            },
+            (smsContent) => ctx.app.emit(SERVER_EVENTS.SENT_SMS, smsContent) // For test harness
+        );
+    } else if (method.kind === TWO_FACTOR_AUTH_KINDS.EMAIL) {
         await sendMail({
             to: method.detail,
             subject,
             text,
             html,
-        });
+        },
+        (emailContent) => ctx.app.emit(SERVER_EVENTS.SENT_EMAIL, emailContent) // For test harness
+        );
     }
 };
 
@@ -219,7 +235,7 @@ const initCode = async (ctx) => {
         return;
     }
     // client waits to deploy contract until code is verified
-    await sendCode(ctx, method, twoFactorMethod);
+    await sendCode(ctx, method, twoFactorMethod, -1, accountId);
     ctx.body = {
         message: '2fa initialized and code sent to verify method',
     };

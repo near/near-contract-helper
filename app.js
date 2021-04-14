@@ -5,6 +5,10 @@ const app = new Koa();
 const body = require('koa-json-body');
 const cors = require('@koa/cors');
 
+const constants = require('./constants');
+
+const { RECOVERY_METHOD_KINDS, SERVER_EVENTS } = constants;
+
 app.use(require('koa-logger')());
 app.use(body({ limit: '500kb', fallback: true }));
 app.use(cors({ credentials: true }));
@@ -119,7 +123,9 @@ const SECURITY_CODE_DIGITS = 6;
 const { sendSms } = require('./utils/sms');
 
 async function recoveryMethodsFor(account) {
-    if (!account) return [];
+    if (!account) {
+        return [];
+    }
 
     return (await account.getRecoveryMethods({
         attributes: ['createdAt', 'detail', 'kind', 'publicKey', 'securityCode']
@@ -148,7 +154,7 @@ async function withAccount(ctx, next) {
 }
 
 // TODO: Do we need extra validation in addition to DB constraint?
-const recoveryMethods = ['email', 'phone', 'phrase', 'ledger'];
+const recoveryMethods = Object.values(RECOVERY_METHOD_KINDS);
 
 async function checkRecoveryMethod(ctx, next) {
     const { kind } = ctx.request.body;
@@ -198,8 +204,8 @@ router.post(
     withPublicKey,
     async ctx => {
         const { accountId } = ctx.request.body;
-        const [ account ] = await models.Account.findOrCreate({ where: { accountId } });
-        await account.createRecoveryMethod({ kind: 'phrase', publicKey: ctx.publicKey });
+        const [account] = await models.Account.findOrCreate({ where: { accountId } });
+        await account.createRecoveryMethod({ kind: RECOVERY_METHOD_KINDS.PHRASE, publicKey: ctx.publicKey });
         ctx.body = await recoveryMethodsFor(account);
     }
 );
@@ -210,13 +216,13 @@ router.post(
     withPublicKey,
     async ctx => {
         const { accountId } = ctx.request.body;
-        const [ account ] = await models.Account.findOrCreate({ where: { accountId } });
-        await account.createRecoveryMethod({ kind: 'ledger', publicKey: ctx.publicKey });
+        const [account] = await models.Account.findOrCreate({ where: { accountId } });
+        await account.createRecoveryMethod({ kind: RECOVERY_METHOD_KINDS.LEDGER, publicKey: ctx.publicKey });
         ctx.body = await recoveryMethodsFor(account);
     }
 );
 
-const sendSecurityCode = async (securityCode, method, accountId, seedPhrase) => {
+const sendSecurityCode = async ({ ctx, securityCode, method, accountId, seedPhrase }) => {
     let text, html;
     if (seedPhrase) {
         const recoverUrl = getRecoveryUrl(accountId, seedPhrase);
@@ -226,13 +232,21 @@ const sendSecurityCode = async (securityCode, method, accountId, seedPhrase) => 
         text = `Your NEAR Wallet security code is:\n${securityCode}\nEnter this code to verify your device.`;
         html = getSecurityCodeEmail(accountId, securityCode);
     }
-    if (method.kind === 'phone') {
-        await sendSms({ to: method.detail, text});
-    } else if (method.kind === 'email') {
-        await sendMail({
-            to: method.detail, text, html,
-            subject: seedPhrase ? `Important: Near Wallet Recovery Email for ${accountId}` : `Your NEAR Wallet security code is: ${securityCode}`,
-        });
+    if (method.kind === RECOVERY_METHOD_KINDS.PHONE) {
+        await sendSms(
+            { to: method.detail, text},
+            (smsContent) => ctx.app.emit(SERVER_EVENTS.SENT_SMS, smsContent) // For test harness
+        );
+    } else if (method.kind === RECOVERY_METHOD_KINDS.EMAIL) {
+        await sendMail(
+            {
+                to: method.detail,
+                text,
+                html,
+                subject: seedPhrase ? `Important: Near Wallet Recovery Email for ${accountId}` : `Your NEAR Wallet security code is: ${securityCode}`,
+            },
+            (emailContent) => ctx.app.emit(SERVER_EVENTS.SENT_EMAIL, emailContent) // For test harness
+        );
     }
 };
 
@@ -260,8 +274,10 @@ const completeRecoveryInit = async ctx => {
     }
 
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
+    ctx.app.emit(SERVER_EVENTS.SECURITY_CODE, { accountId, securityCode }); // For test harness
+
     await recoveryMethod.update({ securityCode });
-    await sendSecurityCode(securityCode, method, accountId, seedPhrase);
+    await sendSecurityCode({ ctx, securityCode, method, accountId, seedPhrase });
 
     ctx.body = await recoveryMethodsFor(account);
 };
