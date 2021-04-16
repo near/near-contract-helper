@@ -4,6 +4,7 @@ const password = require('secure-random-password');
 const Sequelize = require('sequelize');
 
 const constants = require('../constants');
+const messageContentUtils2fa = require('./2faMessageContent');
 const models = require('../models');
 const emailHelper = require('../utils/email');
 const smsHelper = require('../utils/sms');
@@ -15,6 +16,12 @@ const { SERVER_EVENTS, TWO_FACTOR_AUTH_KINDS } = constants;
 
 const SECURITY_CODE_DIGITS = 6;
 const twoFactorMethods = Object.values(TWO_FACTOR_AUTH_KINDS);
+
+const {
+    getVerify2faMethodMessageContent,
+    getConfirmTransactionMessageContent,
+    getAddingFullAccessKeyMessageContent,
+} = messageContentUtils2fa;
 
 const MULTISIG_CONTRACT_HASHES = process.env.MULTISIG_CONTRACT_HASHES ? process.env.MULTISIG_CONTRACT_HASHES.split() : [
     // https://github.com/near/core-contracts/blob/fa3e2c6819ef790fdb1ec9eed6b4104cd13eb4b7/multisig/src/lib.rs
@@ -30,8 +37,6 @@ const MULTISIG_CONTRACT_HASHES = process.env.MULTISIG_CONTRACT_HASHES ? process.
 const CODE_EXPIRY = 30 * 60000;
 const GAS_2FA_CONFIRM = process.env.GAS_2FA_CONFIRM || '100000000000000';
 
-const fmtNear = (amount) => nearAPI.utils.format.formatNearAmount(amount, 4) + 'Ⓝ';
-
 // confirms a multisig request
 const confirmRequest = async (near, accountId, request_id) => {
     const account = await near.account(accountId);
@@ -39,39 +44,60 @@ const confirmRequest = async (near, accountId, request_id) => {
     return await account.functionCall(accountId, 'confirm', { request_id }, GAS_2FA_CONFIRM);
 };
 
-const hex = require('hexer');
-const formatArgs = (args) => {
-    const argsBuffer = Buffer.from(args, 'base64');
-    try {
-        const jsonString = argsBuffer.toString('utf-8');
-        const json = JSON.parse(jsonString);
-        if (json.amount) json.amount = fmtNear(json.amount);
-        if (json.deposit) json.deposit = fmtNear(json.deposit);
-        return JSON.stringify(json);
-    } catch(e) {
-        // Cannot parse JSON, do hex dump
-        return hex(argsBuffer);
+
+const sendMessageTo2faDestination = async ({
+    ctx,
+    deliveryOpts: { kind, destination },
+    contentData: { securityCode, publicKey, accountId, messageContent }
+}) => {
+    if (kind === TWO_FACTOR_AUTH_KINDS.PHONE) {
+        const { text } = messageContent;
+
+        await sendSms(
+            {
+                to: destination,
+                text,
+            },
+            (smsContent) => ctx.app.emit(SERVER_EVENTS.SENT_SMS, smsContent) // For test harness
+        );
+    } else if (kind === TWO_FACTOR_AUTH_KINDS.EMAIL) {
+        const { requestDetails, subject, text } = messageContent;
+
+        const html = get2faHtml(securityCode, requestDetails, {
+            public_key: publicKey,
+            accountId
+        });
+
+        await sendMail(
+            {
+                to: destination,
+                subject,
+                text,
+                html,
+            },
+            (emailContent) => ctx.app.emit(SERVER_EVENTS.SENT_EMAIL, emailContent) // For test harness
+        );
+    } else {
+        // FIXME: Should we throw an error if we get a request for an unsupported kind?
     }
 };
 
-const formatAction = (receiver_id, { type, method_name, args, deposit, amount, public_key, permission }) => {
-    switch (type) {
-    case 'FunctionCall':
-        return escapeHtml(`Calling method: ${ method_name } in contract: ${ receiver_id } with amount ${ deposit ? fmtNear(deposit) : '0' } and with args ${formatArgs(args)}`);
-    case 'Transfer':
-        return escapeHtml(`Transferring ${ fmtNear(amount) } to: ${ receiver_id }`);
-    case 'Stake':
-        return escapeHtml(`Staking: ${ fmtNear(amount) } to validator: ${ receiver_id }`);
-    case 'AddKey':
-        if (permission) {
-            const { allowance, receiver_id, method_names } = permission;
-            const methodsMessage = method_names && method_names.length > 0 ? `${method_names.join(', ')} methods` : 'any method';
-            return escapeHtml(`Adding key ${ public_key } limited to call ${methodsMessage} on ${receiver_id} and spend up to ${fmtNear(allowance)} on gas`);
-        }
-        return escapeHtml(`Adding key ${ public_key } with FULL ACCESS to account`);
-    case 'DeleteKey':
-        return escapeHtml(`Deleting key ${ public_key }`);
+const getRequestDataFromChain = async ({ requestId, ctx, accountId }) => {
+    let request;
+
+    // What if this throws? Why catch all failures to account.viewFunction() but not errors for this call?
+    const account = await ctx.near.account(accountId);
+
+    try {
+        request = await account.viewFunction(accountId, 'get_request', { request_id: parseInt(requestId) });
+    } catch (e) {
+        // Should this really be a generic catch()? This will fire due to e.g. network transport errors
+        const message = `could not find request id ${requestId} for account ${accountId}. ${e}`;
+        console.warn(message);
+        ctx.throw(401, message);
     }
+
+    return request;
 };
 
 const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId = '') => {
@@ -82,76 +108,76 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
     ctx.app.emit(SERVER_EVENTS.SECURITY_CODE, { accountId, requestId, securityCode }); // For test harness
 
     await twoFactorMethod.update({ securityCode, requestId });
-    // get request data from chain
-    let request;
-    if (requestId !== -1) {
-        const account = await ctx.near.account(accountId);
-        try {
-            request = await account.viewFunction(accountId, 'get_request', { request_id: parseInt(requestId) });
-        } catch (e) {
-            const message = `could not find request id ${requestId} for account ${accountId}. ${e}`;
-            console.warn(message);
-            ctx.throw(401, message);
-        }
-    }
-    method.detail = escapeHtml(method.detail);
-    let subject = `Confirm 2FA for ${ accountId }`;
-    let requestDetails = [`Verify ${method.detail} as the 2FA method for account ${ accountId }`];
-    if (request) {
-        const { receiver_id, actions } = request;
-        requestDetails = actions.map(a => formatAction(receiver_id, a));
-        subject = `Confirm Transaction from: ${ accountId }${ request ? ` to: ${ request.receiver_id }` : ''}`;
-    }
-    let text = `
-NEAR Wallet security code: ${securityCode}\n\n
-Important: By entering this code, you are authorizing the following transaction:\n\n
-${ requestDetails.join('\n') }
-`;
 
-    // check if adding full access key to account (AddKey with no permission)
-    const addingFakAction = request && request.actions.find((a) => a.type === 'AddKey' && !a.permission);
+    const deliveryOpts = {
+        kind: method.kind,
+        destination: escapeHtml(method.detail)
+    };
+
+
+    if (requestId === -1) {
+        // No requestId means this is a brand new 2fa verification, not transactions being approved
+        return sendMessageTo2faDestination({
+            ctx,
+            deliveryOpts,
+            contentData: {
+                accountId,
+                securityCode,
+                messageContent: getVerify2faMethodMessageContent({
+                    accountId,
+                    destination: deliveryOpts.destination,
+                    securityCode,
+                })
+            }
+        });
+    }
+
+    // Could be either confirming 'generic' transactions, or might be a request for adding full access key (special warning case)
+    const request = await getRequestDataFromChain({ requestId, ctx, accountId });
+    const addingFakAction = request && request.actions && request.actions.find((a) => a.type === 'AddKey' && !a.permission);
+
     if (addingFakAction && request.receiver_id === accountId) {
-        subject = 'Confirm Transaction - Warning Adding Full Access Key to Account: ' + accountId;
-        text = `
-WARNING: Entering the code below will authorize full access to your NEAR account: "${ accountId }". If you did not initiate this action, please DO NOT continue.
+        const publicKey = addingFakAction.public_key;
 
-This should only be done if you are adding a new seed phrase to your account. In all other cases, this is very dangerous.
+        // adding full access key to account (AddKey with no permission)
+        return sendMessageTo2faDestination({
+            ctx,
+            deliveryOpts,
+            contentData: {
+                accountId,
+                securityCode,
+                publicKey,
+                messageContent: getAddingFullAccessKeyMessageContent({
+                    accountId,
+                    securityCode,
+                    destination: deliveryOpts.destination,
+                    publicKey,
+                })
+            }
+        });
 
-The public key you are adding is: ${ addingFakAction.public_key }
-
-If you'd like to proceed, enter this security code: ${securityCode}
-`;
     }
 
-    const html = get2faHtml(securityCode, requestDetails.join('<br>'), {
-        public_key: addingFakAction && addingFakAction.public_key,
-        accountId
+    // confirming 'normal' transactions
+    return sendMessageTo2faDestination({
+        ctx,
+        deliveryOpts,
+        contentData: {
+            accountId,
+            securityCode,
+            messageContent: getConfirmTransactionMessageContent({
+                accountId,
+                request,
+                securityCode,
+            })
+        }
     });
-
-    if (method.kind === TWO_FACTOR_AUTH_KINDS.PHONE) {
-        await sendSms(
-            {
-                to: method.detail,
-                text,
-            },
-            (smsContent) => ctx.app.emit(SERVER_EVENTS.SENT_SMS, smsContent) // For test harness
-        );
-    } else if (method.kind === TWO_FACTOR_AUTH_KINDS.EMAIL) {
-        await sendMail({
-            to: method.detail,
-            subject,
-            text,
-            html,
-        },
-        (emailContent) => ctx.app.emit(SERVER_EVENTS.SENT_EMAIL, emailContent) // For test harness
-        );
-    }
 };
 
 /********************************
-Checking code_hash (is multisig deployed)
-********************************/
-const isContractDeployed = async(accountId) => {
+ Checking code_hash (is multisig deployed)
+ ********************************/
+const isContractDeployed = async (accountId) => {
     const keyStore = {
         async getKey() {
             return nearAPI.KeyPair.fromString('bs');
@@ -167,25 +193,27 @@ const isContractDeployed = async(accountId) => {
     return MULTISIG_CONTRACT_HASHES.includes(state.code_hash);
 };
 
-const getAccountAndMethod = async(ctx, accountId) => {
+const getAccountAndMethod = async (ctx, accountId) => {
     const [account] = await models.Account.findOrCreate({ where: { accountId } });
     if (!account) {
         console.warn(`account: ${accountId} should already exist when sending new code`);
         ctx.throw(401);
         return;
     }
-    let [twoFactorMethod] = await account.getRecoveryMethods({ where: {
-        kind: {
-            [Op.startsWith]: '2fa-'
-        },
-    }});
+    let [twoFactorMethod] = await account.getRecoveryMethods({
+        where: {
+            kind: {
+                [Op.startsWith]: '2fa-'
+            },
+        }
+    });
     return { account, twoFactorMethod };
 };
 
 /********************************
-@warn protect these routes using checkAccountOwnership middleware from app.js
-@warn Requires refactor
-********************************/
+ @warn protect these routes using checkAccountOwnership middleware from app.js
+ @warn Requires refactor
+ ********************************/
 // http post http://localhost:3000/2fa/getAccessKey accountId=mattlock
 // Call this to get the public key of the access key that contract-helper will be using to confirm multisig requests
 const getAccessKey = async (ctx) => {
@@ -216,6 +244,7 @@ const initCode = async (ctx) => {
         }
         await twoFactorMethod.update({
             kind: method.kind,
+            // FIXME: Should this be escaped?
             detail: method.detail,
             requestId: -1
         });
@@ -223,10 +252,12 @@ const initCode = async (ctx) => {
         twoFactorMethod = await account.createRecoveryMethod({ kind, detail, requestId: -1 });
     }
     // check if 2fa method matches existing recovery method
-    const [recoveryMethod] = await account.getRecoveryMethods({ where: {
-        kind: kind.split('2fa-')[1],
-        detail,
-    }});
+    const [recoveryMethod] = await account.getRecoveryMethods({
+        where: {
+            kind: kind.split('2fa-')[1],
+            detail,
+        }
+    });
     if (recoveryMethod) {
         // client should deploy contract
         ctx.body = {
@@ -264,12 +295,14 @@ const verifyCode = async (ctx) => {
         console.warn('invalid 2fa code provided');
         ctx.throw(401, 'invalid 2fa code provided');
     }
-    const [twoFactorMethod] = await account.getRecoveryMethods({ where: {
-        securityCode,
-        kind: {
-            [Op.startsWith]: '2fa-'
-        },
-    }});
+    const [twoFactorMethod] = await account.getRecoveryMethods({
+        where: {
+            securityCode,
+            kind: {
+                [Op.startsWith]: '2fa-'
+            },
+        }
+    });
     if (!twoFactorMethod) {
         console.warn(`${accountId} has no 2fa method for the provided security code`);
         ctx.throw(401, '2fa code not valid for request id');

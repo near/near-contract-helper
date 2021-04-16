@@ -1,0 +1,19 @@
+Text content for SMS and rich text incapable email clients:
+-----------------------------------
+
+NEAR Wallet security code: 123456
+
+Important: By entering this code, you are authorizing the following transaction:
+Verify +1 555-555-5555 as the 2FA method for account exampleaccount3456
+
+-----------------------------------
+
+Subject (included in email only):
+-----------------------------------                
+Confirm 2FA for exampleaccount3456
+-----------------------------------
+
+Request Details (included in email only):
+-----------------------------------
+Verify +1 555-555-5555 as the 2FA method for account exampleaccount3456
+-----------------------------------
