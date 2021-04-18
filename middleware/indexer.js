@@ -135,7 +135,7 @@ const findLikelyTokens = withPgClient(async (ctx) => {
         join action_receipt_actions using (receipt_id)
         where predecessor_account_id = $1
             and action_kind = 'FUNCTION_CALL'
-            and args->>'method_name' like 'ft_%'
+            and (args->>'method_name' like 'ft_%' or args->>'method_name' = 'storage_deposit')
     `;
 
     const { rows } = await client.query([mintedWithBridge, calledByUser].join(' union '), [accountId, BRIDGE_TOKEN_FACTORY_ACCOUNT_ID]);
