@@ -109,11 +109,13 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
 
     await twoFactorMethod.update({ securityCode, requestId });
 
+    // Safe: assumes anything other than SMS should be HTML escaped, and that args should be shortened for SMS
+    const isForSmsDelivery = method.kind === TWO_FACTOR_AUTH_KINDS.PHONE;
+
     const deliveryOpts = {
         kind: method.kind,
         destination: escapeHtml(method.detail)
     };
-
 
     if (requestId === -1) {
         // No requestId means this is a brand new 2fa verification, not transactions being approved
@@ -150,6 +152,7 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
                 messageContent: getAddingFullAccessKeyMessageContent({
                     accountId,
                     publicKey,
+                    isForSmsDelivery,
                     request,
                     securityCode,
                 })
@@ -169,6 +172,7 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
                 accountId,
                 request,
                 securityCode,
+                isForSmsDelivery
             })
         }
     });
