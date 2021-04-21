@@ -151,10 +151,10 @@ const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId 
                 publicKey,
                 messageContent: getAddingFullAccessKeyMessageContent({
                     accountId,
-                    securityCode,
-                    destination: deliveryOpts.destination,
                     publicKey,
-                    isForSmsDelivery
+                    isForSmsDelivery,
+                    request,
+                    securityCode,
                 })
             }
         });
