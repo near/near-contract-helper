@@ -2,40 +2,71 @@ const hex = require('hexer');
 const nearAPI = require('near-api-js');
 const escapeHtml = require('escape-html');
 
+const TRUNCATE_ARGUMENTS_LENGTH = 247;
+
 const fmtNear = (amount) => nearAPI.utils.format.formatNearAmount(amount, 4) + 'Ⓝ';
 
-const formatArgs = (args) => {
+const formatArgs = (args, isForSmsDelivery = false) => {
+    let output = '';
+
     const argsBuffer = Buffer.from(args, 'base64');
     try {
         const jsonString = argsBuffer.toString('utf-8');
-        const json = JSON.parse(jsonString);
-        if (json.amount) json.amount = fmtNear(json.amount);
-        if (json.deposit) json.deposit = fmtNear(json.deposit);
-        return JSON.stringify(json);
-    } catch(e) {
+        const parsed = JSON.parse(jsonString);
+
+        // Composing new obj in specific order so `amount` and `deposit` will likely be in the first 250chars
+        const { amount, deposit, ...json } = parsed;
+
+        const formattedNear = {
+            ...Object.hasOwnProperty.call(parsed, 'amount') && { amount: fmtNear(amount) },
+            ...Object.hasOwnProperty.call(parsed, 'deposit') && { deposit: fmtNear(deposit) },
+        };
+
+        output = JSON.stringify({
+            ...formattedNear,
+            ...json
+        });
+    } catch (e) {
         // Cannot parse JSON, do hex dump
-        return hex(argsBuffer);
+        output = hex(argsBuffer);
     }
+
+    if (isForSmsDelivery && output.length >= TRUNCATE_ARGUMENTS_LENGTH) {
+        // Twilio SMS limits total message size to 1600chars...make best effort to keep total size small enough
+        output = output.slice(0, TRUNCATE_ARGUMENTS_LENGTH) + '...';
+    }
+
+    return output;
 };
 
-const formatAction = (receiver_id, { type, method_name, args, deposit, amount, public_key, permission }) => {
+const formatAction = (receiver_id, { type, method_name, args, deposit, amount, public_key, permission }, isForSmsDelivery = false) => {
+    let output;
+
     switch (type) {
     case 'FunctionCall':
-        return escapeHtml(`Calling method: ${ method_name } in contract: ${ receiver_id } with amount ${ deposit ? fmtNear(deposit) : '0' } and with args ${formatArgs(args)}`);
+        output = `Calling method: ${ method_name } in contract: ${ receiver_id } with amount ${ deposit ? fmtNear(deposit) : '0' } and with args ${formatArgs(args, isForSmsDelivery)}`;
+        break;
     case 'Transfer':
-        return escapeHtml(`Transferring ${ fmtNear(amount) } to: ${ receiver_id }`);
+        output =  `Transferring ${ fmtNear(amount) } to: ${ receiver_id }`;
+        break;
     case 'Stake':
-        return escapeHtml(`Staking: ${ fmtNear(amount) } to validator: ${ receiver_id }`);
+        output =  `Staking: ${ fmtNear(amount) } to validator: ${ receiver_id }`;
+        break;
     case 'AddKey':
         if (permission) {
             const { allowance, receiver_id, method_names } = permission;
             const methodsMessage = method_names && method_names.length > 0 ? `${method_names.join(', ')} methods` : 'any method';
-            return escapeHtml(`Adding key ${ public_key } limited to call ${methodsMessage} on ${receiver_id} and spend up to ${fmtNear(allowance)} on gas`);
+            output = `Adding key ${ public_key } limited to call ${methodsMessage} on ${receiver_id} and spend up to ${fmtNear(allowance)} on gas`;
+        } else {
+            output =  `Adding key ${ public_key } with FULL ACCESS to account`;
         }
-        return escapeHtml(`Adding key ${ public_key } with FULL ACCESS to account`);
+        break;
     case 'DeleteKey':
-        return escapeHtml(`Deleting key ${ public_key }`);
+        output = `Deleting key ${ public_key }`;
+        break;
     }
+
+    return isForSmsDelivery ? output :  escapeHtml(output);
 };
 
 function getSecurityCodeText(securityCode, requestDetails) {
@@ -57,10 +88,10 @@ function getVerify2faMethodMessageContent({ accountId, destination, securityCode
     };
 }
 
-function getAddingFullAccessKeyMessageContent({ accountId, publicKey, request, securityCode }) {
+function getAddingFullAccessKeyMessageContent({ accountId, publicKey, request, securityCode, isForSmsDelivery}) {
     const { receiver_id, actions } = request;
 
-    const requestDetails = actions.map(action => formatAction( receiver_id, action));
+    const requestDetails = actions.map(action => formatAction(receiver_id, action, isForSmsDelivery));
 
     const subject = 'Confirm Transaction WARNING - Adding FULL ACCESS KEY to Account: ' + accountId;
     const text = `
@@ -79,10 +110,10 @@ If you'd like to proceed, enter this security code: ${securityCode}
     };
 }
 
-function getConfirmTransactionMessageContent({ accountId, request, securityCode }) {
+function getConfirmTransactionMessageContent({ accountId, request, securityCode, isForSmsDelivery }) {
     const { receiver_id, actions } = request;
 
-    const requestDetails = actions.map(action => formatAction(receiver_id, action));
+    const requestDetails = actions.map(action => formatAction(receiver_id, action, isForSmsDelivery));
 
     return {
         subject: `Confirm Transaction from: ${accountId} to: ${receiver_id}`,
@@ -95,5 +126,7 @@ function getConfirmTransactionMessageContent({ accountId, request, securityCode 
 module.exports = {
     getVerify2faMethodMessageContent,
     getConfirmTransactionMessageContent,
-    getAddingFullAccessKeyMessageContent
+    getAddingFullAccessKeyMessageContent,
+    formatArgs,
+    formatAction
 };

@@ -72,7 +72,7 @@ const get2faHtml = (securityCode, requestDetails, fakConfig = {}) => {
         });
     } else {
         content.push({
-            html: requestDetails,
+            html: requestDetails.join('<br>\n'),
         });
     }
 
