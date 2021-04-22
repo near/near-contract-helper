@@ -1,0 +1,22 @@
+Text content for SMS and rich text incapable email clients:
+-----------------------------------
+
+WARNING: Entering the code below will authorize full access to your NEAR account: "exampleaccount3456". If you did not initiate this action, please DO NOT continue.
+
+This should only be done if you are adding a new seed phrase to your account. In all other cases, this is very dangerous.
+
+The public key you are adding is: fakePublicKeyIsTheBestPublicKey
+
+If you'd like to proceed, enter this security code: 123456
+
+-----------------------------------
+
+Subject (included in email only):
+-----------------------------------                
+Confirm Transaction WARNING - Adding FULL ACCESS KEY to Account: exampleaccount3456
+-----------------------------------
+
+Request Details (included in email only):
+-----------------------------------
+Adding key fakePublicKeyIsTheBestPublicKey with FULL ACCESS to account
+-----------------------------------

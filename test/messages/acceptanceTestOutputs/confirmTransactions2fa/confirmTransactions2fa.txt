@@ -1,0 +1,31 @@
+Text content for SMS and rich text incapable email clients:
+-----------------------------------
+
+NEAR Wallet security code: 123456
+
+Important: By entering this code, you are authorizing the following transactions:
+Calling method: DoAThingWithShortJSONArgs in contract: testreceiveraccount with amount 100,000Ⓝ and with args {&quot;amount&quot;:&quot;1,000Ⓝ&quot;,&quot;deposit&quot;:&quot;100,000Ⓝ&quot;,&quot;someArg&quot;:&quot;shortArg&quot;}
+Calling method: DoAThingWithLongJSONArgs in contract: testreceiveraccount with amount 18,000,000Ⓝ and with args {&quot;amount&quot;:&quot;110,000Ⓝ&quot;,&quot;deposit&quot;:&quot;103,000Ⓝ&quot;,&quot;someArg&quot;:&quot;longestArgsAreTheBestArgs&quot;,&quot;someArg2&quot;:&quot;longestArgsAreTheBestArgs&quot;,&quot;someArg3&quot;:&quot;longestArgsAreTheBestArgs&quot;,&quot;someArg4&quot;:&quot;longestArgsAreTheBestArgs&quot;,&quot;someArg5&quot;:&quot;longestArgsAreTheBestArgs&quot;,&quot;someArg6&quot;:&quot;longestArgsAreTheBestArgs&quot;}
+Transferring 10.5Ⓝ to: testreceiveraccount
+Staking: 1.5Ⓝ to validator: testreceiveraccount
+Deleting key fakePublicKeyIsTheBestPublicKey
+Adding key fakePublicKeyIsTheBestPublicKey limited to call doSomething, doAnotherThing methods on an-account-id and spend up to 0Ⓝ on gas
+Adding key fakePublicKeyIsTheBestPublicKey limited to call any method on an-account-id and spend up to 0Ⓝ on gas
+
+-----------------------------------
+
+Subject (included in email only):
+-----------------------------------                
+Confirm Transaction from: exampleaccount3456 to: testreceiveraccount
+-----------------------------------
+
+Request Details (included in email only):
+-----------------------------------
+Calling method: DoAThingWithShortJSONArgs in contract: testreceiveraccount with amount 100,000Ⓝ and with args {&quot;amount&quot;:&quot;1,000Ⓝ&quot;,&quot;deposit&quot;:&quot;100,000Ⓝ&quot;,&quot;someArg&quot;:&quot;shortArg&quot;}
+Calling method: DoAThingWithLongJSONArgs in contract: testreceiveraccount with amount 18,000,000Ⓝ and with args {&quot;amount&quot;:&quot;110,000Ⓝ&quot;,&quot;deposit&quot;:&quot;103,000Ⓝ&quot;,&quot;someArg&quot;:&quot;longestArgsAreTheBestArgs&quot;,&quot;someArg2&quot;:&quot;longestArgsAreTheBestArgs&quot;,&quot;someArg3&quot;:&quot;longestArgsAreTheBestArgs&quot;,&quot;someArg4&quot;:&quot;longestArgsAreTheBestArgs&quot;,&quot;someArg5&quot;:&quot;longestArgsAreTheBestArgs&quot;,&quot;someArg6&quot;:&quot;longestArgsAreTheBestArgs&quot;}
+Transferring 10.5Ⓝ to: testreceiveraccount
+Staking: 1.5Ⓝ to validator: testreceiveraccount
+Deleting key fakePublicKeyIsTheBestPublicKey
+Adding key fakePublicKeyIsTheBestPublicKey limited to call doSomething, doAnotherThing methods on an-account-id and spend up to 0Ⓝ on gas
+Adding key fakePublicKeyIsTheBestPublicKey limited to call any method on an-account-id and spend up to 0Ⓝ on gas
+-----------------------------------
