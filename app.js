@@ -6,6 +6,7 @@ const body = require('koa-json-body');
 const cors = require('@koa/cors');
 
 const constants = require('./constants');
+const { validateRecaptchaCode } = require('./recaptcha');
 
 const { RECOVERY_METHOD_KINDS, SERVER_EVENTS } = constants;
 
@@ -13,7 +14,9 @@ app.use(require('koa-logger')());
 app.use(body({ limit: '500kb', fallback: true }));
 app.use(cors({ credentials: true }));
 
-let reportException = () => {};
+let reportException = () => {
+};
+
 const SENTRY_DSN = process.env.SENTRY_DSN;
 if (SENTRY_DSN && !module.parent) {
     const { requestHandler, tracingMiddleware: tracingMiddleWare, captureException } = require('./middleware/sentry');
@@ -23,10 +26,10 @@ if (SENTRY_DSN && !module.parent) {
 }
 
 // Middleware to passthrough HTTP errors from node
-app.use(async function(ctx, next) {
+app.use(async function (ctx, next) {
     try {
         await next();
-    } catch(e) {
+    } catch (e) {
         reportException(e);
 
         if (e.response) {
@@ -61,8 +64,8 @@ const {
 app.use(withNear);
 
 /********************************
-2fa routes
-********************************/
+ 2fa routes
+ ********************************/
 const {
     getAccessKey,
     initCode,
@@ -173,10 +176,7 @@ router.post(
     withPublicKey,
     async ctx => {
         const { kind, publicKey } = ctx.request.body;
-        const [recoveryMethod] = await ctx.account.getRecoveryMethods({ where: {
-            kind: kind,
-            publicKey: publicKey,
-        }});
+        const [recoveryMethod] = await ctx.account.getRecoveryMethods({ where: { kind: kind, publicKey: publicKey, } });
         await recoveryMethod.destroy();
         ctx.body = await recoveryMethodsFor(ctx.account);
     }
@@ -227,14 +227,14 @@ const sendSecurityCode = async ({ ctx, securityCode, method, accountId, seedPhra
     let html, subject, text;
     if (seedPhrase) {
         const recoverUrl = getRecoveryUrl(accountId, seedPhrase);
-        ({ html, subject, text} = getNewAccountMessageContent({ accountId, recoverUrl, securityCode }));
+        ({ html, subject, text } = getNewAccountMessageContent({ accountId, recoverUrl, securityCode }));
     } else {
         ({ html, subject, text } = getSecurityCodeMessageContent({ accountId, securityCode }));
     }
 
     if (method.kind === RECOVERY_METHOD_KINDS.PHONE) {
         await sendSms(
-            { to: method.detail, text},
+            { to: method.detail, text },
             (smsContent) => ctx.app.emit(SERVER_EVENTS.SENT_SMS, smsContent) // For test harness
         );
     } else if (method.kind === RECOVERY_METHOD_KINDS.EMAIL) {
@@ -259,11 +259,13 @@ const completeRecoveryInit = async ctx => {
         ({ publicKey } = parseSeedPhrase(seedPhrase));
     }
 
-    let [recoveryMethod] = await account.getRecoveryMethods({ where: {
-        kind: method.kind,
-        detail: method.detail,
-        publicKey
-    }});
+    let [recoveryMethod] = await account.getRecoveryMethods({
+        where: {
+            kind: method.kind,
+            detail: method.detail,
+            publicKey
+        }
+    });
 
     if (!recoveryMethod) {
         recoveryMethod = await account.createRecoveryMethod({
@@ -305,11 +307,13 @@ const completeRecoveryValidation = ({ isNew } = {}) => async ctx => {
         ctx.throw(401, 'account does not exist');
     }
 
-    const [recoveryMethod] = await account.getRecoveryMethods({ where: {
-        kind: method.kind,
-        detail: method.detail,
-        securityCode: securityCode
-    }});
+    const [recoveryMethod] = await account.getRecoveryMethods({
+        where: {
+            kind: method.kind,
+            detail: method.detail,
+            securityCode: securityCode
+        }
+    });
 
     if (!recoveryMethod) {
         ctx.throw(401, 'recoveryMethod does not exist');
@@ -346,7 +350,7 @@ app
 
 if (!module.parent) {
     if (SENTRY_DSN) {
-        const { setupErrorHandler} = require('./middleware/sentry');
+        const { setupErrorHandler } = require('./middleware/sentry');
         setupErrorHandler(app, SENTRY_DSN);
     }
 
