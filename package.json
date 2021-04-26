@@ -38,6 +38,7 @@
     "pg": "^8.6.0",
     "secure-random-password": "^0.2.1",
     "sequelize": "^6.6.2",
+    "superagent": "^6.1.0",
     "tweetnacl": "^1.0.3",
     "twilio": "^3.60.0"
   },
