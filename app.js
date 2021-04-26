@@ -87,7 +87,7 @@ router.post('/account', ratelimit({
 }), async ctx => {
     if (!creatorKeyJson) {
         console.warn('ACCOUNT_CREATOR_KEY is not set up, cannot create accounts.');
-        ctx.throw(404);
+        ctx.throw(500, 'Service misconfigured; account creation is not available.');
     }
 
     const { newAccountId, newAccountPublicKey } = ctx.request.body;
