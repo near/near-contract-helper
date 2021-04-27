@@ -127,6 +127,18 @@ router.post('/fundedAccount', ratelimit({
         recaptchaCode,
     } = ctx.request.body;
 
+    if(!newAccountId) {
+        ctx.throw(400, 'newAccountId is required');
+    }
+
+    if(!newAccountPublicKey) {
+        ctx.throw(400, 'newAccountPublicKey is required');
+    }
+
+    if(!recaptchaCode) {
+        ctx.throw(400, 'recaptchaCode is required');
+    }
+
     if (newAccountId.includes('dzarezenko')) {
         ctx.throw(403);
     }
