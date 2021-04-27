@@ -139,10 +139,6 @@ router.post('/fundedAccount', ratelimit({
         ctx.throw(400, 'recaptchaCode is required');
     }
 
-    if (newAccountId.includes('dzarezenko')) {
-        ctx.throw(403);
-    }
-
     const { success, error } = await recaptchaValidator.validateRecaptchaCode(recaptchaCode, ctx.ip);
 
     if (!success) {
