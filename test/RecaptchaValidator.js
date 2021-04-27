@@ -114,32 +114,27 @@ describe('RecaptchaValidator', function () {
             });
         });
 
-        describe('should fallback to statusCode 500 with appropriate message when the service is missing a valid secret', function () {
-            beforeEach(function () {
-                nock(GOOGLE_RECAPTCHA_SERVICE_HOST)
-                    .post(GOOGLE_RECAPTCHA_SERVICE_PATH)
-                    .reply(200, () => {
-                        return { success: false, 'error-codes': ['unknown-error-code'] };
-                    })
-                    .persist(true); // Ensure the route persists across internal superagent retries
-            });
+        it('should return 500 with a generic message when `success` is false but `error-codes` contains unknown code', async function () {
+            nock(GOOGLE_RECAPTCHA_SERVICE_HOST)
+                .post(GOOGLE_RECAPTCHA_SERVICE_PATH)
+                .reply(200, () => {
+                    return { success: false, 'error-codes': ['unknown-error-code'] };
+                })
+                .persist(true); // Ensure the route persists across internal superagent retries
 
-            it('should return 500 with a generic message when `success` is false but `error-codes` is unknown', async function () {
-                const instance = new RecaptchaValidator({ RECAPTCHA_SECRET: testSecret });
+            const instance = new RecaptchaValidator({ RECAPTCHA_SECRET: testSecret });
 
-                const {
-                    success,
-                    error: {
-                        statusCode,
-                        message
-                    }
-                } = await instance.validateRecaptchaCode(testCode, testRemoteIp);
+            const {
+                success,
+                error: {
+                    statusCode,
+                    message
+                }
+            } = await instance.validateRecaptchaCode(testCode, testRemoteIp);
 
-                expect(success).equal(false);
-                expect(statusCode).equal(500);
-                expect(message).equal(ERROR_MESSAGES.INTERNAL_ERROR_ENCOUNTERED);
-            });
+            expect(success).equal(false);
+            expect(statusCode).equal(500);
+            expect(message).equal(ERROR_MESSAGES.INTERNAL_ERROR_ENCOUNTERED);
         });
-
     });
 });
