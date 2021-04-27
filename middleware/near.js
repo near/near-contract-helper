@@ -87,7 +87,7 @@ const fundedCreatorKeyJson = (() => {
     try {
         return JSON.parse(process.env.FUNDED_ACCOUNT_CREATOR_KEY);
     } catch (e) {
-        console.warn(`Funded account creation not available.\nError parsing FUNDED_ACCOUNT_CREATROR_KEY='${process.env.FUNDED_ACCOUNT_CREATOR_KEY}':`, e);
+        console.warn(`Funded account creation not available.\nError parsing FUNDED_ACCOUNT_CREATOR_KEY='${process.env.FUNDED_ACCOUNT_CREATOR_KEY}':`, e);
         return null;
     }
 })();
