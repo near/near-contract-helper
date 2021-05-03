@@ -13,7 +13,9 @@ app.use(require('koa-logger')());
 app.use(body({ limit: '500kb', fallback: true }));
 app.use(cors({ credentials: true }));
 
-let reportException = () => {};
+let reportException = () => {
+};
+
 const SENTRY_DSN = process.env.SENTRY_DSN;
 if (SENTRY_DSN && !module.parent) {
     const { requestHandler, tracingMiddleware: tracingMiddleWare, captureException } = require('./middleware/sentry');
@@ -23,10 +25,10 @@ if (SENTRY_DSN && !module.parent) {
 }
 
 // Middleware to passthrough HTTP errors from node
-app.use(async function(ctx, next) {
+app.use(async function (ctx, next) {
     try {
         await next();
-    } catch(e) {
+    } catch (e) {
         reportException(e);
 
         if (e.response) {
@@ -52,7 +54,6 @@ const Router = require('koa-router');
 const router = new Router();
 
 const {
-    creatorKeyJson,
     withNear,
     checkAccountOwnership,
     checkAccountDoesNotExist,
@@ -61,8 +62,8 @@ const {
 app.use(withNear);
 
 /********************************
-2fa routes
-********************************/
+ 2fa routes
+ ********************************/
 const {
     getAccessKey,
     initCode,
@@ -74,31 +75,20 @@ router.post('/2fa/init', checkAccountOwnership, initCode);
 router.post('/2fa/send', checkAccountOwnership, sendNewCode);
 router.post('/2fa/verify', checkAccountOwnership, verifyCode);
 
-const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT;
+
 
 const ratelimit = require('koa-ratelimit');
-const ratelimitDb = new Map();
-router.post('/account', ratelimit({
+const { createAccount, createFundedAccount } = require('./middleware/accountCreation');
+const accountCreateRatelimitMiddleware = ratelimit({
     driver: 'memory',
-    db: ratelimitDb,
+    db: new Map(),
     duration: 15 * 60000,
     max: 10,
     whitelist: () => process.env.NODE_ENV === 'test'
-}), async ctx => {
-    if (!creatorKeyJson) {
-        console.warn('ACCOUNT_CREATOR_KEY is not set up, cannot create accounts.');
-        ctx.throw(404);
-    }
-
-    const { newAccountId, newAccountPublicKey } = ctx.request.body;
-
-    if (newAccountId.includes('dzarezenko')) {
-        ctx.throw(403);
-    }
-
-    const masterAccount = await ctx.near.account(creatorKeyJson.account_id);
-    ctx.body = await masterAccount.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT);
 });
+
+router.post('/account', accountCreateRatelimitMiddleware, createAccount);
+router.post('/fundedAccount', accountCreateRatelimitMiddleware, createFundedAccount);
 
 const { signURL } = require('./middleware/moonpay');
 router.get('/moonpay/signURL', signURL);
@@ -173,10 +163,7 @@ router.post(
     withPublicKey,
     async ctx => {
         const { kind, publicKey } = ctx.request.body;
-        const [recoveryMethod] = await ctx.account.getRecoveryMethods({ where: {
-            kind: kind,
-            publicKey: publicKey,
-        }});
+        const [recoveryMethod] = await ctx.account.getRecoveryMethods({ where: { kind: kind, publicKey: publicKey, } });
         await recoveryMethod.destroy();
         ctx.body = await recoveryMethodsFor(ctx.account);
     }
@@ -227,14 +214,14 @@ const sendSecurityCode = async ({ ctx, securityCode, method, accountId, seedPhra
     let html, subject, text;
     if (seedPhrase) {
         const recoverUrl = getRecoveryUrl(accountId, seedPhrase);
-        ({ html, subject, text} = getNewAccountMessageContent({ accountId, recoverUrl, securityCode }));
+        ({ html, subject, text } = getNewAccountMessageContent({ accountId, recoverUrl, securityCode }));
     } else {
         ({ html, subject, text } = getSecurityCodeMessageContent({ accountId, securityCode }));
     }
 
     if (method.kind === RECOVERY_METHOD_KINDS.PHONE) {
         await sendSms(
-            { to: method.detail, text},
+            { to: method.detail, text },
             (smsContent) => ctx.app.emit(SERVER_EVENTS.SENT_SMS, smsContent) // For test harness
         );
     } else if (method.kind === RECOVERY_METHOD_KINDS.EMAIL) {
@@ -259,11 +246,13 @@ const completeRecoveryInit = async ctx => {
         ({ publicKey } = parseSeedPhrase(seedPhrase));
     }
 
-    let [recoveryMethod] = await account.getRecoveryMethods({ where: {
-        kind: method.kind,
-        detail: method.detail,
-        publicKey
-    }});
+    let [recoveryMethod] = await account.getRecoveryMethods({
+        where: {
+            kind: method.kind,
+            detail: method.detail,
+            publicKey
+        }
+    });
 
     if (!recoveryMethod) {
         recoveryMethod = await account.createRecoveryMethod({
@@ -305,11 +294,13 @@ const completeRecoveryValidation = ({ isNew } = {}) => async ctx => {
         ctx.throw(401, 'account does not exist');
     }
 
-    const [recoveryMethod] = await account.getRecoveryMethods({ where: {
-        kind: method.kind,
-        detail: method.detail,
-        securityCode: securityCode
-    }});
+    const [recoveryMethod] = await account.getRecoveryMethods({
+        where: {
+            kind: method.kind,
+            detail: method.detail,
+            securityCode: securityCode
+        }
+    });
 
     if (!recoveryMethod) {
         ctx.throw(401, 'recoveryMethod does not exist');
@@ -346,7 +337,7 @@ app
 
 if (!module.parent) {
     if (SENTRY_DSN) {
-        const { setupErrorHandler} = require('./middleware/sentry');
+        const { setupErrorHandler } = require('./middleware/sentry');
         setupErrorHandler(app, SENTRY_DSN);
     }
 

@@ -83,12 +83,27 @@ const creatorKeyJson = (() => {
     }
 })();
 
+const fundedCreatorKeyJson = (() => {
+    try {
+        return JSON.parse(process.env.FUNDED_ACCOUNT_CREATOR_KEY);
+    } catch (e) {
+        console.warn(`Funded account creation not available.\nError parsing FUNDED_ACCOUNT_CREATOR_KEY='${process.env.FUNDED_ACCOUNT_CREATOR_KEY}':`, e);
+        return null;
+    }
+})();
+
 const DETERM_KEY_SEED = process.env.DETERM_KEY_SEED || creatorKeyJson.private_key;
 
 const keyStore = {
     async getKey(networkId, accountId) {
+        // Standard account (un-funded) creation using the master creator account directly
         if (creatorKeyJson && accountId == creatorKeyJson.account_id) {
             return nearAPI.KeyPair.fromString(creatorKeyJson.secret_key || creatorKeyJson.private_key);
+        }
+
+        // To create new accounts funded from a source account, by way of `near.create_account` function call
+        if(fundedCreatorKeyJson && accountId === fundedCreatorKeyJson.account_id) {
+            return nearAPI.KeyPair.fromString(fundedCreatorKeyJson.secret_key || fundedCreatorKeyJson.private_key);
         }
 
         // return 2FA confirm key for account
@@ -115,6 +130,7 @@ const withNear = async (ctx, next) => {
 module.exports = {
     parseSeedPhrase: require('near-seed-phrase').parseSeedPhrase,
     creatorKeyJson,
+    fundedCreatorKeyJson,
     withNear,
     checkAccountOwnership,
     checkAccountDoesNotExist,

@@ -38,6 +38,7 @@
     "pg": "^8.6.0",
     "secure-random-password": "^0.2.1",
     "sequelize": "^6.6.2",
+    "superagent": "^6.1.0",
     "tweetnacl": "^1.0.3",
     "twilio": "^3.60.0"
   },
@@ -51,6 +52,8 @@
     "dotenv": "^8.2.0",
     "eslint": "^7.24.0",
     "mocha": "^8.3.2",
+    "nock": "^13.0.11",
+    "nyc": "^15.1.0",
     "sequelize-cli": "^6.2.0",
     "sinon": "^10.0.0",
     "sinon-chai": "^3.6.0",
