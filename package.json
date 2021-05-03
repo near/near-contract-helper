@@ -22,7 +22,7 @@
   "homepage": "https://github.com/nearprotocol/near-contract-helper#readme",
   "dependencies": {
     "@koa/cors": "^3.0.0",
-    "@sentry/node": "^6.2.5",
+    "@sentry/node": "^6.3.5",
     "@sentry/tracing": "^6.2.3",
     "bs58": "^4.0.1",
     "escape-html": "^1.0.3",
