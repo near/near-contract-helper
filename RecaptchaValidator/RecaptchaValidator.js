@@ -72,10 +72,12 @@ class RecaptchaValidator {
             errorCodes.push(ERROR_CODES.TRANSPORT_ERROR);
         }
 
+        // Although `error-codes` is an array, currently, all possible values are mutually exclusive; use the first elem
+        const errorCode = errorCodes && errorCodes[0];
         return {
             success,
-            // Although `error-codes` is an array, currently, all possible values are mutually exclusive; use the first elem
-            error: !success && getResponseFromErrorCode(errorCodes[0])
+            error: errorCode && getResponseFromErrorCode(errorCode),
+            code: errorCode
         };
     }
 }
