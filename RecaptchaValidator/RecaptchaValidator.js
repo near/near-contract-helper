@@ -61,7 +61,7 @@ class RecaptchaValidator {
             ({ body: { success, 'error-codes': errorCodes = [] } } = await this.request
                 .post(GOOGLE_RECAPTCHA_SERVICE_URL)
                 .retry(3) // Basic retry to handle truly transient issues verifying
-                .type('json')
+                .type('form')
                 .send({
                     secret: this.RECAPTCHA_SECRET,
                     response: recaptchaCode,
