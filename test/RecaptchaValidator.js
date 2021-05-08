@@ -66,11 +66,11 @@ describe('RecaptchaValidator', function () {
             expect(stubs.retry).calledOnceWith(3);
         });
 
-        it('should configure superagent to post JSON', async function () {
+        it('should configure superagent to post as multipart form data', async function () {
             const { instance, stubs } = getRecaptchaValidatorWithStubs();
             await instance.validateRecaptchaCode(testCode, testRemoteIp);
 
-            expect(stubs.type).calledOnceWith('json');
+            expect(stubs.type).calledOnceWith('form');
         });
     });
 
