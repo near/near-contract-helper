@@ -9,6 +9,12 @@ const {
 
 const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT;
 
+const setJSONErrorResponse = ({ ctx, statusCode, body }) => {
+    ctx.type = 'json';
+    ctx.status = statusCode;
+    ctx.body = body;
+};
+
 const createAccount = async (ctx) => {
     if (!creatorKeyJson) {
         console.warn('ACCOUNT_CREATOR_KEY is not set up, cannot create accounts.');
@@ -27,7 +33,7 @@ const createAccount = async (ctx) => {
 
 // TODO: Adjust gas to correct amounts
 const MAX_GAS_FOR_ACCOUNT_CREATE = process.env.MAX_GAS_FOR_ACCOUNT_CREATE || '100000000000000';
-const FUNDED_ACCOUNT_BALANCE = process.env.FUNDED_ACCOUNT_BALANCE || nearAPI.utils.format.parseNearAmount('4');
+const FUNDED_ACCOUNT_BALANCE = process.env.FUNDED_ACCOUNT_BALANCE || nearAPI.utils.format.parseNearAmount('500');
 const FUNDED_NEW_ACCOUNT_CONTRACT_NAME = process.env.FUNDED_NEW_ACCOUNT_CONTRACT_NAME || 'near';
 const createFundedAccount = async (ctx) => {
     if (!fundedCreatorKeyJson) {
@@ -42,37 +48,73 @@ const createFundedAccount = async (ctx) => {
     } = ctx.request.body;
 
     if (!newAccountId) {
-        ctx.throw(400, 'newAccountId is required');
+        setJSONErrorResponse({
+            ctx,
+            statusCode: 400,
+            body: { success: false, code: 'newAccountIdRequired' }
+        });
+        return;
     }
 
     if (!newAccountPublicKey) {
-        ctx.throw(400, 'newAccountPublicKey is required');
+        setJSONErrorResponse({
+            ctx,
+            statusCode: 400,
+            body: { success: false, code: 'newAccountPublicKeyRequired' }
+        });
+        return;
     }
 
     if (!recaptchaCode) {
-        ctx.throw(400, 'recaptchaCode is required');
+        setJSONErrorResponse({
+            ctx,
+            statusCode: 400,
+            body: { success: false, code: 'recaptchaCodeRequired' }
+        });
+        return;
     }
 
-    const { success, error } = await recaptchaValidator.validateRecaptchaCode(recaptchaCode, ctx.ip);
+    const { success, error, code } = await recaptchaValidator.validateRecaptchaCode(recaptchaCode, ctx.ip);
 
     if (!success) {
         const { statusCode, message } = error;
-        ctx.throw(statusCode, message);
+
+        setJSONErrorResponse({
+            ctx,
+            statusCode,
+            body: { success: false, code, message }
+        });
+        return;
     }
 
     const fundingAccount = await ctx.near.account(fundedCreatorKeyJson.account_id);
 
     // TODO: Should the client get something different than the result of this call?
-    ctx.body = await fundingAccount.functionCall(
-        FUNDED_NEW_ACCOUNT_CONTRACT_NAME,
-        'create_account',
-        {
-            new_account_id: newAccountId,
-            new_public_key: newAccountPublicKey.replace(/^ed25519:/, '')
-        },
-        MAX_GAS_FOR_ACCOUNT_CREATE,
-        FUNDED_ACCOUNT_BALANCE
-    );
+    try {
+        const newAccountResult = await fundingAccount.functionCall(
+            FUNDED_NEW_ACCOUNT_CONTRACT_NAME,
+            'create_account',
+            {
+                new_account_id: newAccountId,
+                new_public_key: newAccountPublicKey.replace(/^ed25519:/, '')
+            },
+            MAX_GAS_FOR_ACCOUNT_CREATE,
+            FUNDED_ACCOUNT_BALANCE
+        );
+
+        ctx.body = { success: true, result: newAccountResult };
+    } catch (e) {
+        if (e.type === 'NotEnoughBalance') {
+            setJSONErrorResponse({
+                ctx,
+                statusCode: 503,
+                body: { success: false, code: 'NotEnoughBalance', message: e.message }
+            });
+            return;
+        }
+
+        ctx.throw(e);
+    }
 };
 
 
