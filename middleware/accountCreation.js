@@ -1,5 +1,5 @@
 const nearAPI = require('near-api-js');
-
+const BN = require('bn.js');
 const recaptchaValidator = require('../RecaptchaValidator');
 
 const {
@@ -10,7 +10,6 @@ const {
 const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT;
 
 const setJSONErrorResponse = ({ ctx, statusCode, body }) => {
-    ctx.type = 'json';
     ctx.status = statusCode;
     ctx.body = body;
 };
@@ -33,8 +32,10 @@ const createAccount = async (ctx) => {
 
 // TODO: Adjust gas to correct amounts
 const MAX_GAS_FOR_ACCOUNT_CREATE = process.env.MAX_GAS_FOR_ACCOUNT_CREATE || '100000000000000';
-const FUNDED_ACCOUNT_BALANCE = process.env.FUNDED_ACCOUNT_BALANCE || nearAPI.utils.format.parseNearAmount('500');
+const FUNDED_ACCOUNT_BALANCE = process.env.FUNDED_ACCOUNT_BALANCE || nearAPI.utils.format.parseNearAmount('1');
 const FUNDED_NEW_ACCOUNT_CONTRACT_NAME = process.env.FUNDED_NEW_ACCOUNT_CONTRACT_NAME || 'near';
+const FUNDED_ACCOUNT_BALANCE_REQUIRED = (new BN(FUNDED_ACCOUNT_BALANCE).add(new BN(MAX_GAS_FOR_ACCOUNT_CREATE)));
+
 const createFundedAccount = async (ctx) => {
     if (!fundedCreatorKeyJson) {
         console.warn('FUNDED_ACCOUNT_CREATOR_KEY is not set, cannot create funded accounts.');
@@ -105,6 +106,7 @@ const createFundedAccount = async (ctx) => {
         ctx.body = { success: true, result: newAccountResult };
     } catch (e) {
         if (e.type === 'NotEnoughBalance') {
+            // ctx.throw(503, 'NotEnoughBalance');
             setJSONErrorResponse({
                 ctx,
                 statusCode: 503,
@@ -117,8 +119,30 @@ const createFundedAccount = async (ctx) => {
     }
 };
 
+const checkFundedAccountAvailable = async (ctx) => {
+    try {
+        const fundingAccount = await ctx.near.account(fundedCreatorKeyJson.account_id);
+
+        const { available } = await fundingAccount.getAccountBalance();
+        const availableBN = new BN(available);
+
+        ctx.body = {
+            available: availableBN.gt(FUNDED_ACCOUNT_BALANCE_REQUIRED)
+        };
+
+        return;
+    } catch (e) {
+        // TODO: Sentry alert or other reporting?
+        console.error('failed to calculate fund status', e);
+
+        ctx.body = { available: false };
+        return;
+    }
+};
 
 module.exports = {
     createAccount,
     createFundedAccount,
+    checkFundedAccountAvailable
 };
+

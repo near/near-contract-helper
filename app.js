@@ -78,7 +78,7 @@ router.post('/2fa/verify', checkAccountOwnership, verifyCode);
 
 
 const ratelimit = require('koa-ratelimit');
-const { createAccount, createFundedAccount } = require('./middleware/accountCreation');
+const { createAccount, createFundedAccount, checkFundedAccountAvailable } = require('./middleware/accountCreation');
 const accountCreateRatelimitMiddleware = ratelimit({
     driver: 'memory',
     db: new Map(),
@@ -89,6 +89,7 @@ const accountCreateRatelimitMiddleware = ratelimit({
 
 router.post('/account', accountCreateRatelimitMiddleware, createAccount);
 router.post('/fundedAccount', accountCreateRatelimitMiddleware, createFundedAccount);
+router.get('/checkFundedAccountAvailable', checkFundedAccountAvailable);
 
 const { signURL } = require('./middleware/moonpay');
 router.get('/moonpay/signURL', signURL);
