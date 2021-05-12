@@ -32,7 +32,7 @@ const createAccount = async (ctx) => {
 
 // TODO: Adjust gas to correct amounts
 const MAX_GAS_FOR_ACCOUNT_CREATE = process.env.MAX_GAS_FOR_ACCOUNT_CREATE || '100000000000000';
-const FUNDED_ACCOUNT_BALANCE = process.env.FUNDED_ACCOUNT_BALANCE || nearAPI.utils.format.parseNearAmount('1');
+const FUNDED_ACCOUNT_BALANCE = process.env.FUNDED_ACCOUNT_BALANCE || nearAPI.utils.format.parseNearAmount('0.35');
 const FUNDED_NEW_ACCOUNT_CONTRACT_NAME = process.env.FUNDED_NEW_ACCOUNT_CONTRACT_NAME || 'near';
 const FUNDED_ACCOUNT_BALANCE_REQUIRED = (new BN(FUNDED_ACCOUNT_BALANCE).add(new BN(MAX_GAS_FOR_ACCOUNT_CREATE)));
 
