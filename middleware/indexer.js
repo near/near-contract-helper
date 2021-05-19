@@ -120,7 +120,7 @@ const findLikelyTokens = withPgClient(async (ctx) => {
     // TODO: Make sure indexer for explorer DB allows for faster way to do it in prod (see also above)
     const mintedWithBridge = `
         select distinct receipt_receiver_account_id as receiver_account_id from (
-            select convert_from(decode(args->>'args_base64', 'base64'), 'UTF8')::json->>'account_id' as account_id, receipt_receiver_account_id
+            select args->'args_json'->>'account_id' as account_id, receipt_receiver_account_id
             from action_receipt_actions
             where action_kind = 'FUNCTION_CALL' and
                 receipt_predecessor_account_id = $2 and
