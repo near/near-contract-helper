@@ -72,10 +72,10 @@ const findAccountActivity = withPgClient(async (ctx) => {
         from action_receipt_actions
         join receipts using(receipt_id)
         where
-            predecessor_account_id != 'system' and
-            (predecessor_account_id = $1 or receiver_account_id = $1) and
-            $2 > included_in_block_timestamp
-        order by included_in_block_timestamp desc
+            receipt_predecessor_account_id != 'system' and
+            (receipt_predecessor_account_id = $1 or receipt_receiver_account_id = $1) and
+            $2 > receipt_included_in_block_timestamp
+        order by receipt_included_in_block_timestamp desc
         limit $3
         ;
     `, [accountId, offset, limit]);
