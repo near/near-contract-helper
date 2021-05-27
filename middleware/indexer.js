@@ -24,24 +24,24 @@ const findStakingDeposits = withPgClient(async (ctx) => {
     const { client } = ctx;
     const { rows } = await client.query(`
         with deposit_in as (
-            select SUM(to_number(args ->> 'deposit', '99999999999999999999999999999999999999')) deposit, receiver_account_id validator_id
-            from receipts
-                join action_receipt_actions using (receipt_id)
+            select SUM(to_number(args ->> 'deposit', '99999999999999999999999999999999999999')) deposit,
+                receipt_receiver_account_id validator_id
+            from action_receipt_actions
             where
                 action_kind = 'FUNCTION_CALL' and
                 args ->> 'method_name' like 'deposit%' and
-                predecessor_account_id = $1 and
-                receiver_account_id like '%pool%'
-            group by receiver_account_id
+                receipt_predecessor_account_id = $1 and
+                receipt_receiver_account_id like '%pool%'
+            group by receipt_receiver_account_id
         ), deposit_out as (
-            select SUM(to_number(args ->> 'deposit', '99999999999999999999999999999999999999')) deposit, predecessor_account_id validator_id
-            from receipts
-            join action_receipt_actions using (receipt_id)
+            select SUM(to_number(args ->> 'deposit', '99999999999999999999999999999999999999')) deposit,
+                receipt_predecessor_account_id validator_id
+            from action_receipt_actions
             where
                 action_kind = 'TRANSFER' and
-                receiver_account_id = $1 and
-                predecessor_account_id like '%pool%'
-            group by predecessor_account_id
+                receipt_receiver_account_id = $1 and
+                receipt_predecessor_account_id like '%pool%'
+            group by receipt_predecessor_account_id
         )
         select sum(deposit_in.deposit - coalesce(deposit_out.deposit, 0)) deposit, deposit_in.validator_id
         from deposit_in
@@ -69,13 +69,13 @@ const findAccountActivity = withPgClient(async (ctx) => {
             receiver_account_id receiver_id,
             action_kind,
             args
-        from receipts
-        join action_receipt_actions using(receipt_id)
+        from action_receipt_actions
+        join receipts using(receipt_id)
         where
-            predecessor_account_id != 'system' and
-            (predecessor_account_id = $1 or receiver_account_id = $1) and
-            $2 > included_in_block_timestamp
-        order by included_in_block_timestamp desc
+            receipt_predecessor_account_id != 'system' and
+            (receipt_predecessor_account_id = $1 or receipt_receiver_account_id = $1) and
+            $2 > receipt_included_in_block_timestamp
+        order by receipt_included_in_block_timestamp desc
         limit $3
         ;
     `, [accountId, offset, limit]);
@@ -105,8 +105,8 @@ const findReceivers = withPgClient(async (ctx) => {
     // NOTE: Looks like not doing a join is much faster (not surprising, but doesn't allow for FUNCTION_CALL filtering)
     // So potential solution might be to maintain materialized view of likely tokens and query for all receivers instead
     const { rows } = await client.query(`
-        select distinct receiver_account_id from receipts
-        join action_receipt_actions on using (receipt_id)
+        select distinct receiver_account_id
+        from action_receipt_actions
         where predecessor_account_id = $1
             and action_kind = 'FUNCTION_CALL'
     `, [accountId]);
@@ -119,21 +119,20 @@ const findLikelyTokens = withPgClient(async (ctx) => {
 
     // TODO: Make sure indexer for explorer DB allows for faster way to do it in prod (see also above)
     const mintedWithBridge = `
-        select distinct receiver_account_id from (
-            select convert_from(decode(args->>'args_base64', 'base64'), 'UTF8')::json->>'account_id' as account_id, receiver_account_id
-            from receipts
-            join action_receipt_actions using (receipt_id)
+        select distinct receipt_receiver_account_id as receiver_account_id from (
+            select args->'args_json'->>'account_id' as account_id, receipt_receiver_account_id
+            from action_receipt_actions
             where action_kind = 'FUNCTION_CALL' and
-                predecessor_account_id = $2 and
+                receipt_predecessor_account_id = $2 and
                 args->>'method_name' = 'mint'
         ) minted_with_bridge
         where account_id = $1
     `;
 
     const calledByUser = `
-        select distinct receiver_account_id from receipts
-        join action_receipt_actions using (receipt_id)
-        where predecessor_account_id = $1
+        select distinct receipt_receiver_account_id as receiver_account_id
+        from action_receipt_actions
+        where receipt_predecessor_account_id = $1
             and action_kind = 'FUNCTION_CALL'
             and (args->>'method_name' like 'ft_%' or args->>'method_name' = 'storage_deposit')
     `;
