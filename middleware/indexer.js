@@ -146,10 +146,31 @@ const findLikelyTokens = withPgClient(async (ctx) => {
     ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
 });
 
+
+const findLikelyNFTs = withPgClient(async (ctx) => {
+    const { accountId } = ctx.params;
+    const { client } = ctx;
+
+    const received = `
+        select distinct receipt_receiver_account_id as receiver_account_id
+        from action_receipt_actions
+        where args->'args_json'->>'receiver_id' = $1
+            and action_kind = 'FUNCTION_CALL'
+            and args->>'args_json' is not null
+            and args->>'method_name' like 'nft_%'
+    `;
+
+    // TODO: How to query minted tokens?
+
+    const { rows } = await client.query([received].join(' union '), [accountId]);
+    ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
+});
+
 module.exports = {
     findStakingDeposits,
     findAccountActivity,
     findAccountsByPublicKey,
     findReceivers,
     findLikelyTokens,
+    findLikelyNFTs,
 };
