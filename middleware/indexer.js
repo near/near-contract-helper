@@ -101,13 +101,10 @@ const findReceivers = withPgClient(async (ctx) => {
     const { accountId } = ctx.params;
     const { client } = ctx;
 
-    // TODO: Make sure indexer for explorer DB allows for faster way to do it in prod
-    // NOTE: Looks like not doing a join is much faster (not surprising, but doesn't allow for FUNCTION_CALL filtering)
-    // So potential solution might be to maintain materialized view of likely tokens and query for all receivers instead
     const { rows } = await client.query(`
-        select distinct receiver_account_id
+        select distinct receipt_receiver_account_id as receiver_account_id
         from action_receipt_actions
-        where predecessor_account_id = $1
+        where receipt_predecessor_account_id = $1
             and action_kind = 'FUNCTION_CALL'
     `, [accountId]);
     ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
