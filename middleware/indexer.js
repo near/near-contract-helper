@@ -114,7 +114,15 @@ const findLikelyTokens = withPgClient(async (ctx) => {
     const { accountId } = ctx.params;
     const { client } = ctx;
 
-    // TODO: Make sure indexer for explorer DB allows for faster way to do it in prod (see also above)
+    const received = `
+        select distinct receipt_receiver_account_id as receiver_account_id
+        from action_receipt_actions
+        where args->'args_json'->>'receiver_id' = $1
+            and action_kind = 'FUNCTION_CALL'
+            and args->>'args_json' is not null
+            and args->>'method_name' in ('ft_transfer', 'ft_transfer_call')
+    `;
+
     const mintedWithBridge = `
         select distinct receipt_receiver_account_id as receiver_account_id from (
             select args->'args_json'->>'account_id' as account_id, receipt_receiver_account_id
@@ -134,7 +142,7 @@ const findLikelyTokens = withPgClient(async (ctx) => {
             and (args->>'method_name' like 'ft_%' or args->>'method_name' = 'storage_deposit')
     `;
 
-    const { rows } = await client.query([mintedWithBridge, calledByUser].join(' union '), [accountId, BRIDGE_TOKEN_FACTORY_ACCOUNT_ID]);
+    const { rows } = await client.query([received, mintedWithBridge, calledByUser].join(' union '), [accountId, BRIDGE_TOKEN_FACTORY_ACCOUNT_ID]);
     ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
 });
 
