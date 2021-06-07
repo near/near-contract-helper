@@ -75,8 +75,6 @@ router.post('/2fa/init', checkAccountOwnership, initCode);
 router.post('/2fa/send', checkAccountOwnership, sendNewCode);
 router.post('/2fa/verify', checkAccountOwnership, verifyCode);
 
-
-
 const ratelimit = require('koa-ratelimit');
 const accountCreateRatelimitMiddleware = ratelimit({
     driver: 'memory',
@@ -89,8 +87,16 @@ const accountCreateRatelimitMiddleware = ratelimit({
 const { createAccount } = require('./middleware/createAccount');
 router.post('/account', accountCreateRatelimitMiddleware, createAccount);
 
+const fundedAccountCreateRatelimitMiddleware = ratelimit({
+    driver: 'memory',
+    db: new Map(),
+    duration: 60000,
+    max: 1,
+    whitelist: () => process.env.NODE_ENV === 'test'
+});
+
 const { createFundedAccount, checkFundedAccountAvailable } = require('./middleware/fundedAccount');
-router.post('/fundedAccount', accountCreateRatelimitMiddleware, createFundedAccount);
+router.post('/fundedAccount', fundedAccountCreateRatelimitMiddleware, createFundedAccount);
 router.get('/checkFundedAccountAvailable', checkFundedAccountAvailable);
 
 const { signURL } = require('./middleware/moonpay');
