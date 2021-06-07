@@ -78,7 +78,6 @@ router.post('/2fa/verify', checkAccountOwnership, verifyCode);
 
 
 const ratelimit = require('koa-ratelimit');
-const { createAccount, createFundedAccount, checkFundedAccountAvailable } = require('./middleware/accountCreation');
 const accountCreateRatelimitMiddleware = ratelimit({
     driver: 'memory',
     db: new Map(),
@@ -87,7 +86,10 @@ const accountCreateRatelimitMiddleware = ratelimit({
     whitelist: () => process.env.NODE_ENV === 'test'
 });
 
+const { createAccount } = require('./middleware/createAccount');
 router.post('/account', accountCreateRatelimitMiddleware, createAccount);
+
+const { createFundedAccount, checkFundedAccountAvailable } = require('./middleware/fundedAccount');
 router.post('/fundedAccount', accountCreateRatelimitMiddleware, createFundedAccount);
 router.get('/checkFundedAccountAvailable', checkFundedAccountAvailable);
 

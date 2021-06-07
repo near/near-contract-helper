@@ -3,40 +3,18 @@ const BN = require('bn.js');
 
 const models = require('../models');
 const recaptchaValidator = require('../RecaptchaValidator');
-
-const {
-    creatorKeyJson,
-    fundedCreatorKeyJson,
-} = require('./near');
-
-const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT;
-
-const setJSONErrorResponse = ({ ctx, statusCode, body }) => {
-    ctx.status = statusCode;
-    ctx.body = body;
-};
-
-const createAccount = async (ctx) => {
-    if (!creatorKeyJson) {
-        console.warn('ACCOUNT_CREATOR_KEY is not set up, cannot create accounts.');
-        ctx.throw(500, 'Service misconfigured; account creation is not available.');
-    }
-
-    const { newAccountId, newAccountPublicKey } = ctx.request.body;
-
-    if (newAccountId.includes('dzarezenko')) {
-        ctx.throw(403);
-    }
-
-    const masterAccount = await ctx.near.account(creatorKeyJson.account_id);
-    ctx.body = await masterAccount.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT);
-};
+const { fundedCreatorKeyJson } = require('./near');
 
 // TODO: Adjust gas to correct amounts
 const MAX_GAS_FOR_ACCOUNT_CREATE = process.env.MAX_GAS_FOR_ACCOUNT_CREATE || '100000000000000';
 const FUNDED_ACCOUNT_BALANCE = process.env.FUNDED_ACCOUNT_BALANCE || nearAPI.utils.format.parseNearAmount('0.35');
 const FUNDED_NEW_ACCOUNT_CONTRACT_NAME = process.env.FUNDED_NEW_ACCOUNT_CONTRACT_NAME || 'near';
 const FUNDED_ACCOUNT_BALANCE_REQUIRED = (new BN(FUNDED_ACCOUNT_BALANCE).add(new BN(MAX_GAS_FOR_ACCOUNT_CREATE)));
+
+const setJSONErrorResponse = ({ ctx, statusCode, body }) => {
+    ctx.status = statusCode;
+    ctx.body = body;
+};
 
 const createFundedAccount = async (ctx) => {
     if (!fundedCreatorKeyJson) {
@@ -151,8 +129,6 @@ const checkFundedAccountAvailable = async (ctx) => {
 };
 
 module.exports = {
-    createAccount,
     createFundedAccount,
     checkFundedAccountAvailable
 };
-
