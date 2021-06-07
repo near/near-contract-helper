@@ -95,9 +95,18 @@ const fundedAccountCreateRatelimitMiddleware = ratelimit({
     whitelist: () => process.env.NODE_ENV === 'test'
 });
 
-const { createFundedAccount, checkFundedAccountAvailable } = require('./middleware/fundedAccount');
+const {
+    checkFundedAccountAvailable,
+    clearFundedAccountNeedsDeposit,
+    createFundedAccount
+} = require('./middleware/fundedAccount');
 router.post('/fundedAccount', fundedAccountCreateRatelimitMiddleware, createFundedAccount);
 router.get('/checkFundedAccountAvailable', checkFundedAccountAvailable);
+router.post(
+    '/clearFundedAccountNeedsDeposit',
+    getWithSequelizeAccountHandler('body'),
+    clearFundedAccountNeedsDeposit
+);
 
 const { signURL } = require('./middleware/moonpay');
 router.get('/moonpay/signURL', signURL);

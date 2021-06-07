@@ -112,6 +112,42 @@ const createFundedAccount = async (ctx) => {
     }
 };
 
+async function clearFundedAccountNeedsDeposit(ctx) {
+    const { accountId, fundedAccountNeedsDeposit } = ctx.sequelizeAccount;
+
+    if (!fundedAccountNeedsDeposit) {
+        // This is an idempotent call
+        ctx.status = 200;
+        ctx.body = { success: true };
+        return;
+    }
+
+    const nearAccount = await ctx.near.account(accountId);
+
+    const { available } = await nearAccount.getAccountBalance();
+    const availableBalanceBN = new BN(available);
+
+    if (availableBalanceBN.gt(BN_UNLOCK_FUNDED_ACCOUNT_BALANCE)) {
+        await ctx.sequelizeAccount.update({ fundedAccountNeedsDeposit: false });
+
+        ctx.status = 200;
+        ctx.body = { success: true };
+        return;
+    }
+
+    setJSONErrorResponse({
+        ctx,
+        statusCode: 200,
+        body: {
+            success: false,
+            code: 'NotEnoughBalance',
+            message: `${accountId} does not have enough balance to be unlocked`,
+            currentBalance: available,
+            requiredBalance: BN_UNLOCK_FUNDED_ACCOUNT_BALANCE.toString()
+        }
+    });
+}
+
 const checkFundedAccountAvailable = async (ctx) => {
     try {
         const fundingAccount = await ctx.near.account(fundedCreatorKeyJson.account_id);
@@ -134,5 +170,7 @@ const checkFundedAccountAvailable = async (ctx) => {
 };
 
 module.exports = {
+    checkFundedAccountAvailable,
+    clearFundedAccountNeedsDeposit,
     createFundedAccount,
 };
