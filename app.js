@@ -142,10 +142,10 @@ router.post('/account/recoveryMethods', checkAccountOwnership, async ctx => {
     ctx.body = await recoveryMethodsFor(account);
 });
 
-async function withAccount(ctx, next) {
+async function withSequelizeAccount(ctx, next) {
     const { accountId } = ctx.request.body;
-    ctx.account = await models.Account.findOne({ where: { accountId } });
-    if (ctx.account) {
+    ctx.sequelizeAccount = await models.Account.findOne({ where: { accountId } });
+    if (ctx.sequelizeAccount) {
         await next();
         return;
     }
@@ -166,15 +166,15 @@ async function checkRecoveryMethod(ctx, next) {
 
 router.post(
     '/account/deleteRecoveryMethod',
-    withAccount,
+    withSequelizeAccount,
     checkRecoveryMethod,
     checkAccountOwnership,
     withPublicKey,
     async ctx => {
         const { kind, publicKey } = ctx.request.body;
-        const [recoveryMethod] = await ctx.account.getRecoveryMethods({ where: { kind: kind, publicKey: publicKey, } });
+        const [recoveryMethod] = await ctx.sequelizeAccount.getRecoveryMethods({ where: { kind: kind, publicKey: publicKey, } });
         await recoveryMethod.destroy();
-        ctx.body = await recoveryMethodsFor(ctx.account);
+        ctx.body = await recoveryMethodsFor(ctx.sequelizeAccount);
     }
 );
 
