@@ -1,5 +1,7 @@
 const nearAPI = require('near-api-js');
 const BN = require('bn.js');
+
+const models = require('../models');
 const recaptchaValidator = require('../RecaptchaValidator');
 
 const {
@@ -88,6 +90,12 @@ const createFundedAccount = async (ctx) => {
         return;
     }
 
+
+    const [sequelizeAccount] = await models.Account.findOrCreate({
+        where: { accountId: newAccountId },
+        defaults: { fundedAccountNeedsDeposit: true }
+    });
+
     const fundingAccount = await ctx.near.account(fundedCreatorKeyJson.account_id);
 
     // TODO: Should the client get something different than the result of this call?
@@ -105,6 +113,8 @@ const createFundedAccount = async (ctx) => {
 
         ctx.body = { success: true, result: newAccountResult };
     } catch (e) {
+        await sequelizeAccount.destroy();
+
         if (e.type === 'NotEnoughBalance') {
             // ctx.throw(503, 'NotEnoughBalance');
             setJSONErrorResponse({
