@@ -103,7 +103,7 @@ const {
 router.post('/fundedAccount', fundedAccountCreateRatelimitMiddleware, createFundedAccount);
 router.get('/checkFundedAccountAvailable', checkFundedAccountAvailable);
 router.post(
-    '/clearFundedAccountNeedsDeposit',
+    '/fundedAccount/clearNeedsDeposit',
     getWithSequelizeAccountHandler('body'),
     clearFundedAccountNeedsDeposit
 );
@@ -245,13 +245,20 @@ router.post(
     }
 );
 
+const {
+    BN_UNLOCK_FUNDED_ACCOUNT_BALANCE
+} = require('./middleware/fundedAccount');
 router.get(
     '/account/walletState/:accountId',
     getWithSequelizeAccountHandler('params'),
     async (ctx) => {
         const { fundedAccountNeedsDeposit, accountId } = ctx.sequelizeAccount;
 
-        ctx.body = { fundedAccountNeedsDeposit, accountId };
+        ctx.body = {
+            fundedAccountNeedsDeposit,
+            accountId,
+            requiredUnlockBalance: BN_UNLOCK_FUNDED_ACCOUNT_BALANCE.toString()
+        };
     }
 );
 

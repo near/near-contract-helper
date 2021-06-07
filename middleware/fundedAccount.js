@@ -94,7 +94,7 @@ const createFundedAccount = async (ctx) => {
         ctx.body = {
             success: true,
             result: newAccountResult,
-            balanceRequiredForUnlock: NEW_FUNDED_ACCOUNT_BALANCE
+            requiredUnlockBalance: NEW_FUNDED_ACCOUNT_BALANCE
         };
     } catch (e) {
         await sequelizeAccount.destroy();
@@ -143,7 +143,7 @@ async function clearFundedAccountNeedsDeposit(ctx) {
             code: 'NotEnoughBalance',
             message: `${accountId} does not have enough balance to be unlocked`,
             currentBalance: available,
-            requiredBalance: BN_UNLOCK_FUNDED_ACCOUNT_BALANCE.toString()
+            requiredUnlockBalance: BN_UNLOCK_FUNDED_ACCOUNT_BALANCE.toString()
         }
     });
 }
@@ -173,4 +173,5 @@ module.exports = {
     checkFundedAccountAvailable,
     clearFundedAccountNeedsDeposit,
     createFundedAccount,
+    BN_UNLOCK_FUNDED_ACCOUNT_BALANCE
 };
