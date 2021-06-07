@@ -7,9 +7,11 @@ const { fundedCreatorKeyJson } = require('./near');
 
 // TODO: Adjust gas to correct amounts
 const MAX_GAS_FOR_ACCOUNT_CREATE = process.env.MAX_GAS_FOR_ACCOUNT_CREATE || '100000000000000';
-const FUNDED_ACCOUNT_BALANCE = process.env.FUNDED_ACCOUNT_BALANCE || nearAPI.utils.format.parseNearAmount('0.35');
+const NEW_FUNDED_ACCOUNT_BALANCE = process.env.FUNDED_ACCOUNT_BALANCE || nearAPI.utils.format.parseNearAmount('0.35');
 const FUNDED_NEW_ACCOUNT_CONTRACT_NAME = process.env.FUNDED_NEW_ACCOUNT_CONTRACT_NAME || 'near';
-const FUNDED_ACCOUNT_BALANCE_REQUIRED = (new BN(FUNDED_ACCOUNT_BALANCE).add(new BN(MAX_GAS_FOR_ACCOUNT_CREATE)));
+
+const BN_FUNDED_ACCOUNT_BALANCE_REQUIRED = (new BN(NEW_FUNDED_ACCOUNT_BALANCE).add(new BN(MAX_GAS_FOR_ACCOUNT_CREATE)));
+const BN_UNLOCK_FUNDED_ACCOUNT_BALANCE = new BN(process.env.UNLOCK_FUNDED_ACCOUNT_BALANCE || nearAPI.utils.format.parseNearAmount('0.2'));
 
 const setJSONErrorResponse = ({ ctx, statusCode, body }) => {
     ctx.status = statusCode;
@@ -69,14 +71,14 @@ const createFundedAccount = async (ctx) => {
     }
 
 
-    const [sequelizeAccount] = await models.Account.findOrCreate({
-        where: { accountId: newAccountId },
-        defaults: { fundedAccountNeedsDeposit: true }
-    });
+    const [sequelizeAccount, fundingAccount] = Promise.all([
+        models.Account.findOrCreate({
+            where: { accountId: newAccountId },
+            defaults: { fundedAccountNeedsDeposit: true }
+        }),
+        ctx.near.account(fundedCreatorKeyJson.account_id)
+    ]);
 
-    const fundingAccount = await ctx.near.account(fundedCreatorKeyJson.account_id);
-
-    // TODO: Should the client get something different than the result of this call?
     try {
         const newAccountResult = await fundingAccount.functionCall(
             FUNDED_NEW_ACCOUNT_CONTRACT_NAME,
@@ -86,15 +88,18 @@ const createFundedAccount = async (ctx) => {
                 new_public_key: newAccountPublicKey.replace(/^ed25519:/, '')
             },
             MAX_GAS_FOR_ACCOUNT_CREATE,
-            FUNDED_ACCOUNT_BALANCE
+            NEW_FUNDED_ACCOUNT_BALANCE
         );
 
-        ctx.body = { success: true, result: newAccountResult };
+        ctx.body = {
+            success: true,
+            result: newAccountResult,
+            balanceRequiredForUnlock: NEW_FUNDED_ACCOUNT_BALANCE
+        };
     } catch (e) {
         await sequelizeAccount.destroy();
 
         if (e.type === 'NotEnoughBalance') {
-            // ctx.throw(503, 'NotEnoughBalance');
             setJSONErrorResponse({
                 ctx,
                 statusCode: 503,
@@ -112,10 +117,10 @@ const checkFundedAccountAvailable = async (ctx) => {
         const fundingAccount = await ctx.near.account(fundedCreatorKeyJson.account_id);
 
         const { available } = await fundingAccount.getAccountBalance();
-        const availableBN = new BN(available);
+        const availableBalanceBN = new BN(available);
 
         ctx.body = {
-            available: availableBN.gt(FUNDED_ACCOUNT_BALANCE_REQUIRED)
+            available: availableBalanceBN.gt(BN_FUNDED_ACCOUNT_BALANCE_REQUIRED)
         };
 
         return;
@@ -130,5 +135,4 @@ const checkFundedAccountAvailable = async (ctx) => {
 
 module.exports = {
     createFundedAccount,
-    checkFundedAccountAvailable
 };
