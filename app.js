@@ -90,8 +90,8 @@ router.post('/account', accountCreateRatelimitMiddleware, createAccount);
 const fundedAccountCreateRatelimitMiddleware = ratelimit({
     driver: 'memory',
     db: new Map(),
-    duration: 60000,
-    max: 1,
+    duration: 15 * 60000,
+    max: 5,
     whitelist: () => process.env.NODE_ENV === 'test'
 });
 
