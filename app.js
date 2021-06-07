@@ -142,14 +142,26 @@ router.post('/account/recoveryMethods', checkAccountOwnership, async ctx => {
     ctx.body = await recoveryMethodsFor(account);
 });
 
-async function withSequelizeAccount(ctx, next) {
-    const { accountId } = ctx.request.body;
-    ctx.sequelizeAccount = await models.Account.findOne({ where: { accountId } });
-    if (ctx.sequelizeAccount) {
-        await next();
-        return;
+function getWithSequelizeAccountHandler(source) {
+    if (source !== 'body' && source !== 'params') {
+        throw new Error('invalid source for accountId provided to getWithSequelizeAccountHandler()');
     }
-    ctx.throw(404, `Could not find account with accountId: '${accountId}'`);
+
+    return async function withSequelizeAccount(ctx, next) {
+        let accountId;
+        if (source === 'body') {
+            accountId = ctx.request.body.accountId;
+        } else {
+            accountId = ctx.params.accountId;
+        }
+
+        ctx.sequelizeAccount = await models.Account.findOne({ where: { accountId } });
+        if (ctx.sequelizeAccount) {
+            await next();
+            return;
+        }
+        ctx.throw(404, `Could not find account with accountId: '${accountId}'`);
+    };
 }
 
 // TODO: Do we need extra validation in addition to DB constraint?
@@ -166,13 +178,18 @@ async function checkRecoveryMethod(ctx, next) {
 
 router.post(
     '/account/deleteRecoveryMethod',
-    withSequelizeAccount,
+    getWithSequelizeAccountHandler('body'),
     checkRecoveryMethod,
     checkAccountOwnership,
     withPublicKey,
     async ctx => {
         const { kind, publicKey } = ctx.request.body;
-        const [recoveryMethod] = await ctx.sequelizeAccount.getRecoveryMethods({ where: { kind: kind, publicKey: publicKey, } });
+        const [recoveryMethod] = await ctx.sequelizeAccount.getRecoveryMethods({
+            where: {
+                kind: kind,
+                publicKey: publicKey,
+            }
+        });
         await recoveryMethod.destroy();
         ctx.body = await recoveryMethodsFor(ctx.sequelizeAccount);
     }
@@ -216,6 +233,16 @@ router.post(
         const [account] = await models.Account.findOrCreate({ where: { accountId } });
         await account.createRecoveryMethod({ kind: RECOVERY_METHOD_KINDS.LEDGER, publicKey: ctx.publicKey });
         ctx.body = await recoveryMethodsFor(account);
+    }
+);
+
+router.get(
+    '/account/walletState/:accountId',
+    getWithSequelizeAccountHandler('params'),
+    async (ctx) => {
+        const { fundedAccountNeedsDeposit, accountId } = ctx.sequelizeAccount;
+
+        ctx.body = { fundedAccountNeedsDeposit, accountId };
     }
 );
 
