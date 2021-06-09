@@ -137,7 +137,7 @@ async function clearFundedAccountNeedsDeposit(ctx) {
 
     setJSONErrorResponse({
         ctx,
-        statusCode: 200,
+        statusCode: 403,
         body: {
             success: false,
             code: 'NotEnoughBalance',
