@@ -104,7 +104,7 @@ router.post('/fundedAccount', fundedAccountCreateRatelimitMiddleware, createFund
 router.get('/checkFundedAccountAvailable', checkFundedAccountAvailable);
 router.post(
     '/fundedAccount/clearNeedsDeposit',
-    getWithSequelizeAccountHandler('body'),
+    createWithSequelizeAcccountMiddleware('body'),
     clearFundedAccountNeedsDeposit
 );
 
@@ -151,9 +151,9 @@ router.post('/account/recoveryMethods', checkAccountOwnership, async ctx => {
     ctx.body = await recoveryMethodsFor(account);
 });
 
-function getWithSequelizeAccountHandler(source) {
+function createWithSequelizeAcccountMiddleware(source) {
     if (source !== 'body' && source !== 'params') {
-        throw new Error('invalid source for accountId provided to getWithSequelizeAccountHandler()');
+        throw new Error('invalid source for accountId provided');
     }
 
     return async function withSequelizeAccount(ctx, next) {
@@ -187,7 +187,7 @@ async function checkRecoveryMethod(ctx, next) {
 
 router.post(
     '/account/deleteRecoveryMethod',
-    getWithSequelizeAccountHandler('body'),
+    createWithSequelizeAcccountMiddleware('body'),
     checkRecoveryMethod,
     checkAccountOwnership,
     withPublicKey,
@@ -250,7 +250,7 @@ const {
 } = require('./middleware/fundedAccount');
 router.get(
     '/account/walletState/:accountId',
-    getWithSequelizeAccountHandler('params'),
+    createWithSequelizeAcccountMiddleware('params'),
     async (ctx) => {
         const { fundedAccountNeedsDeposit, accountId } = ctx.sequelizeAccount;
 

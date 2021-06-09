@@ -71,7 +71,7 @@ const createFundedAccount = async (ctx) => {
     }
 
 
-    const [sequelizeAccount, fundingAccount] = Promise.all([
+    const [sequelizeAccount, fundingAccount] = await Promise.all([
         models.Account.findOrCreate({
             where: { accountId: newAccountId },
             defaults: { fundedAccountNeedsDeposit: true }
