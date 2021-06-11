@@ -1,40 +1,22 @@
 const nearAPI = require('near-api-js');
 const BN = require('bn.js');
+
+const models = require('../models');
 const recaptchaValidator = require('../RecaptchaValidator');
+const { fundedCreatorKeyJson } = require('./near');
 
-const {
-    creatorKeyJson,
-    fundedCreatorKeyJson,
-} = require('./near');
+// TODO: Adjust gas to correct amounts
+const MAX_GAS_FOR_ACCOUNT_CREATE = process.env.MAX_GAS_FOR_ACCOUNT_CREATE || '100000000000000';
+const NEW_FUNDED_ACCOUNT_BALANCE = process.env.FUNDED_ACCOUNT_BALANCE || nearAPI.utils.format.parseNearAmount('0.35');
+const FUNDED_NEW_ACCOUNT_CONTRACT_NAME = process.env.FUNDED_NEW_ACCOUNT_CONTRACT_NAME || 'near';
 
-const NEW_ACCOUNT_AMOUNT = process.env.NEW_ACCOUNT_AMOUNT;
+const BN_FUNDED_ACCOUNT_BALANCE_REQUIRED = (new BN(NEW_FUNDED_ACCOUNT_BALANCE).add(new BN(MAX_GAS_FOR_ACCOUNT_CREATE)));
+const BN_UNLOCK_FUNDED_ACCOUNT_BALANCE = new BN(process.env.UNLOCK_FUNDED_ACCOUNT_BALANCE || nearAPI.utils.format.parseNearAmount('0.2'));
 
 const setJSONErrorResponse = ({ ctx, statusCode, body }) => {
     ctx.status = statusCode;
     ctx.body = body;
 };
-
-const createAccount = async (ctx) => {
-    if (!creatorKeyJson) {
-        console.warn('ACCOUNT_CREATOR_KEY is not set up, cannot create accounts.');
-        ctx.throw(500, 'Service misconfigured; account creation is not available.');
-    }
-
-    const { newAccountId, newAccountPublicKey } = ctx.request.body;
-
-    if (newAccountId.includes('dzarezenko')) {
-        ctx.throw(403);
-    }
-
-    const masterAccount = await ctx.near.account(creatorKeyJson.account_id);
-    ctx.body = await masterAccount.createAccount(newAccountId, newAccountPublicKey, NEW_ACCOUNT_AMOUNT);
-};
-
-// TODO: Adjust gas to correct amounts
-const MAX_GAS_FOR_ACCOUNT_CREATE = process.env.MAX_GAS_FOR_ACCOUNT_CREATE || '100000000000000';
-const FUNDED_ACCOUNT_BALANCE = process.env.FUNDED_ACCOUNT_BALANCE || nearAPI.utils.format.parseNearAmount('0.35');
-const FUNDED_NEW_ACCOUNT_CONTRACT_NAME = process.env.FUNDED_NEW_ACCOUNT_CONTRACT_NAME || 'near';
-const FUNDED_ACCOUNT_BALANCE_REQUIRED = (new BN(FUNDED_ACCOUNT_BALANCE).add(new BN(MAX_GAS_FOR_ACCOUNT_CREATE)));
 
 const createFundedAccount = async (ctx) => {
     if (!fundedCreatorKeyJson) {
@@ -88,9 +70,15 @@ const createFundedAccount = async (ctx) => {
         return;
     }
 
-    const fundingAccount = await ctx.near.account(fundedCreatorKeyJson.account_id);
 
-    // TODO: Should the client get something different than the result of this call?
+    const [[sequelizeAccount], fundingAccount] = await Promise.all([
+        models.Account.findOrCreate({
+            where: { accountId: newAccountId },
+            defaults: { fundedAccountNeedsDeposit: true }
+        }),
+        ctx.near.account(fundedCreatorKeyJson.account_id)
+    ]);
+
     try {
         const newAccountResult = await fundingAccount.functionCall(
             FUNDED_NEW_ACCOUNT_CONTRACT_NAME,
@@ -100,13 +88,18 @@ const createFundedAccount = async (ctx) => {
                 new_public_key: newAccountPublicKey.replace(/^ed25519:/, '')
             },
             MAX_GAS_FOR_ACCOUNT_CREATE,
-            FUNDED_ACCOUNT_BALANCE
+            NEW_FUNDED_ACCOUNT_BALANCE
         );
 
-        ctx.body = { success: true, result: newAccountResult };
+        ctx.body = {
+            success: true,
+            result: newAccountResult,
+            requiredUnlockBalance: NEW_FUNDED_ACCOUNT_BALANCE
+        };
     } catch (e) {
+        await sequelizeAccount.destroy();
+
         if (e.type === 'NotEnoughBalance') {
-            // ctx.throw(503, 'NotEnoughBalance');
             setJSONErrorResponse({
                 ctx,
                 statusCode: 503,
@@ -119,15 +112,51 @@ const createFundedAccount = async (ctx) => {
     }
 };
 
+async function clearFundedAccountNeedsDeposit(ctx) {
+    const { accountId, fundedAccountNeedsDeposit } = ctx.sequelizeAccount;
+
+    if (!fundedAccountNeedsDeposit) {
+        // This is an idempotent call
+        ctx.status = 200;
+        ctx.body = { success: true };
+        return;
+    }
+
+    const nearAccount = await ctx.near.account(accountId);
+
+    const { available } = await nearAccount.getAccountBalance();
+    const availableBalanceBN = new BN(available);
+
+    if (availableBalanceBN.gt(BN_UNLOCK_FUNDED_ACCOUNT_BALANCE)) {
+        await ctx.sequelizeAccount.update({ fundedAccountNeedsDeposit: false });
+
+        ctx.status = 200;
+        ctx.body = { success: true };
+        return;
+    }
+
+    setJSONErrorResponse({
+        ctx,
+        statusCode: 403,
+        body: {
+            success: false,
+            code: 'NotEnoughBalance',
+            message: `${accountId} does not have enough balance to be unlocked`,
+            currentBalance: available,
+            requiredUnlockBalance: BN_UNLOCK_FUNDED_ACCOUNT_BALANCE.toString()
+        }
+    });
+}
+
 const checkFundedAccountAvailable = async (ctx) => {
     try {
         const fundingAccount = await ctx.near.account(fundedCreatorKeyJson.account_id);
 
         const { available } = await fundingAccount.getAccountBalance();
-        const availableBN = new BN(available);
+        const availableBalanceBN = new BN(available);
 
         ctx.body = {
-            available: availableBN.gt(FUNDED_ACCOUNT_BALANCE_REQUIRED)
+            available: availableBalanceBN.gt(BN_FUNDED_ACCOUNT_BALANCE_REQUIRED)
         };
 
         return;
@@ -141,8 +170,8 @@ const checkFundedAccountAvailable = async (ctx) => {
 };
 
 module.exports = {
-    createAccount,
+    checkFundedAccountAvailable,
+    clearFundedAccountNeedsDeposit,
     createFundedAccount,
-    checkFundedAccountAvailable
+    BN_UNLOCK_FUNDED_ACCOUNT_BALANCE
 };
-

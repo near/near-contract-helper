@@ -75,10 +75,7 @@ router.post('/2fa/init', checkAccountOwnership, initCode);
 router.post('/2fa/send', checkAccountOwnership, sendNewCode);
 router.post('/2fa/verify', checkAccountOwnership, verifyCode);
 
-
-
 const ratelimit = require('koa-ratelimit');
-const { createAccount, createFundedAccount, checkFundedAccountAvailable } = require('./middleware/accountCreation');
 const accountCreateRatelimitMiddleware = ratelimit({
     driver: 'memory',
     db: new Map(),
@@ -87,9 +84,29 @@ const accountCreateRatelimitMiddleware = ratelimit({
     whitelist: () => process.env.NODE_ENV === 'test'
 });
 
+const { createAccount } = require('./middleware/createAccount');
 router.post('/account', accountCreateRatelimitMiddleware, createAccount);
-router.post('/fundedAccount', accountCreateRatelimitMiddleware, createFundedAccount);
+
+const fundedAccountCreateRatelimitMiddleware = ratelimit({
+    driver: 'memory',
+    db: new Map(),
+    duration: 15 * 60000,
+    max: 5,
+    whitelist: () => process.env.NODE_ENV === 'test'
+});
+
+const {
+    checkFundedAccountAvailable,
+    clearFundedAccountNeedsDeposit,
+    createFundedAccount
+} = require('./middleware/fundedAccount');
+router.post('/fundedAccount', fundedAccountCreateRatelimitMiddleware, createFundedAccount);
 router.get('/checkFundedAccountAvailable', checkFundedAccountAvailable);
+router.post(
+    '/fundedAccount/clearNeedsDeposit',
+    createWithSequelizeAcccountMiddleware('body'),
+    clearFundedAccountNeedsDeposit
+);
 
 const { signURL } = require('./middleware/moonpay');
 router.get('/moonpay/signURL', signURL);
@@ -134,14 +151,26 @@ router.post('/account/recoveryMethods', checkAccountOwnership, async ctx => {
     ctx.body = await recoveryMethodsFor(account);
 });
 
-async function withAccount(ctx, next) {
-    const { accountId } = ctx.request.body;
-    ctx.account = await models.Account.findOne({ where: { accountId } });
-    if (ctx.account) {
-        await next();
-        return;
+function createWithSequelizeAcccountMiddleware(source) {
+    if (source !== 'body' && source !== 'params') {
+        throw new Error('invalid source for accountId provided');
     }
-    ctx.throw(404, `Could not find account with accountId: '${accountId}'`);
+
+    return async function withSequelizeAccount(ctx, next) {
+        let accountId;
+        if (source === 'body') {
+            accountId = ctx.request.body.accountId;
+        } else {
+            accountId = ctx.params.accountId;
+        }
+
+        ctx.sequelizeAccount = await models.Account.findOne({ where: { accountId } });
+        if (ctx.sequelizeAccount) {
+            await next();
+            return;
+        }
+        ctx.throw(404, `Could not find account with accountId: '${accountId}'`);
+    };
 }
 
 // TODO: Do we need extra validation in addition to DB constraint?
@@ -158,15 +187,20 @@ async function checkRecoveryMethod(ctx, next) {
 
 router.post(
     '/account/deleteRecoveryMethod',
-    withAccount,
+    createWithSequelizeAcccountMiddleware('body'),
     checkRecoveryMethod,
     checkAccountOwnership,
     withPublicKey,
     async ctx => {
         const { kind, publicKey } = ctx.request.body;
-        const [recoveryMethod] = await ctx.account.getRecoveryMethods({ where: { kind: kind, publicKey: publicKey, } });
+        const [recoveryMethod] = await ctx.sequelizeAccount.getRecoveryMethods({
+            where: {
+                kind: kind,
+                publicKey: publicKey,
+            }
+        });
         await recoveryMethod.destroy();
-        ctx.body = await recoveryMethodsFor(ctx.account);
+        ctx.body = await recoveryMethodsFor(ctx.sequelizeAccount);
     }
 );
 
@@ -208,6 +242,23 @@ router.post(
         const [account] = await models.Account.findOrCreate({ where: { accountId } });
         await account.createRecoveryMethod({ kind: RECOVERY_METHOD_KINDS.LEDGER, publicKey: ctx.publicKey });
         ctx.body = await recoveryMethodsFor(account);
+    }
+);
+
+const {
+    BN_UNLOCK_FUNDED_ACCOUNT_BALANCE
+} = require('./middleware/fundedAccount');
+router.get(
+    '/account/walletState/:accountId',
+    createWithSequelizeAcccountMiddleware('params'),
+    async (ctx) => {
+        const { fundedAccountNeedsDeposit, accountId } = ctx.sequelizeAccount;
+
+        ctx.body = {
+            fundedAccountNeedsDeposit,
+            accountId,
+            requiredUnlockBalance: BN_UNLOCK_FUNDED_ACCOUNT_BALANCE.toString()
+        };
     }
 );
 
