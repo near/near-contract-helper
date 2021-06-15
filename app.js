@@ -13,6 +13,8 @@ app.use(require('koa-logger')());
 app.use(body({ limit: '500kb', fallback: true }));
 app.use(cors({ credentials: true }));
 
+app.proxy = true;
+
 let reportException = () => {
 };
 
