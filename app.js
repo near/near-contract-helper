@@ -9,6 +9,9 @@ const constants = require('./constants');
 
 const { RECOVERY_METHOD_KINDS, SERVER_EVENTS } = constants;
 
+// render.com passes requests through a proxy server; we need the source IPs to be accurate for `koa-ratelimit`
+app.proxy = true;
+
 app.use(require('koa-logger')());
 app.use(body({ limit: '500kb', fallback: true }));
 app.use(cors({ credentials: true }));
