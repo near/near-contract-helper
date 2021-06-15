@@ -85,7 +85,15 @@ const accountCreateRatelimitMiddleware = ratelimit({
 });
 
 const { createAccount } = require('./middleware/createAccount');
-router.post('/account', accountCreateRatelimitMiddleware, createAccount);
+router.post(
+    '/account',
+    async (ctx, next) => {
+        console.log('req headers', JSON.stringify(ctx.request.headers));
+        return await next();
+    },
+    accountCreateRatelimitMiddleware,
+    createAccount
+);
 
 const fundedAccountCreateRatelimitMiddleware = ratelimit({
     driver: 'memory',
