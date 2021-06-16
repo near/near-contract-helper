@@ -20,5 +20,6 @@ module.exports = {
         database: process.env.HELPER_DB_NAME || 'accounts_production',
         host:  process.env.HELPER_DB_HOST || '127.0.0.1',
         dialect: 'postgres',
+        logging: false
     },
 };
