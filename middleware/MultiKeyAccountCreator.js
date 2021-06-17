@@ -157,7 +157,7 @@ class MultiKeyAccountCreator {
     async createAccount({ accountId, publicKey, amount }) {
         let result;
         try {
-            result = withRetry(
+            result = await withRetry(
                 async () => this.sendCreateAccountRequest({
                     accountId,
                     amount,
