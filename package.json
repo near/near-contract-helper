@@ -24,7 +24,7 @@
     "@koa/cors": "^3.0.0",
     "@sentry/node": "^6.5.1",
     "@sentry/tracing": "^6.2.3",
-    "bn.js": "5.1.0",
+    "bn.js": "5.2.0",
     "bs58": "^4.0.1",
     "debug": "^4.3.1",
     "escape-html": "^1.0.3",
