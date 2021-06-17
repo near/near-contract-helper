@@ -149,6 +149,11 @@ async function clearFundedAccountNeedsDeposit(ctx) {
 }
 
 const checkFundedAccountAvailable = async (ctx) => {
+    if (!fundedCreatorKeyJson) {
+        ctx.body = { available: false };
+        return;
+    }
+
     try {
         const fundingAccount = await ctx.near.account(fundedCreatorKeyJson.account_id);
 
