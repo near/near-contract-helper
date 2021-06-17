@@ -73,7 +73,6 @@ async function checkAccountDoesNotExist(ctx, next) {
     }
 }
 
-
 const creatorKeyJson = (() => {
     try {
         return JSON.parse(process.env.ACCOUNT_CREATOR_KEY);
@@ -81,6 +80,19 @@ const creatorKeyJson = (() => {
         console.warn(`Account creation not available.\nError parsing ACCOUNT_CREATOR_KEY='${process.env.ACCOUNT_CREATOR_KEY}':`, e);
         return null;
     }
+})();
+
+const creatorKeysJson = (() => {
+    let result;
+    try {
+        result = JSON.parse(process.env.ACCOUNT_CREATOR_KEYS);
+        console.log('Round-robin account creation enabled. Yeee HAWWWW :)');
+    } catch (e) {
+        console.warn(`Round-robin account creation not available.\nError parsing ACCOUNT_CREATOR_KEYS='${process.env.ACCOUNT_CREATOR_KEYS}':`, e);
+        return null;
+    }
+
+    return result;
 })();
 
 const fundedCreatorKeyJson = (() => {
@@ -102,7 +114,7 @@ const keyStore = {
         }
 
         // To create new accounts funded from a source account, by way of `near.create_account` function call
-        if(fundedCreatorKeyJson && accountId === fundedCreatorKeyJson.account_id) {
+        if (fundedCreatorKeyJson && accountId === fundedCreatorKeyJson.account_id) {
             return nearAPI.KeyPair.fromString(fundedCreatorKeyJson.secret_key || fundedCreatorKeyJson.private_key);
         }
 
@@ -130,6 +142,7 @@ const withNear = async (ctx, next) => {
 module.exports = {
     parseSeedPhrase: require('near-seed-phrase').parseSeedPhrase,
     creatorKeyJson,
+    creatorKeysJson,
     fundedCreatorKeyJson,
     withNear,
     checkAccountOwnership,

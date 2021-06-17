@@ -9,6 +9,9 @@ const constants = require('./constants');
 
 const { RECOVERY_METHOD_KINDS, SERVER_EVENTS } = constants;
 
+// render.com passes requests through a proxy server; we need the source IPs to be accurate for `koa-ratelimit`
+app.proxy = true;
+
 app.use(require('koa-logger')());
 app.use(body({ limit: '500kb', fallback: true }));
 app.use(cors({ credentials: true }));
@@ -116,13 +119,15 @@ const {
     findStakingDeposits,
     findAccountActivity,
     findReceivers,
-    findLikelyTokens
+    findLikelyTokens,
+    findLikelyNFTs
 } = require('./middleware/indexer');
 router.get('/publicKey/:publicKey/accounts', findAccountsByPublicKey);
 router.get('/staking-deposits/:accountId', findStakingDeposits);
 router.get('/account/:accountId/activity', findAccountActivity);
 router.get('/account/:accountId/callReceivers', findReceivers);
 router.get('/account/:accountId/likelyTokens', findLikelyTokens);
+router.get('/account/:accountId/likelyNFTs', findLikelyNFTs);
 
 const password = require('secure-random-password');
 const models = require('./models');
