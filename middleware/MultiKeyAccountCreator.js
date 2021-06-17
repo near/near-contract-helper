@@ -31,6 +31,8 @@ class MultiKeyAccountCreator {
             signingPrivKeys,
         },
     }) {
+        this.initialized = false;
+
         this.debugLog = debug('MultiKeyAccountCreator');
         this.sourceAccountId = accountId;
         this.signingKeys = signingPrivKeys.map((privKey) => KeyPair.fromString(privKey));
@@ -50,6 +52,8 @@ class MultiKeyAccountCreator {
             },
             nodeUrl: process.env.NODE_URL
         });
+
+        this.initialized = true;
     }
 
     getSignedTransactionObject(transactionObj, keyPair) {
