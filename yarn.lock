@@ -2947,10 +2947,10 @@ scmp@^2.1.0:
   resolved "https://registry.yarnpkg.com/scmp/-/scmp-2.1.0.tgz#37b8e197c425bdeb570ab91cc356b311a11f9c9a"
   integrity sha512-o/mRQGk9Rcer/jEEw/yw4mwo3EU/NvYvp577/Btqrym9Qy5/MdWGBqipbALgd2lrdWTJ5/gqDusxfnQBxOxT2Q==
 
-secure-random-password@^0.2.1:
-  version "0.2.2"
-  resolved "https://registry.yarnpkg.com/secure-random-password/-/secure-random-password-0.2.2.tgz#eb043bcada24bc372bc98457845222b2a96d2058"
-  integrity sha512-L1bcFB6CY/L4snizCej/yVmRGguor5ASgk2/ea4iYjYNbEPjJ7W++4o8hQGvfrS1WWqDKUNi/Z3QEHAjkibqfw==
+secure-random-password@^0.2.3:
+  version "0.2.3"
+  resolved "https://registry.yarnpkg.com/secure-random-password/-/secure-random-password-0.2.3.tgz#cc99714a824328f251b11b35b557b685c09717db"
+  integrity sha512-2zpmr6pK3CZGIS9fgApFw00/tKEBVbJTqe4AZLrLNgahCK6ueIR5uMzvbERNibr8hkWneMcOqDcm4wpHWUxrYw==
   dependencies:
     secure-random "^1.1.2"
 
