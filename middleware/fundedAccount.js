@@ -71,13 +71,19 @@ const createFundedAccount = async (ctx) => {
     }
 
 
-    const [[sequelizeAccount], fundingAccount] = await Promise.all([
+    const [[sequelizeAccount, isAccountCreatedByThisCall], fundingAccount] = await Promise.all([
         models.Account.findOrCreate({
             where: { accountId: newAccountId },
             defaults: { fundedAccountNeedsDeposit: true }
         }),
         ctx.near.account(fundedCreatorKeyJson.account_id)
     ]);
+
+    if(!isAccountCreatedByThisCall) {
+        // If someone is using a recovery method that involves a confirmation code (email / SMS)
+        // then we need to manually set the fundedAccountNeedsDeposit on the _existing_ SQL record
+        await sequelizeAccount.update({ fundedAccountNeedsDeposit: true });
+    }
 
     try {
         const newAccountResult = await fundingAccount.functionCall(
