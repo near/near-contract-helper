@@ -103,7 +103,12 @@ const {
     clearFundedAccountNeedsDeposit,
     createFundedAccount
 } = require('./middleware/fundedAccount');
-router.post('/fundedAccount', fundedAccountCreateRatelimitMiddleware, createFundedAccount);
+router.post(
+    '/fundedAccount',
+    fundedAccountCreateRatelimitMiddleware,
+    createCheckAccountDoesNotExistMiddleware({ source: 'body', fieldName: 'newAccountId' }),
+    createFundedAccount
+);
 router.get('/checkFundedAccountAvailable', checkFundedAccountAvailable);
 router.post(
     '/fundedAccount/clearNeedsDeposit',
