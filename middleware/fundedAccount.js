@@ -103,7 +103,10 @@ const createFundedAccount = async (ctx) => {
             requiredUnlockBalance: NEW_FUNDED_ACCOUNT_BALANCE
         };
     } catch (e) {
-        await sequelizeAccount.destroy();
+        if(isAccountCreatedByThisCall) {
+            // Clean up SQL record if we were responsible for creating it during this API call
+            await sequelizeAccount.destroy();
+        }
 
         if (e.type === 'NotEnoughBalance') {
             setJSONErrorResponse({
