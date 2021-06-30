@@ -59,7 +59,7 @@ const router = new Router();
 const {
     withNear,
     checkAccountOwnership,
-    checkAccountDoesNotExist,
+    createCheckAccountDoesNotExistMiddleware,
 } = require('./middleware/near');
 
 app.use(withNear);
@@ -329,7 +329,7 @@ const completeRecoveryInit = async ctx => {
 };
 
 router.post('/account/initializeRecoveryMethodForTempAccount',
-    checkAccountDoesNotExist,
+    createCheckAccountDoesNotExistMiddleware({ source: 'body', fieldName: 'accountId' }),
     completeRecoveryInit
 );
 
@@ -384,7 +384,7 @@ router.post('/account/validateSecurityCode',
 );
 
 router.post('/account/validateSecurityCodeForTempAccount',
-    checkAccountDoesNotExist,
+    createCheckAccountDoesNotExistMiddleware({ source: 'body', fieldName: 'accountId' }),
     completeRecoveryValidation({ isNew: true })
 );
 

@@ -56,21 +56,38 @@ async function checkAccountOwnership(ctx, next) {
     return await next();
 }
 
-async function checkAccountDoesNotExist(ctx, next) {
-    const { accountId } = ctx.request.body;
-    // TODO: near-api-js should have explicit accoutn existence check
-    let remoteAccount = null;
-    try {
-        remoteAccount = await (await ctx.near.account(accountId)).state();
-    } catch (e) {
-        if (e.type === 'AccountDoesNotExist') {
-            return await next();
+function createCheckAccountDoesNotExistMiddleware({ source, fieldName }) {
+    if (source !== 'body' && source !== 'params') {
+        throw new Error('invalid source for accountId provided');
+    }
+
+    if (!fieldName) {
+        throw new Error('Must provide a field to look for accountId in');
+    }
+
+    return async function checkAccountDoesNotExist(ctx, next) {
+        let accountId;
+
+        if (source === 'body') {
+            accountId = ctx.request.body[fieldName];
+        } else {
+            accountId = ctx.params[fieldName];
         }
-        throw e;
-    }
-    if (remoteAccount) {
-        ctx.throw(403, 'Account ' + accountId + ' already exists.');
-    }
+
+        // TODO: near-api-js should have explicit accoutn existence check
+        let remoteAccount = null;
+        try {
+            remoteAccount = await (await ctx.near.account(accountId)).state();
+        } catch (e) {
+            if (e.type === 'AccountDoesNotExist') {
+                return await next();
+            }
+            throw e;
+        }
+        if (remoteAccount) {
+            ctx.throw(403, 'Account ' + accountId + ' already exists.');
+        }
+    };
 }
 
 const creatorKeyJson = (() => {
@@ -146,5 +163,5 @@ module.exports = {
     fundedCreatorKeyJson,
     withNear,
     checkAccountOwnership,
-    checkAccountDoesNotExist,
+    createCheckAccountDoesNotExistMiddleware,
 };
