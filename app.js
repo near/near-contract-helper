@@ -59,7 +59,7 @@ const router = new Router();
 const {
     withNear,
     checkAccountOwnership,
-    checkAccountDoesNotExist,
+    createCheckAccountDoesNotExistMiddleware,
 } = require('./middleware/near');
 
 app.use(withNear);
@@ -103,7 +103,12 @@ const {
     clearFundedAccountNeedsDeposit,
     createFundedAccount
 } = require('./middleware/fundedAccount');
-router.post('/fundedAccount', fundedAccountCreateRatelimitMiddleware, createFundedAccount);
+router.post(
+    '/fundedAccount',
+    fundedAccountCreateRatelimitMiddleware,
+    createCheckAccountDoesNotExistMiddleware({ source: 'body', fieldName: 'newAccountId' }),
+    createFundedAccount
+);
 router.get('/checkFundedAccountAvailable', checkFundedAccountAvailable);
 router.post(
     '/fundedAccount/clearNeedsDeposit',
@@ -329,7 +334,7 @@ const completeRecoveryInit = async ctx => {
 };
 
 router.post('/account/initializeRecoveryMethodForTempAccount',
-    checkAccountDoesNotExist,
+    createCheckAccountDoesNotExistMiddleware({ source: 'body', fieldName: 'accountId' }),
     completeRecoveryInit
 );
 
@@ -384,7 +389,7 @@ router.post('/account/validateSecurityCode',
 );
 
 router.post('/account/validateSecurityCodeForTempAccount',
-    checkAccountDoesNotExist,
+    createCheckAccountDoesNotExistMiddleware({ source: 'body', fieldName: 'accountId' }),
     completeRecoveryValidation({ isNew: true })
 );
 
