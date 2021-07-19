@@ -2,28 +2,15 @@ const { Pool } = require('pg');
 
 const BRIDGE_TOKEN_FACTORY_ACCOUNT_ID = process.env.BRIDGE_TOKEN_FACTORY_ACCOUNT_ID || 'factory.bridge.near';
 
-let pool;
-const withPgClient = (fn) => async (ctx) => {
-    if (!pool) {
-        pool = new Pool({
-            connectionString: process.env.INDEXER_DB_CONNECTION,
-            max: 50
-        });
-    }
+const pool = new Pool({
+    connectionString: process.env.INDEXER_DB_CONNECTION,
+    max: 50,
+    log: (...args) => console.log(...args)
+});
 
-    const client = await pool.connect();
-    ctx.client = client;
-    try {
-        return fn(ctx);
-    } finally {
-        client.release();
-    }
-};
-
-const findStakingDeposits = withPgClient(async (ctx) => {
+const findStakingDeposits = async (ctx) => {
     const { accountId } = ctx.params;
-    const { client } = ctx;
-    const { rows } = await client.query(`
+    const { rows } = await pool.query(`
         with deposit_in as (
             select SUM(to_number(args ->> 'deposit', '99999999999999999999999999999999999999')) deposit,
                 receipt_receiver_account_id validator_id
@@ -51,16 +38,15 @@ const findStakingDeposits = withPgClient(async (ctx) => {
     `, [accountId]);
 
     ctx.body = rows;
-});
+};
 
-const findAccountActivity = withPgClient(async (ctx) => {
+const findAccountActivity = async (ctx) => {
     const { accountId } = ctx.params;
     let { offset, limit = 10 } = ctx.request.query;
     if (!offset) {
         offset = '9999999999999999999';
     }
-    const { client } = ctx;
-    const { rows } = await client.query(`
+    const { rows } = await pool.query(`
         select
             included_in_block_hash block_hash,
             included_in_block_timestamp block_timestamp,
@@ -82,12 +68,11 @@ const findAccountActivity = withPgClient(async (ctx) => {
     `, [accountId, offset, limit]);
 
     ctx.body = rows;
-});
+};
 
-const findAccountsByPublicKey = withPgClient(async (ctx) => {
+const findAccountsByPublicKey = async (ctx) => {
     const { publicKey } = ctx.params;
-    const { client } = ctx;
-    const { rows } = await client.query(`
+    const { rows } = await pool.query(`
         SELECT DISTINCT account_id
         FROM access_keys
         JOIN accounts USING (account_id)
@@ -96,24 +81,22 @@ const findAccountsByPublicKey = withPgClient(async (ctx) => {
             AND access_keys.deleted_by_receipt_id IS NULL
     `, [publicKey]);
     ctx.body = rows.map(({ account_id }) => account_id);
-});
+};
 
-const findReceivers = withPgClient(async (ctx) => {
+const findReceivers = async (ctx) => {
     const { accountId } = ctx.params;
-    const { client } = ctx;
 
-    const { rows } = await client.query(`
+    const { rows } = await pool.query(`
         select distinct receipt_receiver_account_id as receiver_account_id
         from action_receipt_actions
         where receipt_predecessor_account_id = $1
             and action_kind = 'FUNCTION_CALL'
     `, [accountId]);
     ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
-});
+};
 
-const findLikelyTokens = withPgClient(async (ctx) => {
+const findLikelyTokens = async (ctx) => {
     const { accountId } = ctx.params;
-    const { client } = ctx;
 
     const received = `
         select distinct receipt_receiver_account_id as receiver_account_id
@@ -143,14 +126,13 @@ const findLikelyTokens = withPgClient(async (ctx) => {
             and (args->>'method_name' like 'ft_%' or args->>'method_name' = 'storage_deposit')
     `;
 
-    const { rows } = await client.query([received, mintedWithBridge, calledByUser].join(' union '), [accountId, BRIDGE_TOKEN_FACTORY_ACCOUNT_ID]);
+    const { rows } = await pool.query([received, mintedWithBridge, calledByUser].join(' union '), [accountId, BRIDGE_TOKEN_FACTORY_ACCOUNT_ID]);
     ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
-});
+};
 
 
-const findLikelyNFTs = withPgClient(async (ctx) => {
+const findLikelyNFTs = async (ctx) => {
     const { accountId } = ctx.params;
-    const { client } = ctx;
 
     const received = `
         select distinct receipt_receiver_account_id as receiver_account_id
@@ -163,9 +145,9 @@ const findLikelyNFTs = withPgClient(async (ctx) => {
 
     // TODO: How to query minted tokens?
 
-    const { rows } = await client.query([received].join(' union '), [accountId]);
+    const { rows } = await pool.query([received].join(' union '), [accountId]);
     ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
-});
+};
 
 module.exports = {
     findStakingDeposits,
