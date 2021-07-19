@@ -7,6 +7,7 @@ const withPgClient = (fn) => async (ctx) => {
     if (!pool) {
         pool = new Pool({
             connectionString: process.env.INDEXER_DB_CONNECTION,
+            max: 50
         });
     }
 
