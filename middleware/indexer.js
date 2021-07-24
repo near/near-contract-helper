@@ -2,11 +2,7 @@ const { Pool } = require('pg');
 
 const BRIDGE_TOKEN_FACTORY_ACCOUNT_ID = process.env.BRIDGE_TOKEN_FACTORY_ACCOUNT_ID || 'factory.bridge.near';
 
-const pool = new Pool({
-    connectionString: process.env.INDEXER_DB_CONNECTION,
-    max: 50,
-    log: (...args) => console.log(...args)
-});
+const pool = new Pool({ connectionString: process.env.INDEXER_DB_CONNECTION, });
 
 const findStakingDeposits = async (ctx) => {
     const { accountId } = ctx.params;
