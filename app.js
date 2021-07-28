@@ -393,6 +393,9 @@ router.post('/account/validateSecurityCodeForTempAccount',
     completeRecoveryValidation({ isNew: true })
 );
 
+const createFiatValueMiddleware = require('./middleware/fiat');
+router.get('/fiat', createFiatValueMiddleware());
+
 app
     .use(router.routes())
     .use(router.allowedMethods());
