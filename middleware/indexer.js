@@ -100,7 +100,7 @@ const findLikelyTokens = async (ctx) => {
         where args->'args_json'->>'receiver_id' = $1
             and action_kind = 'FUNCTION_CALL'
             and args->>'args_json' is not null
-            and args->>'method_name' in ('ft_transfer', 'ft_transfer_call')
+            and args->>'method_name' in ('ft_transfer', 'ft_transfer_call','ft_mint')
     `;
 
     const mintedWithBridge = `
