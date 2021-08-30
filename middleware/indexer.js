@@ -1,4 +1,5 @@
 const { Pool } = require('pg');
+const Cache = require('node-cache');
 
 const BRIDGE_TOKEN_FACTORY_ACCOUNT_ID = process.env.BRIDGE_TOKEN_FACTORY_ACCOUNT_ID || 'factory.bridge.near';
 
@@ -100,7 +101,7 @@ const findLikelyTokens = async (ctx) => {
         where args->'args_json'->>'receiver_id' = $1
             and action_kind = 'FUNCTION_CALL'
             and args->>'args_json' is not null
-            and args->>'method_name' in ('ft_transfer', 'ft_transfer_call')
+            and args->>'method_name' in ('ft_transfer', 'ft_transfer_call','ft_mint')
     `;
 
     const mintedWithBridge = `
@@ -145,6 +146,31 @@ const findLikelyNFTs = async (ctx) => {
     ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
 };
 
+const WALLET_URL = process.env.WALLET_URL;
+
+// One hour cache window since validators do not change often
+const validatorCache = new Cache({ stdTTL: (60 * 1000) * 60, checkperiod: 0, clone: false });
+
+async function fetchAndCacheValidators(cache) {
+    let validatorDetails;
+
+    // TODO: Replace with `NETWORK_ID` environment var check when we have one
+    if (WALLET_URL.includes('wallet.near.org')) {
+        ({ rows: validatorDetails } = await pool.query('SELECT account_id FROM accounts WHERE account_id LIKE \'%.poolv1.near\''));
+    } else {
+        ({ rows: validatorDetails } = await pool.query('SELECT account_id FROM accounts WHERE account_id LIKE \'%.pool.%.m0\''));
+    }
+
+    const validators = validatorDetails.map((v) => v.account_id);
+    cache.set('validators', validators);
+
+    return validators;
+}
+
+async function findStakingPools(ctx) {
+    ctx.body = validatorCache.get('validators') || await fetchAndCacheValidators(validatorCache);
+}
+
 module.exports = {
     findStakingDeposits,
     findAccountActivity,
@@ -152,4 +178,5 @@ module.exports = {
     findReceivers,
     findLikelyTokens,
     findLikelyNFTs,
+    findStakingPools
 };
