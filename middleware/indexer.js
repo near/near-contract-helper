@@ -1,4 +1,5 @@
 const { Pool } = require('pg');
+const Cache = require('node-cache');
 
 const BRIDGE_TOKEN_FACTORY_ACCOUNT_ID = process.env.BRIDGE_TOKEN_FACTORY_ACCOUNT_ID || 'factory.bridge.near';
 
@@ -147,7 +148,10 @@ const findLikelyNFTs = async (ctx) => {
 
 const WALLET_URL = process.env.WALLET_URL;
 
-async function findValidators(ctx) {
+// One hour cache window since validators do not change often
+const validatorCache = new Cache({ stdTTL: (60 * 1000) * 60, checkperiod: 0, clone: false });
+
+async function fetchAndCacheValidators(cache) {
     let validatorDetails;
 
     // TODO: Replace with `NETWORK_ID` environment var check when we have one
@@ -157,7 +161,14 @@ async function findValidators(ctx) {
         ({ rows: validatorDetails } = await pool.query('SELECT account_id FROM accounts WHERE account_id LIKE \'%.pool.%.m0\''));
     }
 
-    ctx.body = validatorDetails.map((v) => v.account_id);
+    const validators = validatorDetails.map((v) => v.account_id);
+    cache.set('validators', validators);
+
+    return validators;
+}
+
+async function findValidators(ctx) {
+    ctx.body = validatorCache.get('validators') || await fetchAndCacheValidators(validatorCache);
 }
 
 module.exports = {
