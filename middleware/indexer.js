@@ -167,7 +167,7 @@ async function fetchAndCacheValidators(cache) {
     return validators;
 }
 
-async function findValidators(ctx) {
+async function findStakingPools(ctx) {
     ctx.body = validatorCache.get('validators') || await fetchAndCacheValidators(validatorCache);
 }
 
@@ -178,5 +178,5 @@ module.exports = {
     findReceivers,
     findLikelyTokens,
     findLikelyNFTs,
-    findValidators
+    findStakingPools
 };

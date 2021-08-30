@@ -126,7 +126,7 @@ const {
     findReceivers,
     findLikelyTokens,
     findLikelyNFTs,
-    findValidators,
+    findStakingPools,
 } = require('./middleware/indexer');
 router.get('/publicKey/:publicKey/accounts', findAccountsByPublicKey);
 router.get('/staking-deposits/:accountId', findStakingDeposits);
@@ -134,7 +134,7 @@ router.get('/account/:accountId/activity', findAccountActivity);
 router.get('/account/:accountId/callReceivers', findReceivers);
 router.get('/account/:accountId/likelyTokens', findLikelyTokens);
 router.get('/account/:accountId/likelyNFTs', findLikelyNFTs);
-router.get('/validators', findValidators);
+router.get('/stakingPools', findStakingPools);
 
 const password = require('secure-random-password');
 const models = require('./models');
