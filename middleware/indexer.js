@@ -145,6 +145,21 @@ const findLikelyNFTs = async (ctx) => {
     ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
 };
 
+const WALLET_URL = process.env.WALLET_URL;
+
+async function findValidators(ctx) {
+    let validatorDetails;
+
+    // TODO: Replace with `NETWORK_ID` environment var check when we have one
+    if (WALLET_URL.includes('wallet.near.org')) {
+        ({ rows: validatorDetails } = await pool.query('SELECT account_id FROM accounts WHERE account_id LIKE \'%.poolv1.near\''));
+    } else {
+        ({ rows: validatorDetails } = await pool.query('SELECT account_id FROM accounts WHERE account_id LIKE \'%.pool.%.m0\''));
+    }
+
+    ctx.body = validatorDetails.map((v) => v.account_id);
+}
+
 module.exports = {
     findStakingDeposits,
     findAccountActivity,
@@ -152,4 +167,5 @@ module.exports = {
     findReceivers,
     findLikelyTokens,
     findLikelyNFTs,
+    findValidators
 };
