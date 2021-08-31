@@ -2,11 +2,24 @@ const { Pool } = require('pg');
 const Cache = require('node-cache');
 
 const BRIDGE_TOKEN_FACTORY_ACCOUNT_ID = process.env.BRIDGE_TOKEN_FACTORY_ACCOUNT_ID || 'factory.bridge.near';
+const WALLET_URL = process.env.WALLET_URL;
+
+// TODO: Replace with `NETWORK_ID` environment var check when we have one
+const IS_MAINNET = WALLET_URL.includes('wallet.near.org');
 
 const pool = new Pool({ connectionString: process.env.INDEXER_DB_CONNECTION, });
 
 const findStakingDeposits = async (ctx) => {
     const { accountId } = ctx.params;
+
+    let poolMatch;
+
+    if (IS_MAINNET) {
+        poolMatch = '%.poolv1.near';
+    } else {
+        poolMatch = '%.pool.%.m0';
+    }
+
     const { rows } = await pool.query(`
         with deposit_in as (
             select SUM(to_number(args ->> 'deposit', '99999999999999999999999999999999999999')) deposit,
@@ -16,7 +29,7 @@ const findStakingDeposits = async (ctx) => {
                 action_kind = 'FUNCTION_CALL' and
                 args ->> 'method_name' like 'deposit%' and
                 receipt_predecessor_account_id = $1 and
-                receipt_receiver_account_id like '%pool%'
+                receipt_receiver_account_id like '${poolMatch}'
             group by receipt_receiver_account_id
         ), deposit_out as (
             select SUM(to_number(args ->> 'deposit', '99999999999999999999999999999999999999')) deposit,
@@ -25,7 +38,7 @@ const findStakingDeposits = async (ctx) => {
             where
                 action_kind = 'TRANSFER' and
                 receipt_receiver_account_id = $1 and
-                receipt_predecessor_account_id like '%pool%'
+                receipt_predecessor_account_id like '${poolMatch}'
             group by receipt_predecessor_account_id
         )
         select sum(deposit_in.deposit - coalesce(deposit_out.deposit, 0)) deposit, deposit_in.validator_id
@@ -146,7 +159,6 @@ const findLikelyNFTs = async (ctx) => {
     ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
 };
 
-const WALLET_URL = process.env.WALLET_URL;
 
 // One hour cache window since validators do not change often
 const validatorCache = new Cache({ stdTTL: (60 * 1000) * 60, checkperiod: 0, clone: false });
@@ -154,8 +166,7 @@ const validatorCache = new Cache({ stdTTL: (60 * 1000) * 60, checkperiod: 0, clo
 async function fetchAndCacheValidators(cache) {
     let validatorDetails;
 
-    // TODO: Replace with `NETWORK_ID` environment var check when we have one
-    if (WALLET_URL.includes('wallet.near.org')) {
+    if (IS_MAINNET) {
         ({ rows: validatorDetails } = await pool.query('SELECT account_id FROM accounts WHERE account_id LIKE \'%.poolv1.near\''));
     } else {
         ({ rows: validatorDetails } = await pool.query('SELECT account_id FROM accounts WHERE account_id LIKE \'%.pool.%.m0\''));
