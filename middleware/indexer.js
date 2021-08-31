@@ -9,16 +9,16 @@ const IS_MAINNET = WALLET_URL.includes('wallet.near.org');
 
 const pool = new Pool({ connectionString: process.env.INDEXER_DB_CONNECTION, });
 
+let poolMatch;
+
+if (IS_MAINNET) {
+    poolMatch = '%.poolv1.near';
+} else {
+    poolMatch = '%.pool.%.m0';
+}
+
 const findStakingDeposits = async (ctx) => {
     const { accountId } = ctx.params;
-
-    let poolMatch;
-
-    if (IS_MAINNET) {
-        poolMatch = '%.poolv1.near';
-    } else {
-        poolMatch = '%.pool.%.m0';
-    }
 
     const { rows } = await pool.query(`
         with deposit_in as (
@@ -164,13 +164,7 @@ const findLikelyNFTs = async (ctx) => {
 const validatorCache = new Cache({ stdTTL: (60 * 1000) * 60, checkperiod: 0, clone: false });
 
 async function fetchAndCacheValidators(cache) {
-    let validatorDetails;
-
-    if (IS_MAINNET) {
-        ({ rows: validatorDetails } = await pool.query('SELECT account_id FROM accounts WHERE account_id LIKE \'%.poolv1.near\''));
-    } else {
-        ({ rows: validatorDetails } = await pool.query('SELECT account_id FROM accounts WHERE account_id LIKE \'%.pool.%.m0\''));
-    }
+    const { rows: validatorDetails } = await pool.query(`SELECT account_id FROM accounts WHERE account_id LIKE '${poolMatch}'`);
 
     const validators = validatorDetails.map((v) => v.account_id);
     cache.set('validators', validators);
