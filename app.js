@@ -101,7 +101,8 @@ const fundedAccountCreateRatelimitMiddleware = ratelimit({
 const {
     checkFundedAccountAvailable,
     clearFundedAccountNeedsDeposit,
-    createFundedAccount
+    createFundedAccount,
+    createIdentityVerifiedFundedAccount,
 } = require('./middleware/fundedAccount');
 router.post(
     '/fundedAccount',
@@ -109,6 +110,14 @@ router.post(
     createCheckAccountDoesNotExistMiddleware({ source: 'body', fieldName: 'newAccountId' }),
     createFundedAccount
 );
+
+router.post(
+    '/identityFundedAccount',
+    fundedAccountCreateRatelimitMiddleware,
+    createCheckAccountDoesNotExistMiddleware({ source: 'body', fieldName: 'newAccountId' }),
+    createIdentityVerifiedFundedAccount
+);
+
 router.get('/checkFundedAccountAvailable', checkFundedAccountAvailable);
 router.post(
     '/fundedAccount/clearNeedsDeposit',

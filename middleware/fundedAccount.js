@@ -19,6 +19,50 @@ const setJSONErrorResponse = ({ ctx, statusCode, body }) => {
     ctx.body = body;
 };
 
+async function doCreateFundedAccount({
+    fundingAccount,
+    newAccountId,
+    newAccountPublicKey,
+    ctx,
+    isAccountCreatedByThisCall,
+    sequelizeAccount
+}) {
+    try {
+        const newAccountResult = await fundingAccount.functionCall(
+            FUNDED_NEW_ACCOUNT_CONTRACT_NAME,
+            'create_account',
+            {
+                new_account_id: newAccountId,
+                new_public_key: newAccountPublicKey.replace(/^ed25519:/, '')
+            },
+            MAX_GAS_FOR_ACCOUNT_CREATE,
+            NEW_FUNDED_ACCOUNT_BALANCE
+        );
+
+        ctx.body = {
+            success: true,
+            result: newAccountResult,
+            requiredUnlockBalance: NEW_FUNDED_ACCOUNT_BALANCE
+        };
+    } catch (e) {
+        if (isAccountCreatedByThisCall) {
+            // Clean up SQL record if we were responsible for creating it during this API call
+            await sequelizeAccount.destroy();
+        }
+
+        if (e.type === 'NotEnoughBalance') {
+            setJSONErrorResponse({
+                ctx,
+                statusCode: 503,
+                body: { success: false, code: 'NotEnoughBalance', message: e.message }
+            });
+            return;
+        }
+
+        ctx.throw(e);
+    }
+}
+
 const createFundedAccount = async (ctx) => {
     if (!fundedCreatorKeyJson) {
         console.warn('FUNDED_ACCOUNT_CREATOR_KEY is not set, cannot create funded accounts.');
@@ -86,41 +130,130 @@ const createFundedAccount = async (ctx) => {
         await sequelizeAccount.update({ fundedAccountNeedsDeposit: true });
     }
 
-    try {
-        const newAccountResult = await fundingAccount.functionCall(
-            FUNDED_NEW_ACCOUNT_CONTRACT_NAME,
-            'create_account',
-            {
-                new_account_id: newAccountId,
-                new_public_key: newAccountPublicKey.replace(/^ed25519:/, '')
-            },
-            MAX_GAS_FOR_ACCOUNT_CREATE,
-            NEW_FUNDED_ACCOUNT_BALANCE
-        );
-
-        ctx.body = {
-            success: true,
-            result: newAccountResult,
-            requiredUnlockBalance: NEW_FUNDED_ACCOUNT_BALANCE
-        };
-    } catch (e) {
-        if (isAccountCreatedByThisCall) {
-            // Clean up SQL record if we were responsible for creating it during this API call
-            await sequelizeAccount.destroy();
-        }
-
-        if (e.type === 'NotEnoughBalance') {
-            setJSONErrorResponse({
-                ctx,
-                statusCode: 503,
-                body: { success: false, code: 'NotEnoughBalance', message: e.message }
-            });
-            return;
-        }
-
-        ctx.throw(e);
-    }
+    await doCreateFundedAccount({
+        fundingAccount,
+        newAccountId,
+        newAccountPublicKey,
+        ctx,
+        isAccountCreatedByThisCall,
+        sequelizeAccount
+    });
 };
+
+async function createIdentityVerifiedFundedAccount(ctx) {
+    if (!fundedCreatorKeyJson) {
+        console.warn('FUNDED_ACCOUNT_CREATOR_KEY is not set, cannot create funded accounts.');
+        ctx.throw(500, 'Funded account creation is not available.');
+    }
+
+    const {
+        type,
+        newAccountId,
+        newAccountPublicKey,
+        identityKey,
+        verificationCode
+    } = ctx.request.body;
+
+    if (!type) {
+        setJSONErrorResponse({
+            ctx,
+            statusCode: 400,
+            body: { success: false, code: 'typeRequired' }
+        });
+        return;
+    }
+
+    if (!newAccountId) {
+        setJSONErrorResponse({
+            ctx,
+            statusCode: 400,
+            body: { success: false, code: 'newAccountIdRequired' }
+        });
+        return;
+    }
+
+    if (!newAccountPublicKey) {
+        setJSONErrorResponse({
+            ctx,
+            statusCode: 400,
+            body: { success: false, code: 'newAccountPublicKeyRequired' }
+        });
+        return;
+    }
+
+    if (!identityKey) {
+        setJSONErrorResponse({
+            ctx,
+            statusCode: 400,
+            body: { success: false, code: 'identityKeyRequired' }
+        });
+        return;
+    }
+
+    if (!verificationCode) {
+        setJSONErrorResponse({
+            ctx,
+            statusCode: 400,
+            body: { success: false, code: 'verificationCodeRequired' }
+        });
+        return;
+    }
+
+    const verificationMethod = await models.IdentityVerificationMethod.findOne({
+        where: {
+            identityKey,
+            kind: type,
+            securityCode: verificationCode,
+        }
+    });
+
+    if (!verificationMethod) {
+        setJSONErrorResponse({
+            ctx,
+            statusCode: 400,
+            body: { success: false, code: 'IdentityVerificationCodeInvalid' }
+        });
+        return;
+    }
+
+    if (verificationMethod.claimed) {
+        setJSONErrorResponse({
+            ctx,
+            statusCode: 400,
+            body: { success: false, code: 'IdentityVerificationCodeClaimed' }
+        });
+        return;
+    }
+
+    // 15 minute expiration for codes; don't allow anything older to be used.
+    if ((Date.now().valueOf() - verificationMethod.updatedAt.valueOf()) > (60 * 1000 * 15)) {
+        setJSONErrorResponse({
+            ctx,
+            statusCode: 400,
+            body: { success: false, code: 'IdentityVerificationCodeExpired' }
+        });
+        return;
+    }
+
+    const [[sequelizeAccount, isAccountCreatedByThisCall], fundingAccount] = await Promise.all([
+        models.Account.findOrCreate({ where: { accountId: newAccountId } }),
+        ctx.near.account(fundedCreatorKeyJson.account_id)
+    ]);
+
+    await doCreateFundedAccount({
+        fundingAccount,
+        newAccountId,
+        newAccountPublicKey,
+        ctx,
+        isAccountCreatedByThisCall,
+        sequelizeAccount
+    });
+
+    if (ctx.status === 200) {
+        console.log('claiming verification method!');
+        await verificationMethod.update({ securityCode: null, claimed: true });
+    }
+}
 
 async function clearFundedAccountNeedsDeposit(ctx) {
     // DEPRECATED: Remove after coin-op v1.5 is settled
@@ -192,5 +325,6 @@ module.exports = {
     checkFundedAccountAvailable,
     clearFundedAccountNeedsDeposit,
     createFundedAccount,
+    createIdentityVerifiedFundedAccount,
     BN_UNLOCK_FUNDED_ACCOUNT_BALANCE
 };
