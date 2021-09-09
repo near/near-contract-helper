@@ -10,6 +10,7 @@ const MAX_GAS_FOR_ACCOUNT_CREATE = process.env.MAX_GAS_FOR_ACCOUNT_CREATE || '10
 const NEW_FUNDED_ACCOUNT_BALANCE = process.env.FUNDED_ACCOUNT_BALANCE || nearAPI.utils.format.parseNearAmount('0.35');
 const FUNDED_NEW_ACCOUNT_CONTRACT_NAME = process.env.FUNDED_NEW_ACCOUNT_CONTRACT_NAME || 'near';
 
+// DEPRECATED: Remove after coin-op v1.5 is settled
 const BN_FUNDED_ACCOUNT_BALANCE_REQUIRED = (new BN(NEW_FUNDED_ACCOUNT_BALANCE).add(new BN(MAX_GAS_FOR_ACCOUNT_CREATE)));
 const BN_UNLOCK_FUNDED_ACCOUNT_BALANCE = new BN(process.env.UNLOCK_FUNDED_ACCOUNT_BALANCE || nearAPI.utils.format.parseNearAmount('0.2'));
 
@@ -79,7 +80,7 @@ const createFundedAccount = async (ctx) => {
         ctx.near.account(fundedCreatorKeyJson.account_id)
     ]);
 
-    if(!isAccountCreatedByThisCall) {
+    if (!isAccountCreatedByThisCall) {
         // If someone is using a recovery method that involves a confirmation code (email / SMS)
         // then we need to manually set the fundedAccountNeedsDeposit on the _existing_ SQL record
         await sequelizeAccount.update({ fundedAccountNeedsDeposit: true });
@@ -103,7 +104,7 @@ const createFundedAccount = async (ctx) => {
             requiredUnlockBalance: NEW_FUNDED_ACCOUNT_BALANCE
         };
     } catch (e) {
-        if(isAccountCreatedByThisCall) {
+        if (isAccountCreatedByThisCall) {
             // Clean up SQL record if we were responsible for creating it during this API call
             await sequelizeAccount.destroy();
         }
@@ -122,6 +123,8 @@ const createFundedAccount = async (ctx) => {
 };
 
 async function clearFundedAccountNeedsDeposit(ctx) {
+    // DEPRECATED: Remove after coin-op v1.5 is settled
+
     const { accountId, fundedAccountNeedsDeposit } = ctx.sequelizeAccount;
 
     if (!fundedAccountNeedsDeposit) {
@@ -158,6 +161,8 @@ async function clearFundedAccountNeedsDeposit(ctx) {
 }
 
 const checkFundedAccountAvailable = async (ctx) => {
+    // DEPRECATED: Remove after coin-op v1.5 is settled
+
     if (!fundedCreatorKeyJson) {
         ctx.body = { available: false };
         return;

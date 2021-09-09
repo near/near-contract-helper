@@ -116,6 +116,12 @@ router.post(
     clearFundedAccountNeedsDeposit
 );
 
+const { createIdentityVerificationMethod } = require('./middleware/identityVerificationMethod');
+router.post(
+    '/identityVerificationMethod',
+    createIdentityVerificationMethod
+);
+
 const { signURL } = require('./middleware/moonpay');
 router.get('/moonpay/signURL', signURL);
 
