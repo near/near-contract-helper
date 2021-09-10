@@ -211,7 +211,7 @@ async function createIdentityVerifiedFundedAccount(ctx) {
         setJSONErrorResponse({
             ctx,
             statusCode: 400,
-            body: { success: false, code: 'IdentityVerificationCodeInvalid' }
+            body: { success: false, code: 'identityVerificationCodeInvalid' }
         });
         return;
     }
@@ -220,7 +220,7 @@ async function createIdentityVerifiedFundedAccount(ctx) {
         setJSONErrorResponse({
             ctx,
             statusCode: 400,
-            body: { success: false, code: 'IdentityVerificationCodeClaimed' }
+            body: { success: false, code: 'identityVerificationCodeClaimed' }
         });
         return;
     }
@@ -230,7 +230,7 @@ async function createIdentityVerifiedFundedAccount(ctx) {
         setJSONErrorResponse({
             ctx,
             statusCode: 400,
-            body: { success: false, code: 'IdentityVerificationCodeExpired' }
+            body: { success: false, code: 'identityVerificationCodeExpired' }
         });
         return;
     }
@@ -250,7 +250,6 @@ async function createIdentityVerifiedFundedAccount(ctx) {
     });
 
     if (ctx.status === 200) {
-        console.log('claiming verification method!');
         await verificationMethod.update({ securityCode: null, claimed: true });
     }
 }
