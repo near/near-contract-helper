@@ -1,6 +1,8 @@
 'use strict';
 
 const TABLE_NAME = 'IdentityVerificationMethods';
+const kindConstraintName = 'kind_constraint_identity_verification_method';
+const uniqueIdentityConstraintName = 'unique_constraint_identity_verification_method';
 
 module.exports = {
     up: async (queryInterface) => queryInterface
@@ -11,7 +13,7 @@ module.exports = {
                     TABLE_NAME,
                     {
                         fields: ['kind'],
-                        name: 'kind_constraint',
+                        name: kindConstraintName,
                         type: 'check',
                         where: {
                             kind: ['email', 'phone']
@@ -24,7 +26,7 @@ module.exports = {
                     TABLE_NAME,
                     {
                         fields: ['identityKey'],
-                        name: 'unique_constraint',
+                        name: uniqueIdentityConstraintName,
                         type: 'unique',
                     },
                     { transaction }
@@ -38,12 +40,12 @@ module.exports = {
             return Promise.all([
                 queryInterface.removeConstraint(
                     TABLE_NAME,
-                    'kind_constraint',
+                    kindConstraintName,
                     { transaction }
                 ),
                 queryInterface.removeConstraint(
                     TABLE_NAME,
-                    'unique_constraint',
+                    uniqueIdentityConstraintName,
                     { transaction }
                 ),
             ]);
