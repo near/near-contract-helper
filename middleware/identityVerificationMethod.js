@@ -20,7 +20,7 @@ const setJSONErrorResponse = ({ ctx, statusCode, body }) => {
 
 async function createIdentityVerificationMethod(ctx) {
     const {
-        type: kind,
+        kind,
         identityKey
     } = ctx.request.body;
 
@@ -28,7 +28,7 @@ async function createIdentityVerificationMethod(ctx) {
         setJSONErrorResponse({
             ctx,
             statusCode: 400,
-            body: { success: false, code: 'typeRequired' }
+            body: { success: false, code: 'kindRequired' }
         });
         return;
     }
@@ -37,7 +37,7 @@ async function createIdentityVerificationMethod(ctx) {
         setJSONErrorResponse({
             ctx,
             statusCode: 400,
-            body: { success: false, code: 'invalidVerificationType' }
+            body: { success: false, code: 'invalidVerificationKind' }
         });
         return;
     }
@@ -63,7 +63,7 @@ async function createIdentityVerificationMethod(ctx) {
         }
     });
 
-    // Set a new security code every time someone POSTs for a particular type and identityKey combination
+    // Set a new security code every time someone POSTs for a particular kind and identityKey combination
     // unless the existing has already been claimed.
     if (verificationMethod.claimed === true) {
         setJSONErrorResponse({

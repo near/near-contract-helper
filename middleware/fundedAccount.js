@@ -147,18 +147,18 @@ async function createIdentityVerifiedFundedAccount(ctx) {
     }
 
     const {
-        type,
+        kind,
         newAccountId,
         newAccountPublicKey,
         identityKey,
         verificationCode
     } = ctx.request.body;
 
-    if (!type) {
+    if (!kind) {
         setJSONErrorResponse({
             ctx,
             statusCode: 400,
-            body: { success: false, code: 'typeRequired' }
+            body: { success: false, code: 'kindRequired' }
         });
         return;
     }
@@ -202,7 +202,7 @@ async function createIdentityVerifiedFundedAccount(ctx) {
     const verificationMethod = await models.IdentityVerificationMethod.findOne({
         where: {
             identityKey,
-            kind: type,
+            kind,
             securityCode: verificationCode,
         }
     });
