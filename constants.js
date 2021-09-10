@@ -17,8 +17,8 @@ const RECOVERY_METHOD_KINDS = {
 };
 
 const IDENTITY_VERIFICATION_METHOD_KINDS = {
-    EMAIL: 'email',
-    PHONE: 'phone'
+    EMAIL: RECOVERY_METHOD_KINDS.EMAIL,
+    PHONE: RECOVERY_METHOD_KINDS.PHONE
 };
 
 module.exports = {
