@@ -400,6 +400,7 @@ const completeRecoveryValidation = ({ isNew } = {}) => async ctx => {
     if (isNew) {
         // Implicitly reserve a funded account for the same identity to allow the user to get a funded account without receiving 2 e-mails
         try {
+            // Throws `UniqueConstraintError` due to SQL constraints if an entry with matching `identityKey` and `kind` exists, but with `claimed` = true
             const [verificationMethod, verificationMethodCreated] = await models.IdentityVerificationMethod.findOrCreate({
                 where: {
                     identityKey: method.detail,

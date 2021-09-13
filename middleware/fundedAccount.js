@@ -4,6 +4,7 @@ const BN = require('bn.js');
 const models = require('../models');
 const recaptchaValidator = require('../RecaptchaValidator');
 const { fundedCreatorKeyJson } = require('./near');
+const { IDENTITY_VERIFICATION_ERRORS, validateVerificationParams } = require('./identityVerificationMethod');
 
 // TODO: Adjust gas to correct amounts
 const MAX_GAS_FOR_ACCOUNT_CREATE = process.env.MAX_GAS_FOR_ACCOUNT_CREATE || '100000000000000';
@@ -154,14 +155,6 @@ async function createIdentityVerifiedFundedAccount(ctx) {
         verificationCode
     } = ctx.request.body;
 
-    if (!kind) {
-        setJSONErrorResponse({
-            ctx,
-            statusCode: 400,
-            body: { success: false, code: 'kindRequired' }
-        });
-        return;
-    }
 
     if (!newAccountId) {
         setJSONErrorResponse({
@@ -181,20 +174,15 @@ async function createIdentityVerifiedFundedAccount(ctx) {
         return;
     }
 
-    if (!identityKey) {
-        setJSONErrorResponse({
-            ctx,
-            statusCode: 400,
-            body: { success: false, code: 'identityKeyRequired' }
-        });
+    if (!validateVerificationParams({ ctx, kind, identityKey })) {
         return;
     }
 
     if (!verificationCode) {
         setJSONErrorResponse({
             ctx,
-            statusCode: 400,
-            body: { success: false, code: 'verificationCodeRequired' }
+            statusCode: IDENTITY_VERIFICATION_ERRORS.VERIFICATION_CODE_REQUIRED.statusCode,
+            body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.VERIFICATION_CODE_REQUIRED.code }
         });
         return;
     }
@@ -203,24 +191,23 @@ async function createIdentityVerifiedFundedAccount(ctx) {
         where: {
             identityKey,
             kind,
-            securityCode: verificationCode,
         }
     });
 
     if (!verificationMethod) {
         setJSONErrorResponse({
             ctx,
-            statusCode: 400,
-            body: { success: false, code: 'identityVerificationCodeInvalid' }
+            statusCode: IDENTITY_VERIFICATION_ERRORS.VERIFICATION_CODE_INVALID.statusCode,
+            body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.VERIFICATION_CODE_INVALID.code }
         });
         return;
     }
 
-    if (verificationMethod.claimed) {
+    if (verificationMethod.claimed === true) {
         setJSONErrorResponse({
             ctx,
-            statusCode: 400,
-            body: { success: false, code: 'identityVerificationCodeClaimed' }
+            statusCode: IDENTITY_VERIFICATION_ERRORS.ALREADY_CLAIMED.statusCode,
+            body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.ALREADY_CLAIMED.code }
         });
         return;
     }
@@ -229,8 +216,17 @@ async function createIdentityVerifiedFundedAccount(ctx) {
     if ((Date.now().valueOf() - verificationMethod.updatedAt.valueOf()) > (60 * 1000 * 15)) {
         setJSONErrorResponse({
             ctx,
-            statusCode: 400,
-            body: { success: false, code: 'identityVerificationCodeExpired' }
+            statusCode: IDENTITY_VERIFICATION_ERRORS.VERIFICATION_CODE_EXPIRED.statusCode,
+            body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.VERIFICATION_CODE_EXPIRED.code }
+        });
+        return;
+    }
+
+    if (verificationCode.securityCode !== verificationCode) {
+        setJSONErrorResponse({
+            ctx,
+            statusCode: IDENTITY_VERIFICATION_ERRORS.VERIFICATION_CODE_INVALID.statusCode,
+            body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.VERIFICATION_CODE_INVALID.code }
         });
         return;
     }
