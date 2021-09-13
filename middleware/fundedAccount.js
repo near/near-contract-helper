@@ -222,7 +222,7 @@ async function createIdentityVerifiedFundedAccount(ctx) {
         return;
     }
 
-    if (verificationCode.securityCode !== verificationCode) {
+    if (verificationMethod.securityCode !== verificationCode) {
         setJSONErrorResponse({
             ctx,
             statusCode: IDENTITY_VERIFICATION_ERRORS.VERIFICATION_CODE_INVALID.statusCode,
