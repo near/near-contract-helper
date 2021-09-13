@@ -13,10 +13,51 @@ const { IDENTITY_VERIFICATION_METHOD_KINDS, SERVER_EVENTS } = constants;
 
 const SECURITY_CODE_DIGITS = 6;
 
+const IDENTITY_VERIFICATION_ERRORS = {
+    KIND_REQUIRED: { code: 'kindRequired', statusCode: 400 },
+    VERIFICATION_CODE_REQUIRED: { code: 'identityVerificationCodeRequired', statusCode: 400 },
+    IDENTITY_KEY_REQUIRED: { code: 'identityKeyRequired', statusCode: 400 },
+    INVALID_KIND: { code: 'invalidVerificationKind', statusCode: 400 },
+    ALREADY_CLAIMED: { code: 'identityVerificationAlreadyClaimed', statusCode: 409 },
+    VERIFICATION_CODE_INVALID: { code: 'identityVerificationCodeInvalid', statusCode: 409 },
+    VERIFICATION_CODE_EXPIRED: { code: 'identityVerificationCodeExpired', statusCode: 409 },
+};
+
 const setJSONErrorResponse = ({ ctx, statusCode, body }) => {
     ctx.status = statusCode;
     ctx.body = body;
 };
+
+function validateVerificationParams({ ctx, kind, identityKey }) {
+    if (!kind) {
+        setJSONErrorResponse({
+            ctx,
+            statusCode: IDENTITY_VERIFICATION_ERRORS.KIND_REQUIRED.statusCode,
+            body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.KIND_REQUIRED.code }
+        });
+        return false;
+    }
+
+    if (!Object.values(IDENTITY_VERIFICATION_METHOD_KINDS).includes(kind)) {
+        setJSONErrorResponse({
+            ctx,
+            statusCode: IDENTITY_VERIFICATION_ERRORS.INVALID_KIND.statusCode,
+            body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.INVALID_KIND.code }
+        });
+        return false;
+    }
+
+    if (!identityKey) {
+        setJSONErrorResponse({
+            ctx,
+            statusCode: IDENTITY_VERIFICATION_ERRORS.IDENTITY_KEY_REQUIRED.statusCode,
+            body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.IDENTITY_KEY_REQUIRED.code }
+        });
+        return false;
+    }
+
+    return true;
+}
 
 async function createIdentityVerificationMethod(ctx) {
     const {
@@ -24,30 +65,7 @@ async function createIdentityVerificationMethod(ctx) {
         identityKey
     } = ctx.request.body;
 
-    if (!kind) {
-        setJSONErrorResponse({
-            ctx,
-            statusCode: 400,
-            body: { success: false, code: 'kindRequired' }
-        });
-        return;
-    }
-
-    if (!Object.values(IDENTITY_VERIFICATION_METHOD_KINDS).includes(kind)) {
-        setJSONErrorResponse({
-            ctx,
-            statusCode: 400,
-            body: { success: false, code: 'invalidVerificationKind' }
-        });
-        return;
-    }
-
-    if (!identityKey) {
-        setJSONErrorResponse({
-            ctx,
-            statusCode: 400,
-            body: { success: false, code: 'identityKeyRequired' }
-        });
+    if (!validateVerificationParams({ ctx, kind, identityKey })) {
         return;
     }
 
@@ -68,8 +86,8 @@ async function createIdentityVerificationMethod(ctx) {
     if (verificationMethod.claimed === true) {
         setJSONErrorResponse({
             ctx,
-            statusCode: 409,
-            body: { success: false, code: 'identityVerificationAlreadyClaimed' }
+            statusCode: IDENTITY_VERIFICATION_ERRORS.ALREADY_CLAIMED.statusCode,
+            body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.ALREADY_CLAIMED.code }
         });
         return;
     }
@@ -100,4 +118,8 @@ async function createIdentityVerificationMethod(ctx) {
     ctx.body = { success: true };
 }
 
-module.exports = { createIdentityVerificationMethod };
+module.exports = {
+    createIdentityVerificationMethod,
+    validateVerificationParams,
+    IDENTITY_VERIFICATION_ERRORS
+};
