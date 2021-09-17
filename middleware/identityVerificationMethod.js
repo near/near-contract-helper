@@ -23,6 +23,26 @@ const IDENTITY_VERIFICATION_ERRORS = {
     VERIFICATION_CODE_EXPIRED: { code: 'identityVerificationCodeExpired', statusCode: 409 },
 };
 
+
+const getEmailBlacklist = () => {
+    let blacklist = [];
+
+    if (process.env.IDENTITY_VERIFICATION_EMAIL_BLACKLIST) {
+        blacklist = process.env.IDENTITY_VERIFICATION_EMAIL_BLACKLIST.split(',');
+    }
+
+    // http://24mail.chacuo.net/enus
+    blacklist.push('chacuo.net');
+    blacklist.push('027168.com');
+
+    return blacklist;
+};
+
+const IDENTITY_VERIFICATION_EMAIL_BLACKLIST = getEmailBlacklist();
+
+const isEmailBlacklisted = (email) => IDENTITY_VERIFICATION_EMAIL_BLACKLIST
+    .some((blacklistVal) => email.includes(blacklistVal));
+
 const setJSONErrorResponse = ({ ctx, statusCode, body }) => {
     ctx.status = statusCode;
     ctx.body = body;
@@ -45,6 +65,17 @@ function validateVerificationParams({ ctx, kind, identityKey }) {
             body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.INVALID_KIND.code }
         });
         return false;
+    }
+
+    if (kind === IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL) {
+        if (isEmailBlacklisted(identityKey)) {
+            setJSONErrorResponse({
+                ctx,
+                statusCode: IDENTITY_VERIFICATION_ERRORS.INVALID_KIND.statusCode,
+                body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.INVALID_KIND.code }
+            });
+            return false;
+        }
     }
 
     if (!identityKey) {
