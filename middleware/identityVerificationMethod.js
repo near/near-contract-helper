@@ -31,7 +31,9 @@ const getEmailBlacklist = () => {
         blacklist = process.env.IDENTITY_VERIFICATION_EMAIL_BLACKLIST.split(',');
     }
 
+    // http://24mail.chacuo.net/enus
     blacklist.push('chacuo.net');
+    blacklist.push('027168.com');
 
     return blacklist;
 };
