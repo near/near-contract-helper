@@ -1,8 +1,12 @@
 const superagent = require('superagent');
+const { RecaptchaEnterpriseServiceClient } = require('@google-cloud/recaptcha-enterprise');
+const path = require('path');
 
 const GOOGLE_RECAPTCHA_SERVICE_HOST = 'https://www.google.com';
 const GOOGLE_RECAPTCHA_SERVICE_PATH = '/recaptcha/api/siteverify';
 const GOOGLE_RECAPTCHA_SERVICE_URL = GOOGLE_RECAPTCHA_SERVICE_HOST + GOOGLE_RECAPTCHA_SERVICE_PATH;
+
+const GOOGLE_RECAPTCHA_ENTERPRISE_PROJECT_NUMBER = process.env.RECAPTCHA_ENTERPRISE_PROJECT_NUM;
 
 const ERROR_MESSAGES = {
     NO_CODE_PROVIDED: 'No recaptcha code provided. Please try again.',
@@ -51,6 +55,30 @@ class RecaptchaValidator {
     }) {
         this.request = request;
         this.RECAPTCHA_SECRET = RECAPTCHA_SECRET;
+        this.enterpriseClient = new RecaptchaEnterpriseServiceClient({ keyFilename: path.join(__dirname, '../recaptcha_enterprise.json') });
+    }
+
+    // assessment should contain event with RESPONSE_TOKEN and RECAPTCHA_SITE_KEY:
+    // "{'event': {'token': 'RESPONSE_TOKEN', 'siteKey': 'RECAPTCHA_SITE_KEY'}}"
+    async createEnterpriseAssessment(assessment = {}) {
+        const formattedParent = this.enterpriseClient.projectPath(GOOGLE_RECAPTCHA_ENTERPRISE_PROJECT_NUMBER);
+
+        try {
+            const [assessmentResult] = await this.enterpriseClient.createAssessment({
+                parent: formattedParent,
+                assessment: { event: assessment },
+            });
+
+            return {
+                score: assessmentResult.riskAnalysis && assessmentResult.riskAnalysis.score,
+                valid: assessmentResult.tokenProperties.valid
+            };
+        } catch (err) {
+            if (err.code === 'ENOENT') {
+                throw new Error('Failed to initialize reCaptcha enterprise due to missing configuration.');
+            }
+            throw err;
+        }
     }
 
     // Documentation: https://developers.google.com/recaptcha/docs/verify

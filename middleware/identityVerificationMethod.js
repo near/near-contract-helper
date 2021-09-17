@@ -2,6 +2,7 @@
 
 const password = require('secure-random-password');
 
+const recaptchaValidator = require('../RecaptchaValidator');
 const { getSecurityCodeMessageContent } = require('../accountRecoveryMessageContent');
 const constants = require('../constants');
 
@@ -21,8 +22,8 @@ const IDENTITY_VERIFICATION_ERRORS = {
     ALREADY_CLAIMED: { code: 'identityVerificationAlreadyClaimed', statusCode: 409 },
     VERIFICATION_CODE_INVALID: { code: 'identityVerificationCodeInvalid', statusCode: 409 },
     VERIFICATION_CODE_EXPIRED: { code: 'identityVerificationCodeExpired', statusCode: 409 },
+    RECAPTCHA_INVALID: { code: 'identityVerificationRecaptchaInvalid', statusCode: 400 }
 };
-
 
 const getEmailBlacklist = () => {
     let blacklist = [];
@@ -93,10 +94,37 @@ function validateVerificationParams({ ctx, kind, identityKey }) {
 async function createIdentityVerificationMethod(ctx) {
     const {
         kind,
-        identityKey
+        identityKey,
+        recaptchaToken,
+        recaptchaAction,
+        recaptchaSiteKey,
     } = ctx.request.body;
 
     if (!validateVerificationParams({ ctx, kind, identityKey })) {
+        return;
+    }
+
+    const { valid, score } = await recaptchaValidator.createEnterpriseAssessment({
+        token: recaptchaToken,
+        siteKey: recaptchaSiteKey,
+        userIpAddress: ctx.ip,
+        userAgent: ctx.header['user-agent'],
+        expectedAction: recaptchaAction
+    });
+
+
+    if (!valid || score < 0.6) {
+        console.log('Blocking createIdentityVerificationMethod due to low score', {
+            userAgent: ctx.header['user-agent'],
+            userIpAddress: ctx.ip,
+            expectedAction: recaptchaAction
+        });
+
+        setJSONErrorResponse({
+            ctx,
+            statusCode: IDENTITY_VERIFICATION_ERRORS.RECAPTCHA_INVALID.statusCode,
+            body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.RECAPTCHA_INVALID.code }
+        });
         return;
     }
 

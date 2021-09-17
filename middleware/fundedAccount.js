@@ -152,9 +152,11 @@ async function createIdentityVerifiedFundedAccount(ctx) {
         newAccountId,
         newAccountPublicKey,
         identityKey,
-        verificationCode
+        verificationCode,
+        recaptchaToken,
+        recaptchaSiteKey,
+        recaptchaAction,
     } = ctx.request.body;
-
 
     if (!newAccountId) {
         setJSONErrorResponse({
@@ -183,6 +185,30 @@ async function createIdentityVerifiedFundedAccount(ctx) {
             ctx,
             statusCode: IDENTITY_VERIFICATION_ERRORS.VERIFICATION_CODE_REQUIRED.statusCode,
             body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.VERIFICATION_CODE_REQUIRED.code }
+        });
+        return;
+    }
+
+    const { valid, score } = await recaptchaValidator.createEnterpriseAssessment({
+        token: recaptchaToken,
+        siteKey: recaptchaSiteKey,
+        userIpAddress: ctx.ip,
+        userAgent: ctx.header['user-agent'],
+        expectedAction: recaptchaAction
+    });
+
+
+    if (!valid || score < 0.6) {
+        console.log('Blocking createIdentityVerifiedFundedAccount due to low score', {
+            userAgent: ctx.header['user-agent'],
+            userIpAddress: ctx.ip,
+            expectedAction: recaptchaAction
+        });
+
+        setJSONErrorResponse({
+            ctx,
+            statusCode: IDENTITY_VERIFICATION_ERRORS.RECAPTCHA_INVALID.statusCode,
+            body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.RECAPTCHA_INVALID.code }
         });
         return;
     }
