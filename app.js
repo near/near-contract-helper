@@ -125,7 +125,7 @@ router.post(
     clearFundedAccountNeedsDeposit
 );
 
-const { createIdentityVerificationMethod } = require('./middleware/identityVerificationMethod');
+const { createIdentityVerificationMethod, validateEmail } = require('./middleware/identityVerificationMethod');
 router.post(
     '/identityVerificationMethod',
     createIdentityVerificationMethod
@@ -400,21 +400,23 @@ const completeRecoveryValidation = ({ isNew } = {}) => async ctx => {
     if (isNew) {
         // Implicitly reserve a funded account for the same identity to allow the user to get a funded account without receiving 2 e-mails
         try {
-            // Throws `UniqueConstraintError` due to SQL constraints if an entry with matching `identityKey` and `kind` exists, but with `claimed` = true
-            const [verificationMethod, verificationMethodCreated] = await models.IdentityVerificationMethod.findOrCreate({
-                where: {
-                    identityKey: method.detail,
-                    kind: method.kind,
-                    claimed: false,
-                },
-                defaults: {
-                    securityCode
-                }
-            });
+            if (await validateEmail({ ctx, email: method.detail, kind: method.kind })) {
+                // Throws `UniqueConstraintError` due to SQL constraints if an entry with matching `identityKey` and `kind` exists, but with `claimed` = true
+                const [verificationMethod, verificationMethodCreated] = await models.IdentityVerificationMethod.findOrCreate({
+                    where: {
+                        identityKey: method.detail,
+                        kind: method.kind,
+                        claimed: false,
+                    },
+                    defaults: {
+                        securityCode
+                    }
+                });
 
-            // If the method already existed as un-claimed, sync our securityCode with it
-            if (!verificationMethodCreated) {
-                await verificationMethod.update({ securityCode });
+                // If the method already existed as un-claimed, sync our securityCode with it
+                if (!verificationMethodCreated) {
+                    await verificationMethod.update({ securityCode });
+                }
             }
         } catch (err) {
             if (err.original && err.original.code !== '23505') { // UniqueConstraintError is not an error; it means it was claimed already
