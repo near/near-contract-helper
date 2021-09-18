@@ -9,6 +9,7 @@ const constants = require('../constants');
 const { IdentityVerificationMethod } = require('../models');
 const { sendMail } = require('../utils/email');
 const { sendSms } = require('../utils/sms');
+const createEmailDomainValidator = require('../EmailDomainValidator');
 
 const { IDENTITY_VERIFICATION_METHOD_KINDS, SERVER_EVENTS } = constants;
 
@@ -22,34 +23,36 @@ const IDENTITY_VERIFICATION_ERRORS = {
     ALREADY_CLAIMED: { code: 'identityVerificationAlreadyClaimed', statusCode: 409 },
     VERIFICATION_CODE_INVALID: { code: 'identityVerificationCodeInvalid', statusCode: 409 },
     VERIFICATION_CODE_EXPIRED: { code: 'identityVerificationCodeExpired', statusCode: 409 },
-    RECAPTCHA_INVALID: { code: 'identityVerificationRecaptchaInvalid', statusCode: 400 }
+    RECAPTCHA_INVALID: { code: 'identityVerificationRecaptchaInvalid', statusCode: 400 },
+    INVALID_EMAIL_PROVIDER: { code: 'identityVerificationEmailProviderInvalid', statusCode: 400 }
 };
 
-const getEmailBlacklist = () => {
-    let blacklist = [];
-
-    if (process.env.IDENTITY_VERIFICATION_EMAIL_BLACKLIST) {
-        blacklist = process.env.IDENTITY_VERIFICATION_EMAIL_BLACKLIST.split(',');
-    }
-
-    // http://24mail.chacuo.net/enus
-    blacklist.push('chacuo.net');
-    blacklist.push('027168.com');
-
-    return blacklist;
-};
-
-const IDENTITY_VERIFICATION_EMAIL_BLACKLIST = getEmailBlacklist();
-
-const isEmailBlacklisted = (email) => IDENTITY_VERIFICATION_EMAIL_BLACKLIST
-    .some((blacklistVal) => email.includes(blacklistVal));
+const emailDomainValidator = createEmailDomainValidator();
 
 const setJSONErrorResponse = ({ ctx, statusCode, body }) => {
     ctx.status = statusCode;
     ctx.body = body;
 };
 
-function validateVerificationParams({ ctx, kind, identityKey }) {
+async function validateEmail({ ctx, email, kind }) {
+    if (kind !== IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL) {
+        return true;
+    }
+
+    const isDomainValid = await emailDomainValidator.isDomainValid(email.split('@')[1]);
+    if (!isDomainValid) {
+        setJSONErrorResponse({
+            ctx,
+            statusCode: IDENTITY_VERIFICATION_ERRORS.INVALID_EMAIL_PROVIDER.statusCode,
+            body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.INVALID_EMAIL_PROVIDER.code }
+        });
+        return false;
+    }
+
+    return true;
+}
+
+async function validateVerificationParams({ ctx, kind, identityKey }) {
     if (!kind) {
         setJSONErrorResponse({
             ctx,
@@ -63,20 +66,9 @@ function validateVerificationParams({ ctx, kind, identityKey }) {
         setJSONErrorResponse({
             ctx,
             statusCode: IDENTITY_VERIFICATION_ERRORS.INVALID_KIND.statusCode,
-            body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.INVALID_KIND.code }
+            body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.INVALID_KIND.code, message: 'nope' }
         });
         return false;
-    }
-
-    if (kind === IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL) {
-        if (isEmailBlacklisted(identityKey)) {
-            setJSONErrorResponse({
-                ctx,
-                statusCode: IDENTITY_VERIFICATION_ERRORS.INVALID_KIND.statusCode,
-                body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.INVALID_KIND.code }
-            });
-            return false;
-        }
     }
 
     if (!identityKey) {
@@ -100,7 +92,7 @@ async function createIdentityVerificationMethod(ctx) {
         recaptchaSiteKey,
     } = ctx.request.body;
 
-    if (!validateVerificationParams({ ctx, kind, identityKey })) {
+    if (!await validateVerificationParams({ ctx, kind, identityKey })) {
         return;
     }
 
@@ -125,6 +117,10 @@ async function createIdentityVerificationMethod(ctx) {
             statusCode: IDENTITY_VERIFICATION_ERRORS.RECAPTCHA_INVALID.statusCode,
             body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.RECAPTCHA_INVALID.code }
         });
+        return;
+    }
+
+    if (!await validateEmail({ ctx, email: identityKey, kind })) {
         return;
     }
 
@@ -180,5 +176,7 @@ async function createIdentityVerificationMethod(ctx) {
 module.exports = {
     createIdentityVerificationMethod,
     validateVerificationParams,
+    emailDomainValidator,
+    validateEmail,
     IDENTITY_VERIFICATION_ERRORS
 };
