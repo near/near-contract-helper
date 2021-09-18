@@ -8,7 +8,7 @@ class BlockTempEmailClient {
     constructor({
         API_KEY,
         // 12H hour cache window so multiple attempts for the same domain are immediate
-        cache = new Cache({ stdTTL: ((60 * 1000) * 60) * 12, checkperiod: 0, useClones: false }),
+        cache = new Cache({ stdTTL: 60 * 60 * 12, checkperiod: 0, useClones: false }),
         request = superagent,
     }) {
         this.request = request;
