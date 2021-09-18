@@ -1,12 +1,9 @@
 const superagent = require('superagent');
 const { RecaptchaEnterpriseServiceClient } = require('@google-cloud/recaptcha-enterprise');
-const path = require('path');
 
 const GOOGLE_RECAPTCHA_SERVICE_HOST = 'https://www.google.com';
 const GOOGLE_RECAPTCHA_SERVICE_PATH = '/recaptcha/api/siteverify';
 const GOOGLE_RECAPTCHA_SERVICE_URL = GOOGLE_RECAPTCHA_SERVICE_HOST + GOOGLE_RECAPTCHA_SERVICE_PATH;
-
-const GOOGLE_RECAPTCHA_ENTERPRISE_PROJECT_NUMBER = process.env.RECAPTCHA_ENTERPRISE_PROJECT_NUM;
 
 const ERROR_MESSAGES = {
     NO_CODE_PROVIDED: 'No recaptcha code provided. Please try again.',
@@ -51,17 +48,20 @@ function getResponseFromErrorCode(errorCode) {
 class RecaptchaValidator {
     constructor({
         request = superagent,
-        RECAPTCHA_SECRET
+        RECAPTCHA_SECRET,
+        PROJECT_NUMBER,
+        RECAPTCHA_ENTERPRISE_KEYFILENAME
     }) {
         this.request = request;
         this.RECAPTCHA_SECRET = RECAPTCHA_SECRET;
-        this.enterpriseClient = new RecaptchaEnterpriseServiceClient({ keyFilename: path.join(__dirname, '../recaptcha_enterprise.json') });
+        this.PROJECT_NUMBER = PROJECT_NUMBER;
+        this.enterpriseClient = new RecaptchaEnterpriseServiceClient({ keyFilename: RECAPTCHA_ENTERPRISE_KEYFILENAME });
     }
 
     // assessment should contain event with RESPONSE_TOKEN and RECAPTCHA_SITE_KEY:
     // "{'event': {'token': 'RESPONSE_TOKEN', 'siteKey': 'RECAPTCHA_SITE_KEY'}}"
     async createEnterpriseAssessment(assessment = {}) {
-        const formattedParent = this.enterpriseClient.projectPath(GOOGLE_RECAPTCHA_ENTERPRISE_PROJECT_NUMBER);
+        const formattedParent = this.enterpriseClient.projectPath(this.PROJECT_NUMBER);
 
         try {
             const [assessmentResult] = await this.enterpriseClient.createAssessment({
