@@ -7,7 +7,7 @@ const { BLOCK_TEMP_EMAIL_API_KEY } = process.env;
 function createEmailDomainValidator() {
     const emailDomainValidator = new EmailDomainValidator({
         blockTempEmailClient: new BlockTempEmailClient({ API_KEY: BLOCK_TEMP_EMAIL_API_KEY, }),
-        emailDomainBlacklistClient: new EmailDomainBlacklistDBClient({})
+        emailDomainBlacklistDbClient: new EmailDomainBlacklistDBClient({})
     });
 
     return emailDomainValidator;

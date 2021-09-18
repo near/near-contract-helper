@@ -1,3 +1,4 @@
+const debug = require('debug');
 const Cache = require('node-cache');
 const superagent = require('superagent');
 
@@ -18,9 +19,14 @@ class BlockTempEmailClient {
         this.cache = cache;
         this.API_KEY = API_KEY;
         this.getStaleDate = getStaleDate;
+        this.debugLog = debug('BlockTempEmailClient');
     }
 
     async getValidationResultFromAPI(domainName) {
+        const normalizeDomainName = domainName.toLowerCase();
+
+        this.debugLog('getValidationResultFromAPI', normalizeDomainName);
+
         try {
             const {
                 body: {
@@ -29,7 +35,7 @@ class BlockTempEmailClient {
                     error
                 }
             } = await this.request
-                .get(`${API_ENDPOINT_URL_DOMAIN}/${domainName}`)
+                .get(`${API_ENDPOINT_URL_DOMAIN}/${normalizeDomainName}`)
                 .set('x-api-key', this.API_KEY);
 
             const validationResult = {
@@ -39,8 +45,7 @@ class BlockTempEmailClient {
                 staleAt: this.getStaleDate(Date.now())
             };
 
-            // Only cache in memory for un-stale entries so, calling code knows to re-fetch
-            this.cache.set(domainName, validationResult);
+            this.cache.set(normalizeDomainName, validationResult);
 
             return validationResult;
         } catch (e) {
@@ -50,7 +55,11 @@ class BlockTempEmailClient {
     }
 
     async getDomainStatus(domainName) {
-        return this.cache.get(domainName) || await this.getValidationResultFromAPI(domainName);
+        const normalizeDomainName = domainName.toLowerCase();
+
+        this.debugLog('getDomainStatus');
+
+        return this.cache.get(normalizeDomainName) || await this.getValidationResultFromAPI(normalizeDomainName);
     }
 }
 

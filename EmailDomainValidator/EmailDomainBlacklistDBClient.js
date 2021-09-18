@@ -1,3 +1,4 @@
+const debug = require('debug');
 const Cache = require('node-cache');
 
 const { EmailDomainBlacklist } = require('../models');
@@ -10,10 +11,13 @@ class EmailDomainBlacklistDBClient {
     }) {
         this.cache = cache;
         this.getStaleDate = getStaleDate;
+        this.debugLog = debug('EmailDomainBlacklistDBClient');
     }
 
     async persistValidationResult(validationResult) {
-        const blacklistEntry = await EmailDomainBlacklist.upsert({
+        this.debugLog('persistValidationResult', validationResult);
+
+        const [blacklistEntry] = await EmailDomainBlacklist.upsert({
             staleAt: this.getStaleDate(Date.now()), // Allow caller to override
             ...validationResult
         });
@@ -24,14 +28,18 @@ class EmailDomainBlacklistDBClient {
     }
 
     async getValidationResultFromDB(domainName) {
+        const normalizeDomainName = domainName.toLowerCase();
+
+        this.debugLog('getValidationResultFromDB');
+
         let domainBlacklistEntry;
 
         try {
-            domainBlacklistEntry = await EmailDomainBlacklist.findOne({ where: { domainName } });
+            domainBlacklistEntry = await EmailDomainBlacklist.findOne({ where: { normalizeDomainName } });
 
             // Only cache in memory for un-stale entries so, calling code knows to re-fetch
             if (domainBlacklistEntry && !isEntryStale(domainBlacklistEntry)) {
-                this.cache.set(domainName, domainBlacklistEntry);
+                this.cache.set(normalizeDomainName, domainBlacklistEntry);
             }
         } catch (e) {
             console.warn('Failed to load entry from DB', e.message);
@@ -41,7 +49,11 @@ class EmailDomainBlacklistDBClient {
     }
 
     async getDomainStatus(domainName) {
-        return this.cache.get(domainName) || await this.getValidationResultFromDB(domainName);
+        const normalizeDomainName = domainName.toLowerCase();
+
+        this.debugLog('getDomainStatus');
+
+        return this.cache.get(normalizeDomainName) || await this.getValidationResultFromDB(normalizeDomainName);
     }
 }
 
