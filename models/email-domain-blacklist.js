@@ -5,6 +5,7 @@ module.exports = (sequelize, DataTypes) => {
         domainName: {
             type: DataTypes.STRING,
             allowNull: false,
+            primaryKey: true
         },
         isTemporaryEmailService: {
             type: DataTypes.BOOLEAN,
@@ -24,6 +25,7 @@ module.exports = (sequelize, DataTypes) => {
         },
     }, {
         timestamps: true,
+        freezeTableName: true
     });
 
     return EmailDomainBlacklist;
