@@ -360,8 +360,16 @@ router.post('/account/initializeRecoveryMethod',
     completeRecoveryInit
 );
 
+const recaptchaValidator = require('./RecaptchaValidator');
 const completeRecoveryValidation = ({ isNew } = {}) => async ctx => {
-    const { accountId, method, securityCode } = ctx.request.body;
+    const {
+        accountId,
+        method,
+        securityCode,
+        enterpriseRecaptchaToken,
+        recaptchaAction,
+        recaptchaSiteKey
+    } = ctx.request.body;
 
     if (!securityCode || isNaN(parseInt(securityCode, 10)) || securityCode.length !== 6) {
         ctx.throw(401, 'valid securityCode required');
@@ -397,26 +405,42 @@ const completeRecoveryValidation = ({ isNew } = {}) => async ctx => {
 
     await recoveryMethod.update({ securityCode: null });
 
-    if (isNew) {
+    if (isNew && enterpriseRecaptchaToken) {
         // Implicitly reserve a funded account for the same identity to allow the user to get a funded account without receiving 2 e-mails
         try {
-            if (await validateEmail({ ctx, email: method.detail, kind: method.kind })) {
-                // Throws `UniqueConstraintError` due to SQL constraints if an entry with matching `identityKey` and `kind` exists, but with `claimed` = true
-                const [verificationMethod, verificationMethodCreated] = await models.IdentityVerificationMethod.findOrCreate({
-                    where: {
-                        identityKey: method.detail,
-                        kind: method.kind,
-                        claimed: false,
-                    },
-                    defaults: {
-                        securityCode
-                    }
-                });
+            const { valid, score } = await recaptchaValidator.createEnterpriseAssessment({
+                token: enterpriseRecaptchaToken,
+                siteKey: recaptchaSiteKey,
+                userIpAddress: ctx.ip,
+                userAgent: ctx.header['user-agent'],
+                expectedAction: recaptchaAction
+            });
 
-                // If the method already existed as un-claimed, sync our securityCode with it
-                if (!verificationMethodCreated) {
-                    await verificationMethod.update({ securityCode });
+            if (valid && score > 0.6) {
+                if (await validateEmail({ ctx, email: method.detail, kind: method.kind })) {
+                    // Throws `UniqueConstraintError` due to SQL constraints if an entry with matching `identityKey` and `kind` exists, but with `claimed` = true
+                    const [verificationMethod, verificationMethodCreated] = await models.IdentityVerificationMethod.findOrCreate({
+                        where: {
+                            identityKey: method.detail,
+                            kind: method.kind,
+                            claimed: false,
+                        },
+                        defaults: {
+                            securityCode
+                        }
+                    });
+
+                    // If the method already existed as un-claimed, sync our securityCode with it
+                    if (!verificationMethodCreated) {
+                        await verificationMethod.update({ securityCode });
+                    }
                 }
+            } else {
+                console.log('Skipping implicit identityVerificationMethod creation due to low score', {
+                    userAgent: ctx.header['user-agent'],
+                    userIpAddress: ctx.ip,
+                    expectedAction: recaptchaAction
+                });
             }
         } catch (err) {
             if (err.original && err.original.code !== '23505') { // UniqueConstraintError is not an error; it means it was claimed already
@@ -425,6 +449,7 @@ const completeRecoveryValidation = ({ isNew } = {}) => async ctx => {
         }
     }
 
+    ctx.status = 200;
     ctx.body = await recoveryMethodsFor(account);
 };
 
