@@ -66,7 +66,7 @@ async function validateVerificationParams({ ctx, kind, identityKey }) {
         setJSONErrorResponse({
             ctx,
             statusCode: IDENTITY_VERIFICATION_ERRORS.INVALID_KIND.statusCode,
-            body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.INVALID_KIND.code, message: 'nope' }
+            body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.INVALID_KIND.code }
         });
         return false;
     }
