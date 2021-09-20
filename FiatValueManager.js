@@ -30,7 +30,7 @@ class FiatValueManager {
     constructor({ nodeCache } = {}) {
         // 0 checkperiod means we only purge values from the cache on attempting to read an expired value
         // Which allows us to avoid having to call `.close()` on the cache to allow node to exit cleanly
-        this.valueCache = nodeCache || new Cache({ stdTTL: 10, checkperiod: 0, clone: false });
+        this.valueCache = nodeCache || new Cache({ stdTTL: 10, checkperiod: 0, useClones: false });
         this.fiatValueLoader = this.createFiatValueLoader(this.valueCache);
     }
 
