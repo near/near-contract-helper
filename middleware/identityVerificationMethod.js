@@ -11,6 +11,9 @@ const { sendMail } = require('../utils/email');
 const { sendSms } = require('../utils/sms');
 const createEmailDomainValidator = require('../EmailDomainValidator');
 
+const ENABLE_EMAIL_IDENTITY_VERIFICATION_METHOD = process.env.ENABLE_EMAIL_IDENTITY_VERIFICATION === 'true' || false;
+const ENABLE_PHONE_IDENTITY_VERIFICATION_METHOD = process.env.ENABLE_PHONE_IDENTITY_VERIFICATION === 'true' || true;
+
 const { IDENTITY_VERIFICATION_METHOD_KINDS, SERVER_EVENTS } = constants;
 
 const SECURITY_CODE_DIGITS = 6;
@@ -62,7 +65,11 @@ async function validateVerificationParams({ ctx, kind, identityKey }) {
         return false;
     }
 
-    if (!Object.values(IDENTITY_VERIFICATION_METHOD_KINDS).includes(kind)) {
+    if (
+        (!ENABLE_EMAIL_IDENTITY_VERIFICATION_METHOD && kind === IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL) ||
+        (!ENABLE_PHONE_IDENTITY_VERIFICATION_METHOD && kind === IDENTITY_VERIFICATION_METHOD_KINDS.PHONE) ||
+        !Object.values(IDENTITY_VERIFICATION_METHOD_KINDS).includes(kind)
+    ) {
         setJSONErrorResponse({
             ctx,
             statusCode: IDENTITY_VERIFICATION_ERRORS.INVALID_KIND.statusCode,
