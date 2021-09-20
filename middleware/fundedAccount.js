@@ -4,7 +4,11 @@ const BN = require('bn.js');
 const models = require('../models');
 const recaptchaValidator = require('../RecaptchaValidator');
 const { fundedCreatorKeyJson } = require('./near');
-const { IDENTITY_VERIFICATION_ERRORS, validateVerificationParams } = require('./identityVerificationMethod');
+const {
+    IDENTITY_VERIFICATION_ERRORS,
+    validateVerificationParams,
+    validateEmail
+} = require('./identityVerificationMethod');
 
 // TODO: Adjust gas to correct amounts
 const MAX_GAS_FOR_ACCOUNT_CREATE = process.env.MAX_GAS_FOR_ACCOUNT_CREATE || '100000000000000';
@@ -176,7 +180,7 @@ async function createIdentityVerifiedFundedAccount(ctx) {
         return;
     }
 
-    if (!validateVerificationParams({ ctx, kind, identityKey })) {
+    if (!await validateVerificationParams({ ctx, kind, identityKey })) {
         return;
     }
 
@@ -210,6 +214,10 @@ async function createIdentityVerifiedFundedAccount(ctx) {
             statusCode: IDENTITY_VERIFICATION_ERRORS.RECAPTCHA_INVALID.statusCode,
             body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.RECAPTCHA_INVALID.code }
         });
+        return;
+    }
+
+    if (!await validateEmail({ ctx, email: identityKey, kind })) {
         return;
     }
 
