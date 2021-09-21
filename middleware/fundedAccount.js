@@ -208,7 +208,9 @@ async function createIdentityVerifiedFundedAccount(ctx) {
         console.log('Blocking createIdentityVerifiedFundedAccount due to low score', {
             userAgent: ctx.header['user-agent'],
             userIpAddress: ctx.ip,
-            expectedAction: recaptchaAction
+            expectedAction: recaptchaAction,
+            score,
+            valid
         });
 
         setInvalidRecaptchaResponse(ctx);

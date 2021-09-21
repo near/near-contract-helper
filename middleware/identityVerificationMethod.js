@@ -171,7 +171,9 @@ async function createIdentityVerificationMethod(ctx) {
         console.log('Blocking createIdentityVerificationMethod due to low score', {
             userAgent: ctx.header['user-agent'],
             userIpAddress: ctx.ip,
-            expectedAction: recaptchaAction
+            expectedAction: recaptchaAction,
+            score,
+            valid
         });
         setInvalidRecaptchaResponse(ctx);
         return;

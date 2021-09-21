@@ -441,7 +441,9 @@ const completeRecoveryValidation = ({ isNew } = {}) => async ctx => {
                 console.log('Skipping implicit identityVerificationMethod creation due to low score', {
                     userAgent: ctx.header['user-agent'],
                     userIpAddress: ctx.ip,
-                    expectedAction: recaptchaAction
+                    expectedAction: recaptchaAction,
+                    score,
+                    valid
                 });
             }
         } catch (err) {
