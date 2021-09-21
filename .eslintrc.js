@@ -15,5 +15,6 @@ module.exports = {
         semi: ['error', 'always'],
         'no-console': 'off',
         'require-atomic-updates': 'off',
+        'no-useless-escape': 'off',
     },
 };
