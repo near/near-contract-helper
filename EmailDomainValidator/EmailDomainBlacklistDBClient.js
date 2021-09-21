@@ -35,7 +35,7 @@ class EmailDomainBlacklistDBClient {
         let domainBlacklistEntry;
 
         try {
-            domainBlacklistEntry = await EmailDomainBlacklist.findOne({ where: { normalizeDomainName } });
+            domainBlacklistEntry = await EmailDomainBlacklist.findOne({ where: { domainName: normalizeDomainName } });
 
             // Only cache in memory for un-stale entries so, calling code knows to re-fetch
             if (domainBlacklistEntry && !isEntryStale(domainBlacklistEntry)) {
