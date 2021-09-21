@@ -7,7 +7,9 @@ const { fundedCreatorKeyJson } = require('./near');
 const {
     IDENTITY_VERIFICATION_ERRORS,
     validateVerificationParams,
-    validateEmail
+    validateEmail,
+    setAlreadyClaimedResponse,
+    setInvalidRecaptchaResponse
 } = require('./identityVerificationMethod');
 
 // TODO: Adjust gas to correct amounts
@@ -206,14 +208,12 @@ async function createIdentityVerifiedFundedAccount(ctx) {
         console.log('Blocking createIdentityVerifiedFundedAccount due to low score', {
             userAgent: ctx.header['user-agent'],
             userIpAddress: ctx.ip,
-            expectedAction: recaptchaAction
+            expectedAction: recaptchaAction,
+            score,
+            valid
         });
 
-        setJSONErrorResponse({
-            ctx,
-            statusCode: IDENTITY_VERIFICATION_ERRORS.RECAPTCHA_INVALID.statusCode,
-            body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.RECAPTCHA_INVALID.code }
-        });
+        setInvalidRecaptchaResponse(ctx);
         return;
     }
 
@@ -238,11 +238,7 @@ async function createIdentityVerifiedFundedAccount(ctx) {
     }
 
     if (verificationMethod.claimed === true) {
-        setJSONErrorResponse({
-            ctx,
-            statusCode: IDENTITY_VERIFICATION_ERRORS.ALREADY_CLAIMED.statusCode,
-            body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.ALREADY_CLAIMED.code }
-        });
+        setAlreadyClaimedResponse(ctx);
         return;
     }
 
@@ -323,8 +319,6 @@ async function clearFundedAccountNeedsDeposit(ctx) {
 }
 
 const checkFundedAccountAvailable = async (ctx) => {
-    // DEPRECATED: Remove after coin-op v1.5 is settled
-
     if (!fundedCreatorKeyJson) {
         ctx.body = { available: false };
         return;
