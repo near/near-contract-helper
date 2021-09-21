@@ -41,13 +41,17 @@ async function validateEmail({ ctx, email, kind }) {
     if (kind !== IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL) {
         return true;
     }
-
-    const isDomainValid = await emailDomainValidator.isDomainValid(email.split('@')[1]);
+    const domainName = email.split('@')[1];
+    const isDomainValid = await emailDomainValidator.isDomainValid(domainName);
     if (!isDomainValid) {
         setJSONErrorResponse({
             ctx,
             statusCode: IDENTITY_VERIFICATION_ERRORS.INVALID_EMAIL_PROVIDER.statusCode,
-            body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.INVALID_EMAIL_PROVIDER.code }
+            body: {
+                success: false,
+                code: IDENTITY_VERIFICATION_ERRORS.INVALID_EMAIL_PROVIDER.code,
+                domainName
+            }
         });
         return false;
     }
