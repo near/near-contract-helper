@@ -30,6 +30,19 @@ const IDENTITY_VERIFICATION_ERRORS = {
     INVALID_EMAIL_PROVIDER: { code: 'identityVerificationEmailProviderInvalid', statusCode: 400 }
 };
 
+const MATCH_GMAIL_IGNORED_CHARS = /[|&;$%@"<>()+,!#'*\-\/=?^_`.{}]/g;
+// Identify what gmail would consider the 'root' email for a given email address
+// GMail ignores things like . and +
+const getUniqueEmail = (email) => {
+    if (!email.includes('@')) {
+        return '';
+    }
+
+    const [usernameWithPossibleAlias, domain] = email.split('@');
+    const username = usernameWithPossibleAlias.split('+')[0].replace(MATCH_GMAIL_IGNORED_CHARS, '');
+    return `${username}@${domain}`;
+};
+
 const emailDomainValidator = createEmailDomainValidator();
 
 const setJSONErrorResponse = ({ ctx, statusCode, body }) => {
@@ -94,6 +107,44 @@ async function validateVerificationParams({ ctx, kind, identityKey }) {
     return true;
 }
 
+function setAlreadyClaimedResponse(ctx) {
+    setJSONErrorResponse({
+        ctx,
+        statusCode: IDENTITY_VERIFICATION_ERRORS.ALREADY_CLAIMED.statusCode,
+        body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.ALREADY_CLAIMED.code }
+    });
+}
+
+async function tryCreateIdentityVerificationEntry({ ctx, identityKey, kind, securityCode }) {
+    try {
+        const [verificationMethod, verificationMethodCreatedByThisCall] = await IdentityVerificationMethod.findOrCreate({
+            where: {
+                identityKey,
+                kind,
+            },
+            defaults: {
+                securityCode,
+                uniqueIdentityKey: kind === IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL ? getUniqueEmail(identityKey) : null
+            }
+        });
+        return { verificationMethod, verificationMethodCreatedByThisCall };
+    } catch (err) {
+        if (err.original && err.original.code === '23505') { // UniqueConstraintError is not an error; it means it was claimed already
+            setAlreadyClaimedResponse(ctx);
+            return false;
+        }
+        throw err;
+    }
+}
+
+function setInvalidRecaptchaResponse(ctx) {
+    setJSONErrorResponse({
+        ctx,
+        statusCode: IDENTITY_VERIFICATION_ERRORS.RECAPTCHA_INVALID.statusCode,
+        body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.RECAPTCHA_INVALID.code }
+    });
+}
+
 async function createIdentityVerificationMethod(ctx) {
     const {
         kind,
@@ -122,12 +173,7 @@ async function createIdentityVerificationMethod(ctx) {
             userIpAddress: ctx.ip,
             expectedAction: recaptchaAction
         });
-
-        setJSONErrorResponse({
-            ctx,
-            statusCode: IDENTITY_VERIFICATION_ERRORS.RECAPTCHA_INVALID.statusCode,
-            body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.RECAPTCHA_INVALID.code }
-        });
+        setInvalidRecaptchaResponse(ctx);
         return;
     }
 
@@ -137,24 +183,18 @@ async function createIdentityVerificationMethod(ctx) {
 
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
 
-    const [verificationMethod, verificationMethodCreatedByThisCall] = await IdentityVerificationMethod.findOrCreate({
-        where: {
-            identityKey,
-            kind,
-        },
-        defaults: {
-            securityCode
-        }
-    });
+    const createResult = await tryCreateIdentityVerificationEntry({ ctx, identityKey, kind, securityCode });
+    if (!createResult) { return; }
+
+    const {
+        verificationMethod,
+        verificationMethodCreatedByThisCall
+    } = createResult;
 
     // Set a new security code every time someone POSTs for a particular kind and identityKey combination
     // unless the existing has already been claimed.
     if (verificationMethod.claimed === true) {
-        setJSONErrorResponse({
-            ctx,
-            statusCode: IDENTITY_VERIFICATION_ERRORS.ALREADY_CLAIMED.statusCode,
-            body: { success: false, code: IDENTITY_VERIFICATION_ERRORS.ALREADY_CLAIMED.code }
-        });
+        setAlreadyClaimedResponse(ctx);
         return;
     }
 
@@ -189,5 +229,8 @@ module.exports = {
     validateVerificationParams,
     emailDomainValidator,
     validateEmail,
+    getUniqueEmail,
+    setAlreadyClaimedResponse,
+    setInvalidRecaptchaResponse,
     IDENTITY_VERIFICATION_ERRORS
 };

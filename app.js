@@ -125,7 +125,7 @@ router.post(
     clearFundedAccountNeedsDeposit
 );
 
-const { createIdentityVerificationMethod, validateEmail } = require('./middleware/identityVerificationMethod');
+const { createIdentityVerificationMethod, validateEmail, getUniqueEmail } = require('./middleware/identityVerificationMethod');
 router.post(
     '/identityVerificationMethod',
     createIdentityVerificationMethod
@@ -360,6 +360,7 @@ router.post('/account/initializeRecoveryMethod',
     completeRecoveryInit
 );
 
+const { IDENTITY_VERIFICATION_METHOD_KINDS } = require('./constants');
 const recaptchaValidator = require('./RecaptchaValidator');
 const completeRecoveryValidation = ({ isNew } = {}) => async ctx => {
     const {
@@ -426,7 +427,8 @@ const completeRecoveryValidation = ({ isNew } = {}) => async ctx => {
                             claimed: false,
                         },
                         defaults: {
-                            securityCode
+                            securityCode,
+                            uniqueIdentityKey: method.kind === IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL ? getUniqueEmail(method.detail) : null
                         }
                     });
 
