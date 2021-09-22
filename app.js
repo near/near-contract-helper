@@ -422,7 +422,7 @@ const completeRecoveryValidation = ({ isNew } = {}) => async ctx => {
                     // Throws `UniqueConstraintError` due to SQL constraints if an entry with matching `identityKey` and `kind` exists, but with `claimed` = true
                     const [verificationMethod, verificationMethodCreated] = await models.IdentityVerificationMethod.findOrCreate({
                         where: {
-                            identityKey: method.detail,
+                            identityKey: method.detail.toLowerCase(),
                             kind: method.kind,
                             claimed: false,
                         },

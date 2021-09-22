@@ -40,7 +40,7 @@ const getUniqueEmail = (email) => {
 
     const [usernameWithPossibleAlias, domain] = email.split('@');
     const username = usernameWithPossibleAlias.split('+')[0].replace(MATCH_GMAIL_IGNORED_CHARS, '');
-    return `${username}@${domain}`;
+    return `${username}@${domain}`.toLowerCase();
 };
 
 const emailDomainValidator = createEmailDomainValidator();
@@ -119,7 +119,7 @@ async function tryCreateIdentityVerificationEntry({ ctx, identityKey, kind, secu
     try {
         const [verificationMethod, verificationMethodCreatedByThisCall] = await IdentityVerificationMethod.findOrCreate({
             where: {
-                identityKey,
+                identityKey: identityKey.toLowerCase(),
                 kind,
             },
             defaults: {
