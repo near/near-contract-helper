@@ -38,8 +38,14 @@ const getUniqueEmail = (email) => {
         return '';
     }
 
-    const [usernameWithPossibleAlias, domain] = email.split('@');
-    const username = usernameWithPossibleAlias.split('+')[0].replace(MATCH_GMAIL_IGNORED_CHARS, '');
+
+    const [usernameWithPossibleAlias, inputDomain] = email.split('@');
+    const domain = inputDomain.replace('googlemail.com', 'gmail.com');
+
+    const username = usernameWithPossibleAlias
+        .split('+')[0]
+        .replace(MATCH_GMAIL_IGNORED_CHARS, '');
+
     return `${username}@${domain}`.toLowerCase();
 };
 
