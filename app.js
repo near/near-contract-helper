@@ -1,13 +1,16 @@
 #!/usr/bin/env node
 const Koa = require('koa');
 const app = new Koa();
-
 const body = require('koa-json-body');
 const cors = require('@koa/cors');
 
 const constants = require('./constants');
 
-const { RECOVERY_METHOD_KINDS, SERVER_EVENTS } = constants;
+const {
+    RECOVERY_METHOD_KINDS,
+    SERVER_EVENTS,
+    IDENTITY_VERIFICATION_METHOD_KINDS,
+} = constants;
 
 // render.com passes requests through a proxy server; we need the source IPs to be accurate for `koa-ratelimit`
 app.proxy = true;
@@ -125,7 +128,11 @@ router.post(
     clearFundedAccountNeedsDeposit
 );
 
-const { createIdentityVerificationMethod, validateEmail, getUniqueEmail } = require('./middleware/identityVerificationMethod');
+const {
+    createIdentityVerificationMethod,
+    validateEmail,
+    getUniqueEmail
+} = require('./middleware/identityVerificationMethod');
 router.post(
     '/identityVerificationMethod',
     createIdentityVerificationMethod
@@ -200,22 +207,18 @@ function createWithSequelizeAcccountMiddleware(source) {
     };
 }
 
-// TODO: Do we need extra validation in addition to DB constraint?
-const recoveryMethods = Object.values(RECOVERY_METHOD_KINDS);
-
-async function checkRecoveryMethod(ctx, next) {
-    const { kind } = ctx.request.body;
-    if (recoveryMethods.includes(kind)) {
-        await next();
-        return;
-    }
-    ctx.throw(400, `Given recoveryMethod '${kind}' invalid; must be one of: ${recoveryMethods.join(', ')}`);
-}
-
+const deletableRecoveryMethods = Object.values(RECOVERY_METHOD_KINDS);
 router.post(
     '/account/deleteRecoveryMethod',
+    async function checkDeletableRecoveryMethod(ctx, next) {
+        const { kind } = ctx.request.body;
+        if (deletableRecoveryMethods.includes(kind)) {
+            await next();
+            return;
+        }
+        ctx.throw(400, `Given recoveryMethod '${kind}' invalid; must be one of: ${deletableRecoveryMethods.join(', ')}`);
+    },
     createWithSequelizeAcccountMiddleware('body'),
-    checkRecoveryMethod,
     checkAccountOwnership,
     withPublicKey,
     async ctx => {
@@ -316,6 +319,7 @@ const sendSecurityCode = async ({ ctx, securityCode, method, accountId, seedPhra
     }
 };
 
+
 const completeRecoveryInit = async ctx => {
     const { accountId, method, seedPhrase } = ctx.request.body;
     const [account] = await models.Account.findOrCreate({ where: { accountId } });
@@ -350,17 +354,39 @@ const completeRecoveryInit = async ctx => {
     ctx.body = await recoveryMethodsFor(account);
 };
 
+const DISABLE_PHONE_RECOVERY = process.env.DISABLE_PHONE_RECOVERY === 'true';
+
+const createableRecoveryMethods = Object.values(RECOVERY_METHOD_KINDS)
+    .filter((method) => {
+        if (DISABLE_PHONE_RECOVERY === true) {
+            return method !== RECOVERY_METHOD_KINDS.PHONE;
+        }
+
+        return true;
+    });
+
+async function checkCreateableRecoveryMethod(ctx, next) {
+    const { kind } = ctx.request.body.method;
+    const methods = createableRecoveryMethods;
+    if (methods.includes(kind)) {
+        await next();
+        return;
+    }
+    ctx.throw(400, `Given recoveryMethod '${kind}' invalid; must be one of: ${methods.join(', ')}`);
+}
+
 router.post('/account/initializeRecoveryMethodForTempAccount',
+    checkCreateableRecoveryMethod,
     createCheckAccountDoesNotExistMiddleware({ source: 'body', fieldName: 'accountId' }),
     completeRecoveryInit
 );
 
 router.post('/account/initializeRecoveryMethod',
+    checkCreateableRecoveryMethod,
     checkAccountOwnership,
     completeRecoveryInit
 );
 
-const { IDENTITY_VERIFICATION_METHOD_KINDS } = require('./constants');
 const recaptchaValidator = require('./RecaptchaValidator');
 const completeRecoveryValidation = ({ isNew } = {}) => async ctx => {
     const {
@@ -458,11 +484,13 @@ const completeRecoveryValidation = ({ isNew } = {}) => async ctx => {
 };
 
 router.post('/account/validateSecurityCode',
+    checkCreateableRecoveryMethod,
     checkAccountOwnership,
     completeRecoveryValidation()
 );
 
 router.post('/account/validateSecurityCodeForTempAccount',
+    checkCreateableRecoveryMethod,
     createCheckAccountDoesNotExistMiddleware({ source: 'body', fieldName: 'accountId' }),
     completeRecoveryValidation({ isNew: true })
 );
