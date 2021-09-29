@@ -76,9 +76,12 @@ const {
     sendNewCode,
     verifyCode,
 } = require('./middleware/2fa');
+const {
+    logIdentityRequest,
+} = require('./middleware/logger');
 router.post('/2fa/getAccessKey', checkAccountOwnership, getAccessKey);
 router.post('/2fa/init', checkAccountOwnership, initCode);
-router.post('/2fa/send', checkAccountOwnership, sendNewCode);
+router.post('/2fa/send', checkAccountOwnership, logIdentityRequest, sendNewCode);
 router.post('/2fa/verify', checkAccountOwnership, verifyCode);
 
 const ratelimit = require('koa-ratelimit');
@@ -135,6 +138,7 @@ const {
 } = require('./middleware/identityVerificationMethod');
 router.post(
     '/identityVerificationMethod',
+    logIdentityRequest,
     createIdentityVerificationMethod
 );
 
@@ -378,12 +382,14 @@ async function checkCreateableRecoveryMethod(ctx, next) {
 router.post('/account/initializeRecoveryMethodForTempAccount',
     checkCreateableRecoveryMethod,
     createCheckAccountDoesNotExistMiddleware({ source: 'body', fieldName: 'accountId' }),
+    logIdentityRequest,
     completeRecoveryInit
 );
 
 router.post('/account/initializeRecoveryMethod',
     checkCreateableRecoveryMethod,
     checkAccountOwnership,
+    logIdentityRequest,
     completeRecoveryInit
 );
 
