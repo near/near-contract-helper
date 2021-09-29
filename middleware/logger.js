@@ -29,9 +29,13 @@ function extractSmsMetadata(ctx) {
     return null;
 }
 
-function logIdentityRequest(ctx, next) {
+function logSmsSend(ctx, next) {
     try {
         const smsMetadata = extractSmsMetadata(ctx);
+        if (!smsMetadata) {
+            return next();
+        }
+
         const { kind, phoneNumber } = smsMetadata;
         const {
             ip,
@@ -65,5 +69,5 @@ function logIdentityRequest(ctx, next) {
 }
 
 module.exports = {
-    logIdentityRequest,
+    logSmsSend,
 };
