@@ -5,6 +5,9 @@ const body = require('koa-json-body');
 const cors = require('@koa/cors');
 
 const constants = require('./constants');
+const {
+    logIdentityRequest,
+} = require('./middleware/logger');
 
 const {
     RECOVERY_METHOD_KINDS,
@@ -76,9 +79,6 @@ const {
     sendNewCode,
     verifyCode,
 } = require('./middleware/2fa');
-const {
-    logIdentityRequest,
-} = require('./middleware/logger');
 router.post('/2fa/getAccessKey', checkAccountOwnership, getAccessKey);
 router.post('/2fa/init', checkAccountOwnership, initCode);
 router.post('/2fa/send', checkAccountOwnership, logIdentityRequest, sendNewCode);
