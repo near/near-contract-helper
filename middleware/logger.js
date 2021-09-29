@@ -1,13 +1,39 @@
 const bunyan = require('bunyan');
 const SumoLogger = require('bunyan-sumologic');
 
+const constants = require('../constants');
+
+const {
+    RECOVERY_METHOD_KINDS,
+    TWO_FACTOR_AUTH_KINDS,
+} = constants;
+
+function extractSmsMetadata(ctx) {
+    let {
+        identityKey: phoneNumber,
+        kind,
+        method,
+    } = ctx.request.body;
+
+    if (method && method.kind && method.detail) {
+        ({ kind, detail: phoneNumber } = method);
+    }
+
+    if (kind === RECOVERY_METHOD_KINDS.PHONE || kind === TWO_FACTOR_AUTH_KINDS.PHONE) {
+        return {
+            kind,
+            phoneNumber,
+        };
+    }
+
+    return null;
+}
+
 function logIdentityRequest(ctx, next) {
     try {
+        const smsMetadata = extractSmsMetadata(ctx);
+        const { kind, phoneNumber } = smsMetadata;
         const {
-            body: {
-                kind,
-                identityKey,
-            },
             ip,
             method,
             path,
@@ -25,15 +51,11 @@ function logIdentityRequest(ctx, next) {
         });
 
         logger.info({
-            identity: {
-                kind,
-                identityKey,
-            },
-            request : {
-                ip,
-                method,
-                path,
-            },
+            ip,
+            kind,
+            method,
+            path,
+            phoneNumber,
         });
     } catch (e) {
         console.warn('Failed to log request', e);
