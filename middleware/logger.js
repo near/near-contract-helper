@@ -60,7 +60,7 @@ function logSmsSend(ctx, next) {
             method,
             path,
             phoneNumber,
-        });
+        }, 'sms send');
     } catch (e) {
         console.warn('Failed to log request', e);
     }
