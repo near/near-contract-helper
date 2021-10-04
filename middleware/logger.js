@@ -43,13 +43,19 @@ function logSmsSend(ctx, next) {
             path,
         } = ctx.request;
 
+        const {
+            NODE_ENV,
+            SUMO_COLLECTOR_ID,
+            SUMO_ENDPOINT,
+        } = process.env;
+
         const logger = bunyan.createLogger({
-            name: 'near-contract-helper',
+            name: `${NODE_ENV}/near-contract-helper`,
             streams: [{
                 type: 'raw',
                 stream: new SumoLogger({
-                    collector: process.env.SUMO_COLLECTOR_ID,
-                    endpoint: process.env.SUMO_ENDPOINT,
+                    collector: SUMO_COLLECTOR_ID,
+                    endpoint:  SUMO_ENDPOINT,
                 }),
             }],
         });
