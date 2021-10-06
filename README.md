@@ -6,8 +6,7 @@ Microservice used to create NEAR accounts
 
 ### Requirements
 
-1) Install latest Node.js LTS release
-2) Install [HTTPie](http://httpie.org/)
+Install latest Node.js LTS release
 
 ### Install dependencies
 
@@ -51,12 +50,12 @@ Now you can add an `ACCOUNT_CREATOR_KEY` to your `.env`. Running a local NEAR ne
 
 ### Create account (works only on test networks)
 
-    http post http://localhost:3000/account newAccountId=nosuchuseryet newAccountPublicKey=22skMptHjFWNyuEWY22ftn2AbLPSYpmYwGJRGwpNHbTV
+    curl -H "Content-Type: application/json" -XPOST http://0.0.0.0:3000/account --data '{"newAccountId": "nosuchuseryet", "newAccountPublicKey": "22skMptHjFWNyuEWY22ftn2AbLPSYpmYwGJRGwpNHbTV"}
 
 ### Lookup account by public key
 
-    http http://localhost:3000/publicKey/ed25519:EKveJ28ocxfHXQEfH42AowPL7HgXHkKp3kmMoSXNjiRF/accounts
-    http https://helper.mainnet.near.org/publicKey/ed25519:EKveJ28ocxfHXQEfH42AowPL7HgXHkKp3kmMoSXNjiRF/accounts
+    curl -XGET http://0.0.0.0:3000/publicKey/ed25519:EKveJ28ocxfHXQEfH42AowPL7HgXHkKp3kmMoSXNjiRF/accounts
+    curl -XGET https://helper.mainnet.near.org/publicKey/ed25519:EKveJ28ocxfHXQEfH42AowPL7HgXHkKp3kmMoSXNjiRF/accounts
 
 #### Sample response
     

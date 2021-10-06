@@ -52,11 +52,13 @@ const findStakingDeposits = async (ctx) => {
 
 const findAccountActivity = async (ctx) => {
     const { accountId } = ctx.params;
+
     let { offset, limit = 10 } = ctx.request.query;
     if (!offset) {
         offset = '9999999999999999999';
     }
-    const { rows } = await pool.query(`
+    const { rows } = await pool.query(
+        `
         select
             included_in_block_hash block_hash,
             included_in_block_timestamp block_timestamp,
@@ -75,9 +77,14 @@ const findAccountActivity = async (ctx) => {
         order by receipt_included_in_block_timestamp desc
         limit $3
         ;
-    `, [accountId, offset, limit]);
+    `,
+        // Using very small limits caused queries to be horribly inefficient
+        // So we fetch more data than we need to, since that made the query planner
+        // optimize the scan performance
+        [accountId, offset, limit + 100]
+    );
 
-    ctx.body = rows;
+    ctx.body = rows.slice(0, limit);
 };
 
 const findAccountsByPublicKey = async (ctx) => {
