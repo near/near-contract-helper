@@ -2,7 +2,10 @@ const debug = require('debug');
 const Cache = require('node-cache');
 
 const { EmailDomainBlacklist } = require('../models');
+const EmailDomainBlacklistService = require('../services/email_domain_blacklist');
 const { getStaleDate: getStaleDateUtil, isEntryStale } = require('./utils');
+
+const USE_SERVICES = false;
 
 class EmailDomainBlacklistDBClient {
     constructor({
@@ -17,10 +20,18 @@ class EmailDomainBlacklistDBClient {
     async persistValidationResult(validationResult) {
         this.debugLog('persistValidationResult', validationResult);
 
-        const [blacklistEntry] = await EmailDomainBlacklist.upsert({
-            staleAt: this.getStaleDate(Date.now()), // Allow caller to override
-            ...validationResult
-        });
+        let blacklistEntry;
+        if (USE_SERVICES) {
+            blacklistEntry = await EmailDomainBlacklistService.updateDomainBlacklistEntry({
+                staleAt: this.getStaleDate(Date.now()), // Allow caller to override
+                ...validationResult,
+            });
+        } else {
+            [blacklistEntry] = await EmailDomainBlacklist.upsert({
+                staleAt: this.getStaleDate(Date.now()), // Allow caller to override
+                ...validationResult
+            });
+        }
 
         this.cache.set(validationResult.domainName, blacklistEntry);
 
@@ -35,7 +46,11 @@ class EmailDomainBlacklistDBClient {
         let domainBlacklistEntry;
 
         try {
-            domainBlacklistEntry = await EmailDomainBlacklist.findOne({ where: { domainName: normalizeDomainName } });
+            if (USE_SERVICES) {
+                domainBlacklistEntry = await EmailDomainBlacklistService.getDomainBlacklistEntry(normalizeDomainName);
+            } else {
+                domainBlacklistEntry = await EmailDomainBlacklist.findOne({ where: { domainName: normalizeDomainName } });
+            }
 
             // Only cache in memory for un-stale entries so, calling code knows to re-fetch
             if (domainBlacklistEntry && !isEntryStale(domainBlacklistEntry)) {
