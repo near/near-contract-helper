@@ -3,6 +3,7 @@ const BN = require('bn.js');
 
 const models = require('../models');
 const recaptchaValidator = require('../RecaptchaValidator');
+const AccountService = require('../services/account');
 const { fundedCreatorKeyJson } = require('./near');
 const {
     IDENTITY_VERIFICATION_ERRORS,
@@ -31,8 +32,7 @@ async function doCreateFundedAccount({
     newAccountId,
     newAccountPublicKey,
     ctx,
-    isAccountCreatedByThisCall,
-    sequelizeAccount
+    isExistingAccount,
 }) {
     const { available } = await fundingAccount.getAccountBalance();
     const availableBalanceBN = new BN(available);
@@ -66,9 +66,9 @@ async function doCreateFundedAccount({
             requiredUnlockBalance: NEW_FUNDED_ACCOUNT_BALANCE
         };
     } catch (e) {
-        if (isAccountCreatedByThisCall) {
-            // Clean up SQL record if we were responsible for creating it during this API call
-            await sequelizeAccount.destroy();
+        if (!isExistingAccount) {
+            // Clean up if we were responsible for creating it during this API call
+            await AccountService.deleteAccount(newAccountId);
         }
 
         if (e.type === 'NotEnoughBalance') {
@@ -136,28 +136,22 @@ const createFundedAccount = async (ctx) => {
         return;
     }
 
-
-    const [[sequelizeAccount, isAccountCreatedByThisCall], fundingAccount] = await Promise.all([
-        models.Account.findOrCreate({
-            where: { accountId: newAccountId },
-            defaults: { fundedAccountNeedsDeposit: true }
-        }),
-        ctx.near.account(fundedCreatorKeyJson.account_id)
+    // If someone is using a recovery method that involves a confirmation code (email / SMS)
+    // then we need to manually set the fundedAccountNeedsDeposit on the _existing_ record
+    const isExistingAccount = !!(await AccountService.getAccount(newAccountId));
+    const [fundingAccount] = await Promise.all([
+        ctx.near.account(fundedCreatorKeyJson.account_id),
+        isExistingAccount
+            ? AccountService.setAccountRequiresDeposit(newAccountId, true)
+            : AccountService.createAccount(newAccountId, { fundedAccountNeedsDeposit: true }),
     ]);
-
-    if (!isAccountCreatedByThisCall) {
-        // If someone is using a recovery method that involves a confirmation code (email / SMS)
-        // then we need to manually set the fundedAccountNeedsDeposit on the _existing_ SQL record
-        await sequelizeAccount.update({ fundedAccountNeedsDeposit: true });
-    }
 
     await doCreateFundedAccount({
         fundingAccount,
         newAccountId,
         newAccountPublicKey,
         ctx,
-        isAccountCreatedByThisCall,
-        sequelizeAccount
+        isExistingAccount,
     });
 };
 
@@ -275,8 +269,8 @@ async function createIdentityVerifiedFundedAccount(ctx) {
         return;
     }
 
-    const [[sequelizeAccount, isAccountCreatedByThisCall], fundingAccount] = await Promise.all([
-        models.Account.findOrCreate({ where: { accountId: newAccountId } }),
+    const [account, fundingAccount] = await Promise.all([
+        AccountService.getAccount(newAccountId),
         ctx.near.account(fundedCreatorKeyJson.account_id)
     ]);
 
@@ -285,8 +279,7 @@ async function createIdentityVerifiedFundedAccount(ctx) {
         newAccountId,
         newAccountPublicKey,
         ctx,
-        isAccountCreatedByThisCall,
-        sequelizeAccount
+        isExistingAccount: !!account,
     });
 
     if (ctx.status === 200) {
