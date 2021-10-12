@@ -24,6 +24,16 @@ const AccountService = {
         const [account] = await Account.findOne({ where: { accountId } });
         return account.toJSON();
     },
+
+    setAccountRequiresDeposit(accountId, requiresDeposit) {
+        return Promise.all([
+            ...(WRITE_TO_POSTGRES ? this.setAccountRequiresDeposit_sequelize(accountId, requiresDeposit) : []),
+        ]);
+    },
+
+    async setAccountRequiresDeposit_sequelize(accountId, requiresDeposit) {
+        await Account.update({ fundedAccountNeedsDeposit: requiresDeposit }, { where: { accountId } });
+    },
 };
 
 module.exports = AccountService;
