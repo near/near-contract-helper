@@ -109,10 +109,9 @@ const fundedAccountCreateRatelimitMiddleware = ratelimit({
 const {
     checkFundedAccountAvailable,
     clearFundedAccountNeedsDeposit,
-    clearFundedAccountNeedsDeposit_legacy,
     createFundedAccount,
     createIdentityVerifiedFundedAccount,
-} = require('./middleware/fundedAccount');
+} = require(USE_SERVICES ? './middleware/fundedAccount' : './middleware/fundedAccount.legacy');
 router.post(
     '/fundedAccount',
     fundedAccountCreateRatelimitMiddleware,
@@ -131,9 +130,7 @@ router.get('/checkFundedAccountAvailable', checkFundedAccountAvailable);
 router.post(
     '/fundedAccount/clearNeedsDeposit',
     createWithSequelizeAcccountMiddleware('body'),
-    USE_SERVICES
-        ? clearFundedAccountNeedsDeposit
-        : clearFundedAccountNeedsDeposit_legacy,
+    clearFundedAccountNeedsDeposit,
 );
 
 const {
@@ -327,7 +324,7 @@ router.post(
 
 const {
     BN_UNLOCK_FUNDED_ACCOUNT_BALANCE
-} = require('./middleware/fundedAccount');
+} = require(USE_SERVICES ? './middleware/fundedAccount' : './middleware/fundedAccount.legacy');
 router.get(
     '/account/walletState/:accountId',
     createWithSequelizeAcccountMiddleware('params'),
