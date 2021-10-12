@@ -1,6 +1,6 @@
 const models = require('../models');
 
-const { RecoveryMethod } = models;
+const { Account, RecoveryMethod } = models;
 
 const WRITE_TO_POSTGRES = true;
 
@@ -20,6 +20,22 @@ const RecoveryMethodService = {
         });
 
         return method.toJSON();
+    },
+
+    deleteOtherRecoveryMethods({ accountId, detail }) {
+        return ([
+            ...(WRITE_TO_POSTGRES ? this.deleteOtherRecoveryMethods_sequelize({ accountId, detail }) : []),
+        ]);
+    },
+
+    async deleteOtherRecoveryMethods_sequelize({ accountId, detail }) {
+        const account = await Account.findOne({ where: { accountId } });
+        const allRecoveryMethods = await account.getRecoveryMethods();
+        for (const rm of allRecoveryMethods) {
+            if (rm.detail !== detail) {
+                await rm.destroy();
+            }
+        }
     },
 
     deleteRecoveryMethod({ accountId, kind, publicKey }) {
