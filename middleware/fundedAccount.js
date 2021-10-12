@@ -290,9 +290,13 @@ async function createIdentityVerifiedFundedAccount(ctx) {
 async function clearFundedAccountNeedsDeposit(ctx) {
     // DEPRECATED: Remove after coin-op v1.5 is settled
 
-    const { accountId, fundedAccountNeedsDeposit } = ctx.sequelizeAccount;
+    const { accountId } = ctx.request.body;
+    const account = await AccountService.getAccount(accountId);
+    if (!account) {
+        ctx.throw(404, `Could not find account with accountId: '${accountId}'`);
+    }
 
-    if (!fundedAccountNeedsDeposit) {
+    if (!account.fundedAccountNeedsDeposit) {
         // This is an idempotent call
         ctx.status = 200;
         ctx.body = { success: true };
@@ -305,8 +309,7 @@ async function clearFundedAccountNeedsDeposit(ctx) {
     const availableBalanceBN = new BN(available);
 
     if (availableBalanceBN.gt(BN_UNLOCK_FUNDED_ACCOUNT_BALANCE)) {
-        await ctx.sequelizeAccount.update({ fundedAccountNeedsDeposit: false });
-
+        await AccountService.setAccountRequiresDeposit(accountId, false);
         ctx.status = 200;
         ctx.body = { success: true };
         return;
