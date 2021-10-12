@@ -436,7 +436,7 @@ const completeRecoveryInit = async ctx => {
         });
 
         if (!recoveryMethod) {
-            await account.createRecoveryMethod({
+            recoveryMethod = await account.createRecoveryMethod({
                 kind: method.kind,
                 detail: method.detail,
                 publicKey
