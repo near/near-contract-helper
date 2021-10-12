@@ -495,7 +495,8 @@ router.post('/account/initializeRecoveryMethod',
 );
 
 const recaptchaValidator = require('./RecaptchaValidator');
-const completeRecoveryValidation = ({ isNew } = {}) => async ctx => {
+
+const completeRecoveryValidation_legacy = ({ isNew } = {}) => async ctx => {
     const {
         accountId,
         method,
@@ -551,31 +552,22 @@ const completeRecoveryValidation = ({ isNew } = {}) => async ctx => {
 
             if (valid && score > 0.6) {
                 if (await validateEmail({ ctx, email: method.detail, kind: method.kind })) {
-                    if (USE_SERVICES) {
-                        await IdentityVerificationMethodService.setSecurityCode({
+                    // Throws `UniqueConstraintError` due to SQL constraints if an entry with matching `identityKey` and `kind` exists, but with `claimed` = true
+                    const [verificationMethod, verificationMethodCreated] = await models.IdentityVerificationMethod.findOrCreate({
+                        where: {
                             identityKey: method.detail.toLowerCase(),
                             kind: method.kind,
+                            claimed: false,
+                        },
+                        defaults: {
                             securityCode,
                             uniqueIdentityKey: method.kind === IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL ? getUniqueEmail(method.detail) : null
-                        });
-                    } else {
-                        // Throws `UniqueConstraintError` due to SQL constraints if an entry with matching `identityKey` and `kind` exists, but with `claimed` = true
-                        const [verificationMethod, verificationMethodCreated] = await models.IdentityVerificationMethod.findOrCreate({
-                            where: {
-                                identityKey: method.detail.toLowerCase(),
-                                kind: method.kind,
-                                claimed: false,
-                            },
-                            defaults: {
-                                securityCode,
-                                uniqueIdentityKey: method.kind === IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL ? getUniqueEmail(method.detail) : null
-                            }
-                        });
-
-                        // If the method already existed as un-claimed, sync our securityCode with it
-                        if (!verificationMethodCreated) {
-                            await verificationMethod.update({ securityCode });
                         }
+                    });
+
+                    // If the method already existed as un-claimed, sync our securityCode with it
+                    if (!verificationMethodCreated) {
+                        await verificationMethod.update({ securityCode });
                     }
                 }
             } else {
@@ -591,6 +583,84 @@ const completeRecoveryValidation = ({ isNew } = {}) => async ctx => {
             if (err.original && err.original.code !== '23505') { // UniqueConstraintError is not an error; it means it was claimed already
                 console.error('Failed to findOrCreate IdentityVerificationMethod', { err });
             }
+        }
+    }
+
+    ctx.status = 200;
+    ctx.body = await recoveryMethodsFor(account);
+};
+
+const completeRecoveryValidation = ({ isNew } = {}) => async (ctx) => {
+    if (!USE_SERVICES) {
+        return completeRecoveryValidation_legacy({ isNew });
+    }
+
+    const {
+        accountId,
+        method,
+        securityCode,
+        enterpriseRecaptchaToken,
+        recaptchaAction,
+        recaptchaSiteKey
+    } = ctx.request.body;
+
+    if (!securityCode || isNaN(parseInt(securityCode, 10)) || securityCode.length !== 6) {
+        ctx.throw(401, 'valid securityCode required');
+    }
+
+    const account = await AccountService.getAccount(accountId);
+    if (!account) {
+        ctx.throw(401, 'account does not exist');
+    }
+
+    const [recoveryMethod] = await RecoveryMethodService.listRecoveryMethods({
+        accountId,
+        detail: method.detail,
+        kind: method.kind,
+        securityCode,
+    });
+
+    if (!recoveryMethod) {
+        ctx.throw(401, 'recoveryMethod does not exist');
+    }
+
+    // for new accounts, clear all other recovery methods that may have been created
+    if (isNew) {
+        await RecoveryMethodService.deleteOtherRecoveryMethods({ accountId, kind: method.kind });
+    }
+
+    await recoveryMethod.update({ securityCode: null });
+
+    if (isNew && enterpriseRecaptchaToken) {
+        // Implicitly reserve a funded account for the same identity to allow the user to get a funded account without receiving 2 e-mails
+        const { valid, score } = await recaptchaValidator.createEnterpriseAssessment({
+            token: enterpriseRecaptchaToken,
+            siteKey: recaptchaSiteKey,
+            userIpAddress: ctx.ip,
+            userAgent: ctx.header['user-agent'],
+            expectedAction: recaptchaAction
+        });
+
+        if (valid && score > 0.6) {
+            if (await validateEmail({ ctx, email: method.detail, kind: method.kind })) {
+                const isIdentityRecoverable = await IdentityVerificationMethodService.recoverIdentity({
+                    identityKey: method.detail,
+                    kind: method.kind,
+                    securityCode,
+                });
+
+                if (!isIdentityRecoverable) {
+                    console.error('failed to recover identity');
+                }
+            }
+        } else {
+            console.log('Skipping implicit identityVerificationMethod creation due to low score', {
+                userAgent: ctx.header['user-agent'],
+                userIpAddress: ctx.ip,
+                expectedAction: recaptchaAction,
+                score,
+                valid
+            });
         }
     }
 
