@@ -588,10 +588,6 @@ const completeRecoveryValidation_legacy = ({ isNew } = {}) => async ctx => {
 };
 
 const completeRecoveryValidation = ({ isNew } = {}) => async (ctx) => {
-    if (!USE_SERVICES) {
-        return completeRecoveryValidation_legacy({ isNew });
-    }
-
     const {
         accountId,
         method,
@@ -668,13 +664,13 @@ const completeRecoveryValidation = ({ isNew } = {}) => async (ctx) => {
 router.post('/account/validateSecurityCode',
     checkCreateableRecoveryMethod,
     checkAccountOwnership,
-    completeRecoveryValidation()
+    USE_SERVICES ? completeRecoveryValidation() : completeRecoveryValidation_legacy(),
 );
 
 router.post('/account/validateSecurityCodeForTempAccount',
     checkCreateableRecoveryMethod,
     createCheckAccountDoesNotExistMiddleware({ source: 'body', fieldName: 'accountId' }),
-    completeRecoveryValidation({ isNew: true })
+    USE_SERVICES ? completeRecoveryValidation({ isNew: true }) : completeRecoveryValidation_legacy({ isNew: true })
 );
 
 const createFiatValueMiddleware = require('./middleware/fiat');
