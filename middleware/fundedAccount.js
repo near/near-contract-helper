@@ -1,9 +1,9 @@
 const nearAPI = require('near-api-js');
 const BN = require('bn.js');
 
-const models = require('../models');
 const recaptchaValidator = require('../RecaptchaValidator');
 const AccountService = require('../services/account');
+const IdentityVerificationMethodService = require('../services/identity_verification_method');
 const { fundedCreatorKeyJson } = require('./near');
 const {
     IDENTITY_VERIFICATION_ERRORS,
@@ -229,11 +229,9 @@ async function createIdentityVerifiedFundedAccount(ctx) {
         return;
     }
 
-    const verificationMethod = await models.IdentityVerificationMethod.findOne({
-        where: {
-            identityKey,
-            kind,
-        }
+    const verificationMethod = await IdentityVerificationMethodService.getIdentityVerificationMethod({
+        identityKey,
+        kind,
     });
 
     if (!verificationMethod) {
@@ -283,7 +281,7 @@ async function createIdentityVerifiedFundedAccount(ctx) {
     });
 
     if (ctx.status === 200) {
-        await verificationMethod.update({ securityCode: null, claimed: true });
+        await IdentityVerificationMethodService.claimIdentityVerificationMethod({ identityKey, kind });
     }
 }
 

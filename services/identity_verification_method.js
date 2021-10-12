@@ -9,10 +9,36 @@ const WRITE_TO_POSTGRES = true;
 const MATCH_GMAIL_IGNORED_CHARS = /[|&;$%@"<>()+,!#'*\-\/=?^_`.{}]/g;
 
 const IdentityVerificationMethodService = {
-    getIdentityVerificationMethod({ identityKey, kind }) {
-        return Promise.all([
+    async claimIdentityVerificationMethod({ identityKey, kind }) {
+        const [identityVerificationMethod] = await Promise.all([
+            ...(WRITE_TO_POSTGRES ? [this.claimIdentityVerificationMethod_sequelize({ identityKey, kind })] : [])
+        ]);
+
+        return identityVerificationMethod;
+    },
+
+    async claimIdentityVerificationMethod_sequelize({ identityKey, kind }) {
+        const [verificationMethod] = await IdentityVerificationMethod.update(
+            {
+                claimed: true,
+                securityCode: null,
+            },
+            {
+                where: {
+                    identityKey,
+                    kind,
+                },
+            });
+
+        return verificationMethod.toJSON();
+    },
+
+    async getIdentityVerificationMethod({ identityKey, kind }) {
+        const [identityVerificationMethod] = await Promise.all([
             ...(WRITE_TO_POSTGRES ? [this.getIdentityVerificationMethod_sequelize({ identityKey, kind })] : [])
         ]);
+
+        return identityVerificationMethod;
     },
 
     async getIdentityVerificationMethod_sequelize({ identityKey, kind }) {
