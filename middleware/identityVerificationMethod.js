@@ -7,12 +7,15 @@ const { getSecurityCodeMessageContent } = require('../accountRecoveryMessageCont
 const constants = require('../constants');
 
 const { IdentityVerificationMethod } = require('../models');
+const IdentityVerificationMethodService = require('../services/identity_verification_method');
 const { sendMail } = require('../utils/email');
 const { sendSms } = require('../utils/sms');
 const createEmailDomainValidator = require('../EmailDomainValidator');
 
 const ENABLE_EMAIL_IDENTITY_VERIFICATION_METHOD = process.env.ENABLE_EMAIL_IDENTITY_VERIFICATION === 'true' || false;
 const ENABLE_PHONE_IDENTITY_VERIFICATION_METHOD = process.env.ENABLE_PHONE_IDENTITY_VERIFICATION === 'true' || true;
+
+const USE_SERVICES = false;
 
 const { IDENTITY_VERIFICATION_METHOD_KINDS, SERVER_EVENTS } = constants;
 
@@ -191,23 +194,36 @@ async function createIdentityVerificationMethod(ctx) {
 
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
 
-    const createResult = await tryCreateIdentityVerificationEntry({ ctx, identityKey, kind, securityCode });
-    if (!createResult) { return; }
+    if (!USE_SERVICES) {
+        const createResult = await tryCreateIdentityVerificationEntry({ ctx, identityKey, kind, securityCode });
+        if (!createResult) { return; }
 
-    const {
-        verificationMethod,
-        verificationMethodCreatedByThisCall
-    } = createResult;
+        const {
+            verificationMethod,
+            verificationMethodCreatedByThisCall
+        } = createResult;
 
-    // Set a new security code every time someone POSTs for a particular kind and identityKey combination
-    // unless the existing has already been claimed.
-    if (verificationMethod.claimed === true) {
-        setAlreadyClaimedResponse(ctx);
-        return;
-    }
+        // Set a new security code every time someone POSTs for a particular kind and identityKey combination
+        // unless the existing has already been claimed.
+        if (verificationMethod.claimed === true) {
+            setAlreadyClaimedResponse(ctx);
+            return;
+        }
 
-    if (!verificationMethodCreatedByThisCall) {
-        await verificationMethod.update({ securityCode });
+        if (!verificationMethodCreatedByThisCall) {
+            await verificationMethod.update({ securityCode });
+        }
+    } else {
+        const isIdentityRecoverable = await IdentityVerificationMethodService.recoverIdentity({
+            identityKey,
+            kind,
+            securityCode,
+        });
+
+        if (!isIdentityRecoverable) {
+            setAlreadyClaimedResponse(ctx);
+            return;
+        }
     }
 
     const { html, subject, text } = getSecurityCodeMessageContent({ securityCode });
