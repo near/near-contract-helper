@@ -10,11 +10,11 @@ const MATCH_GMAIL_IGNORED_CHARS = /[|&;$%@"<>()+,!#'*\-\/=?^_`.{}]/g;
 
 const IdentityVerificationMethodService = {
     async claimIdentityVerificationMethod({ identityKey, kind }) {
-        const [identityVerificationMethod] = await Promise.all([
+        const [postgresMethod] = await Promise.all([
             ...(WRITE_TO_POSTGRES ? [this.claimIdentityVerificationMethod_sequelize({ identityKey, kind })] : [])
         ]);
 
-        return identityVerificationMethod;
+        return postgresMethod;
     },
 
     async claimIdentityVerificationMethod_sequelize({ identityKey, kind }) {
@@ -34,11 +34,11 @@ const IdentityVerificationMethodService = {
     },
 
     async getIdentityVerificationMethod({ identityKey, kind }) {
-        const [identityVerificationMethod] = await Promise.all([
+        const [postgresMethod] = await Promise.all([
             ...(WRITE_TO_POSTGRES ? [this.getIdentityVerificationMethod_sequelize({ identityKey, kind })] : [])
         ]);
 
-        return identityVerificationMethod;
+        return postgresMethod;
     },
 
     async getIdentityVerificationMethod_sequelize({ identityKey, kind }) {
@@ -71,11 +71,11 @@ const IdentityVerificationMethodService = {
 
     // return the IdentityVerificationMethod record when successful, null when invalid
     async recoverIdentity({ identityKey, kind, securityCode }) {
-        const [isSuccessful] = await Promise.all([
+        const [postgresSuccess] = await Promise.all([
             ...(WRITE_TO_POSTGRES ? [this.recoverIdentity_sequelize({ identityKey, kind, securityCode })] : []),
         ]);
 
-        return isSuccessful;
+        return postgresSuccess;
     },
 
     async recoverIdentity_sequelize({ identityKey, kind, securityCode }) {

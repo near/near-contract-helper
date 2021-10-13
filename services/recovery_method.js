@@ -1,14 +1,19 @@
+const { Op } = require('sequelize');
+
 const models = require('../models');
 
 const { Account, RecoveryMethod } = models;
 
+const TWO_FACTOR_REQUEST_DURATION_MS = 30 * 60000;
 const WRITE_TO_POSTGRES = true;
 
 const RecoveryMethodService = {
-    createRecoveryMethod({ accountId, kind, publicKey, securityCode = null }) {
-        return Promise.all([
+    async createRecoveryMethod({ accountId, kind, publicKey, securityCode = null }) {
+        const [postgresMethod] = await Promise.all([
             ...(WRITE_TO_POSTGRES ? this.createRecoveryMethod_sequelize({ accountId, kind, publicKey, securityCode }) : []),
         ]);
+
+        return postgresMethod;
     },
 
     async createRecoveryMethod_sequelize({ accountId, kind, publicKey, securityCode = null }) {
@@ -23,7 +28,7 @@ const RecoveryMethodService = {
     },
 
     deleteOtherRecoveryMethods({ accountId, detail }) {
-        return ([
+        return Promise.all([
             ...(WRITE_TO_POSTGRES ? this.deleteOtherRecoveryMethods_sequelize({ accountId, detail }) : []),
         ]);
     },
@@ -54,6 +59,27 @@ const RecoveryMethodService = {
         });
 
         return recoveryMethod.destroy();
+    },
+
+    getTwoFactorRecoveryMethod(accountId) {
+        return this.getTwoFactorRecoveryMethod_sequelize(accountId);
+    },
+
+    async getTwoFactorRecoveryMethod_sequelize(accountId) {
+        const [recoveryMethod] = await RecoveryMethod.findAll({
+            where: {
+                accountId,
+                kind: {
+                    [Op.startsWith]: '2fa-'
+                },
+            },
+        });
+
+        return recoveryMethod.toJSON();
+    },
+
+    isTwoFactorRequestExpired({ updatedAt }) {
+        return updatedAt < Date.now() - TWO_FACTOR_REQUEST_DURATION_MS;
     },
 
     listAllRecoveryMethods(accountId) {
@@ -96,10 +122,29 @@ const RecoveryMethodService = {
         return recoveryMethods.map((method) => method.toJSON());
     },
 
-    setSecurityCode({ accountId, detail, kind, publicKey, securityCode }) {
-        return Promise.all([
+    async resetTwoFactorRequest(accountId) {
+        const [postgresMethod] = await Promise.all([
+            ...(WRITE_TO_POSTGRES ? this.resetTwoFactorRequest_sequelize(accountId) : []),
+        ]);
+
+        return postgresMethod;
+    },
+
+    async resetTwoFactorRequest_sequelize(accountId) {
+        const twoFactorMethod = await this.getTwoFactorRecoveryMethod_sequelize(accountId);
+        await twoFactorMethod.update({ requestId: -1, securityCode: null });
+
+        // sequelize updates don't actually return anything useful but we'll want the
+        // eventual interface to return the updated object so use a placeholder for now
+        return {};
+    },
+
+    async setSecurityCode({ accountId, detail, kind, publicKey, securityCode }) {
+        const [postgresMethod] = await Promise.all([
             ...(WRITE_TO_POSTGRES ? this.setSecurityCode_sequelize({ accountId, detail, kind, publicKey, securityCode }) : []),
         ]);
+
+        return postgresMethod;
     },
 
     // TODO are all params needed to uniquely identify the RecoveryMethod?

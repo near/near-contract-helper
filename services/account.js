@@ -5,10 +5,12 @@ const { Account } = models;
 const WRITE_TO_POSTGRES = true;
 
 const AccountService = {
-    createAccount(accountId, { fundedAccountNeedsDeposit } = {}) {
-        return ([
+    async createAccount(accountId, { fundedAccountNeedsDeposit } = {}) {
+        const [postgresAccount] = await Promise.all([
             ...(WRITE_TO_POSTGRES ? this.createAccount_sequelize(accountId, { fundedAccountNeedsDeposit }) : []),
         ]);
+
+        return postgresAccount;
     },
 
     async createAccount_sequelize(accountId, { fundedAccountNeedsDeposit }) {
@@ -24,10 +26,12 @@ const AccountService = {
         return account.toJSON();
     },
 
-    deleteAccount(accountId) {
-        return ([
+    async deleteAccount(accountId) {
+        const [postgresAccount] = await Promise.all([
             ...(WRITE_TO_POSTGRES ? this.deleteAccount_sequelize(accountId) : []),
         ]);
+
+        return postgresAccount;
     },
 
     async deleteAccount_sequelize(accountId) {
@@ -45,14 +49,20 @@ const AccountService = {
         return account.toJSON();
     },
 
-    setAccountRequiresDeposit(accountId, requiresDeposit) {
-        return Promise.all([
+    async setAccountRequiresDeposit(accountId, requiresDeposit) {
+        const [postgresAccount] = await Promise.all([
             ...(WRITE_TO_POSTGRES ? this.setAccountRequiresDeposit_sequelize(accountId, requiresDeposit) : []),
         ]);
+
+        return postgresAccount;
     },
 
     async setAccountRequiresDeposit_sequelize(accountId, requiresDeposit) {
         await Account.update({ fundedAccountNeedsDeposit: requiresDeposit }, { where: { accountId } });
+
+        // sequelize updates don't actually return anything useful but we'll want the
+        // eventual interface to return the updated object so use a placeholder for now
+        return {};
     },
 };
 
