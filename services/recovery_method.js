@@ -26,7 +26,7 @@ const RecoveryMethodService = {
     },
 
     deleteRecoveryMethod({ accountId, kind, publicKey }) {
-        return ([
+        return Promise.all([
             ...(WRITE_TO_POSTGRES ? [SequelizeRecoveryMethods.deleteRecoveryMethod({ accountId, kind, publicKey })] : []),
         ]);
     },
