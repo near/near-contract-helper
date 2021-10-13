@@ -2,12 +2,38 @@ const { Op } = require('sequelize');
 
 const models = require('../models');
 
-const { Account, RecoveryMethod } = models;
+const { Account } = models;
 
 const TWO_FACTOR_REQUEST_DURATION_MS = 30 * 60000;
 const WRITE_TO_POSTGRES = true;
 
 const RecoveryMethodService = {
+    cleanRecoveryMethod_sequelize(recoveryMethod) {
+        if (!recoveryMethod) {
+            return null;
+        }
+
+        const {
+            kind,
+            detail,
+            publicKey,
+            requestId,
+            securityCode,
+            createdAt,
+            updatedAt,
+        } = recoveryMethod.toJSON();
+
+        return {
+            kind,
+            detail,
+            publicKey,
+            requestId,
+            securityCode,
+            createdAt,
+            updatedAt,
+        };
+    },
+
     async createRecoveryMethod({ accountId, detail, kind, publicKey, requestId, securityCode }) {
         const [postgresMethod] = await Promise.all([
             ...(WRITE_TO_POSTGRES ? [this.createRecoveryMethod_sequelize({
@@ -24,8 +50,13 @@ const RecoveryMethodService = {
     },
 
     async createRecoveryMethod_sequelize({ accountId, detail, kind, publicKey, requestId, securityCode }) {
-        const method = await RecoveryMethod.create({
-            accountId,
+        const account = await Account.findOne({ where: { accountId } });
+        if (!account) {
+            // TODO throw exception
+            return null;
+        }
+
+        const recoveryMethod = await account.createRecoveryMethod({
             kind,
             ...(detail && { detail }),
             ...(publicKey && { publicKey }),
@@ -33,7 +64,7 @@ const RecoveryMethodService = {
             ...(securityCode && { securityCode }),
         });
 
-        return method.toJSON();
+        return this.cleanRecoveryMethod_sequelize(recoveryMethod);
     },
 
     deleteOtherRecoveryMethods({ accountId, detail }) {
@@ -63,9 +94,9 @@ const RecoveryMethodService = {
     },
 
     async deleteRecoveryMethod_sequelize({ accountId, kind, publicKey }) {
-        const [recoveryMethod] = await RecoveryMethod.findAll({
+        const account = await Account.findOne({ where: { accountId } });
+        const [recoveryMethod] = await account.getRecoveryMethods({
             where: {
-                accountId,
                 kind,
                 publicKey,
             }
@@ -75,13 +106,14 @@ const RecoveryMethodService = {
     },
 
     async getRecoveryMethod({ accountId, kind, detail }) {
-        return this.getRecoveryMethod_sequelize({ accountId, kind, detail });
+        const recoveryMethod = await this.getRecoveryMethod_sequelize({ accountId, kind, detail });
+        return this.cleanRecoveryMethod_sequelize(recoveryMethod);
     },
 
     async getRecoveryMethod_sequelize({ accountId, kind, detail }) {
-        const [recoveryMethod] = await RecoveryMethod.findAll({
+        const account = await Account.findOne({ where: { accountId } });
+        const [recoveryMethod] = await account.getRecoveryMethods({
             where: {
-                accountId,
                 kind: kind.split('2fa-')[1],
                 detail,
             }
@@ -92,13 +124,13 @@ const RecoveryMethodService = {
 
     async getTwoFactorRecoveryMethod(accountId) {
         const twoFactorRecoveryMethod = await this.getTwoFactorRecoveryMethod_sequelize(accountId);
-        return twoFactorRecoveryMethod.toJSON();
+        return this.cleanRecoveryMethod_sequelize(twoFactorRecoveryMethod);
     },
 
     async getTwoFactorRecoveryMethod_sequelize(accountId) {
-        const [twoFactorRecoveryMethod] = await RecoveryMethod.findAll({
+        const account = await Account.findOne({ where: { accountId } });
+        const [twoFactorRecoveryMethod] = await account.getRecoveryMethods({
             where: {
-                accountId,
                 kind: {
                     [Op.startsWith]: '2fa-'
                 },
@@ -117,9 +149,14 @@ const RecoveryMethodService = {
     },
 
     async listAllRecoveryMethods_sequelize(accountId) {
-        const methods = await RecoveryMethod.findAll({ where: { accountId } });
-        return methods.map((method) => {
-            const { securityCode, ...filteredModel } = method.toJSON();
+        const account = await Account.findOne({ where: { accountId } });
+        if (!account) {
+            return [];
+        }
+
+        const recoveryMethods = await account.getRecoveryMethods();
+        return recoveryMethods.map((recoveryMethod) => {
+            const { securityCode, ...filteredModel } = this.cleanRecoveryMethod_sequelize(recoveryMethod);
             return {
                 ...filteredModel,
                 confirmed: !securityCode,
@@ -132,24 +169,17 @@ const RecoveryMethodService = {
     },
 
     async listRecoveryMethods_sequelize({ accountId, detail, kind, publicKey, securityCode }) {
-        const filterArgs = { detail, kind, publicKey, securityCode };
-        const queryArgs = Object.keys(filterArgs).reduce((args, key) => {
-            const value = filterArgs[key];
-            if (value !== null && value !== undefined) {
-                args[key] = value;
-            }
-
-            return args;
-        }, {});
-
-        const recoveryMethods = await RecoveryMethod.findAll({
+        const account = await Account.findOne({ where: { accountId } });
+        const recoveryMethods = await account.getRecoveryMethods({
             where: {
-                accountId,
-                ...queryArgs,
+                ...(detail && { detail }),
+                ...(kind && { kind }),
+                ...(publicKey && { publicKey }),
+                ...(securityCode && { securityCode }),
             },
         });
 
-        return recoveryMethods.map((method) => method.toJSON());
+        return recoveryMethods.map((recoveryMethod) => this.cleanRecoveryMethod_sequelize(recoveryMethod));
     },
 
     async resetTwoFactorRequest(accountId) {
@@ -178,9 +208,9 @@ const RecoveryMethodService = {
     },
 
     async setSecurityCode_sequelize({ accountId, detail, kind, publicKey, securityCode }) {
-        const [recoveryMethod] = await RecoveryMethod.findOne({
+        const account = await Account.findOne({ where: { accountId } });
+        const [recoveryMethod] = await account.getRecoveryMethods({
             where: {
-                accountId,
                 detail,
                 kind,
                 publicKey,
