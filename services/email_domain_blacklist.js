@@ -8,7 +8,7 @@ const EmailDomainBlacklistService = {
     },
 
     async getDomainBlacklistEntry_sequelize(domainName) {
-        const [entry] = await EmailDomainBlacklist.findOne({ where: { domainName } });
+        const entry = await EmailDomainBlacklist.findOne({ where: { domainName } });
         return entry.toJSON();
     },
 

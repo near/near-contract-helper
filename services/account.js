@@ -7,7 +7,7 @@ const WRITE_TO_POSTGRES = true;
 const AccountService = {
     async createAccount(accountId, { fundedAccountNeedsDeposit } = {}) {
         const [postgresAccount] = await Promise.all([
-            ...(WRITE_TO_POSTGRES ? this.createAccount_sequelize(accountId, { fundedAccountNeedsDeposit }) : []),
+            ...(WRITE_TO_POSTGRES ? [this.createAccount_sequelize(accountId, { fundedAccountNeedsDeposit })] : []),
         ]);
 
         return postgresAccount;
@@ -35,7 +35,7 @@ const AccountService = {
     },
 
     async deleteAccount_sequelize(accountId) {
-        const [account] = await Account.findOne({ where: { accountId } });
+        const account = await Account.findOne({ where: { accountId } });
         await account.destroy();
         return account.toJSON();
     },
@@ -45,7 +45,11 @@ const AccountService = {
     },
 
     async getAccount_sequelize(accountId) {
-        const [account] = await Account.findOne({ where: { accountId } });
+        const account = await Account.findOne({ where: { accountId } });
+        if (!account) {
+            return null;
+        }
+
         return account.toJSON();
     },
 

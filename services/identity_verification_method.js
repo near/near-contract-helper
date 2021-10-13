@@ -42,7 +42,7 @@ const IdentityVerificationMethodService = {
     },
 
     async getIdentityVerificationMethod_sequelize({ identityKey, kind }) {
-        const [verificationMethod] = await IdentityVerificationMethod.findOne({
+        const verificationMethod = await IdentityVerificationMethod.findOne({
             where: {
                 identityKey,
                 kind,

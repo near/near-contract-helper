@@ -10,14 +10,14 @@ const WRITE_TO_POSTGRES = true;
 const RecoveryMethodService = {
     async createRecoveryMethod({ accountId, detail, kind, publicKey, requestId, securityCode }) {
         const [postgresMethod] = await Promise.all([
-            ...(WRITE_TO_POSTGRES ? this.createRecoveryMethod_sequelize({
+            ...(WRITE_TO_POSTGRES ? [this.createRecoveryMethod_sequelize({
                 accountId,
                 detail,
                 kind,
                 publicKey,
                 requestId,
                 securityCode,
-            }) : []),
+            })]: []),
         ]);
 
         return postgresMethod;
@@ -44,6 +44,10 @@ const RecoveryMethodService = {
 
     async deleteOtherRecoveryMethods_sequelize({ accountId, detail }) {
         const account = await Account.findOne({ where: { accountId } });
+        if (!account) {
+            return null;
+        }
+
         const allRecoveryMethods = await account.getRecoveryMethods();
         for (const rm of allRecoveryMethods) {
             if (rm.detail !== detail) {
@@ -54,7 +58,7 @@ const RecoveryMethodService = {
 
     deleteRecoveryMethod({ accountId, kind, publicKey }) {
         return ([
-            ...(WRITE_TO_POSTGRES ? this.deleteRecoveryMethod_sequelize({ accountId, kind, publicKey }) : []),
+            ...(WRITE_TO_POSTGRES ? [this.deleteRecoveryMethod_sequelize({ accountId, kind, publicKey })] : []),
         ]);
     },
 
@@ -167,7 +171,7 @@ const RecoveryMethodService = {
 
     async setSecurityCode({ accountId, detail, kind, publicKey, securityCode }) {
         const [postgresMethod] = await Promise.all([
-            ...(WRITE_TO_POSTGRES ? this.setSecurityCode_sequelize({ accountId, detail, kind, publicKey, securityCode }) : []),
+            ...(WRITE_TO_POSTGRES ? [this.setSecurityCode_sequelize({ accountId, detail, kind, publicKey, securityCode })] : []),
         ]);
 
         return postgresMethod;
