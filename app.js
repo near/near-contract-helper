@@ -80,7 +80,7 @@ const {
     initCode,
     sendNewCode,
     verifyCode,
-} = require('./middleware/2fa');
+} = require(USE_SERVICES ? './middleware/2fa' : './middleware/2fa.legacy');
 router.post('/2fa/getAccessKey', checkAccountOwnership, getAccessKey);
 router.post('/2fa/init', checkAccountOwnership, initCode);
 router.post('/2fa/send', checkAccountOwnership, sendNewCode);
