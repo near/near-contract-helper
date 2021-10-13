@@ -294,6 +294,7 @@ router.post(
         }
 
         const { publicKey, request: { body: { accountId } } } = ctx;
+        await AccountService.createAccount(accountId);
         await RecoveryMethodService.createRecoveryMethod({
             accountId,
             kind: RECOVERY_METHOD_KINDS.PHRASE,
@@ -317,6 +318,7 @@ router.post(
         }
 
         const { publicKey, request: { body: { accountId } } } = ctx;
+        await AccountService.createAccount(accountId);
         await RecoveryMethodService.createRecoveryMethod({
             accountId,
             kind: RECOVERY_METHOD_KINDS.LEDGER,

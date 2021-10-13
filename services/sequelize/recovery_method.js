@@ -33,10 +33,6 @@ const SequelizeRecoveryMethods = {
 
     async createRecoveryMethod({ accountId, detail, kind, publicKey, requestId, securityCode }) {
         const account = await Account.findOne({ where: { accountId } });
-        if (!account) {
-            return null;
-        }
-
         const recoveryMethod = await account.createRecoveryMethod({
             kind,
             ...(detail && { detail }),
