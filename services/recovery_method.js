@@ -8,19 +8,28 @@ const TWO_FACTOR_REQUEST_DURATION_MS = 30 * 60000;
 const WRITE_TO_POSTGRES = true;
 
 const RecoveryMethodService = {
-    async createRecoveryMethod({ accountId, kind, publicKey, securityCode = null }) {
+    async createRecoveryMethod({ accountId, detail, kind, publicKey, requestId, securityCode }) {
         const [postgresMethod] = await Promise.all([
-            ...(WRITE_TO_POSTGRES ? this.createRecoveryMethod_sequelize({ accountId, kind, publicKey, securityCode }) : []),
+            ...(WRITE_TO_POSTGRES ? this.createRecoveryMethod_sequelize({
+                accountId,
+                detail,
+                kind,
+                publicKey,
+                requestId,
+                securityCode,
+            }) : []),
         ]);
 
         return postgresMethod;
     },
 
-    async createRecoveryMethod_sequelize({ accountId, kind, publicKey, securityCode = null }) {
+    async createRecoveryMethod_sequelize({ accountId, detail, kind, publicKey, requestId, securityCode }) {
         const method = await RecoveryMethod.create({
             accountId,
             kind,
-            publicKey,
+            ...(detail && { detail }),
+            ...(publicKey && { publicKey }),
+            ...(requestId && { requestId }),
             ...(securityCode && { securityCode }),
         });
 
@@ -61,12 +70,29 @@ const RecoveryMethodService = {
         return recoveryMethod.destroy();
     },
 
-    getTwoFactorRecoveryMethod(accountId) {
-        return this.getTwoFactorRecoveryMethod_sequelize(accountId);
+    async getRecoveryMethod({ accountId, kind, detail }) {
+        return this.getRecoveryMethod_sequelize({ accountId, kind, detail });
+    },
+
+    async getRecoveryMethod_sequelize({ accountId, kind, detail }) {
+        const [recoveryMethod] = await RecoveryMethod.findAll({
+            where: {
+                accountId,
+                kind: kind.split('2fa-')[1],
+                detail,
+            }
+        });
+
+        return recoveryMethod;
+    },
+
+    async getTwoFactorRecoveryMethod(accountId) {
+        const twoFactorRecoveryMethod = await this.getTwoFactorRecoveryMethod_sequelize(accountId);
+        return twoFactorRecoveryMethod.toJSON();
     },
 
     async getTwoFactorRecoveryMethod_sequelize(accountId) {
-        const [recoveryMethod] = await RecoveryMethod.findAll({
+        const [twoFactorRecoveryMethod] = await RecoveryMethod.findAll({
             where: {
                 accountId,
                 kind: {
@@ -75,7 +101,7 @@ const RecoveryMethodService = {
             },
         });
 
-        return recoveryMethod.toJSON();
+        return twoFactorRecoveryMethod;
     },
 
     isTwoFactorRequestExpired({ updatedAt }) {
@@ -147,7 +173,6 @@ const RecoveryMethodService = {
         return postgresMethod;
     },
 
-    // TODO are all params needed to uniquely identify the RecoveryMethod?
     async setSecurityCode_sequelize({ accountId, detail, kind, publicKey, securityCode }) {
         const [recoveryMethod] = await RecoveryMethod.findOne({
             where: {
@@ -160,6 +185,32 @@ const RecoveryMethodService = {
 
         await recoveryMethod.update({ securityCode });
         return recoveryMethod.toJSON();
+    },
+
+    async updateTwoFactorRecoveryMethod({ accountId, detail, kind, requestId, securityCode }) {
+        const [postgresMethod] = await Promise.all([
+            ...(WRITE_TO_POSTGRES ? this.updateTwoFactorRecoveryMethod_sequelize({
+                accountId,
+                detail,
+                kind,
+                requestId,
+                securityCode,
+            }) : []),
+        ]);
+
+        return postgresMethod;
+    },
+
+    async updateTwoFactorRecoveryMethod_sequelize({ accountId, detail, kind, requestId, securityCode }) {
+        const twoFactorRecoveryMethod = await this.getTwoFactorRecoveryMethod_sequelize(accountId);
+        await twoFactorRecoveryMethod.update({
+            requestId,
+            ...(detail && { detail }),
+            ...(kind && { kind }),
+            ...(securityCode && { securityCode }),
+        });
+
+        return {};
     },
 };
 
