@@ -620,10 +620,15 @@ const completeRecoveryValidation = ({ isNew } = {}) => async (ctx) => {
 
     // for new accounts, clear all other recovery methods that may have been created
     if (isNew) {
-        await RecoveryMethodService.deleteOtherRecoveryMethods({ accountId, kind: method.kind });
+        await RecoveryMethodService.deleteOtherRecoveryMethods({ accountId, detail: method.detail });
     }
 
-    await recoveryMethod.update({ securityCode: null });
+    await RecoveryMethodService.updateRecoveryMethod({
+        accountId,
+        detail: method.detail,
+        kind: method.kind,
+        securityCode,
+    });
 
     if (isNew && enterpriseRecaptchaToken) {
         // Implicitly reserve a funded account for the same identity to allow the user to get a funded account without receiving 2 e-mails
@@ -659,7 +664,7 @@ const completeRecoveryValidation = ({ isNew } = {}) => async (ctx) => {
     }
 
     ctx.status = 200;
-    ctx.body = await recoveryMethodsFor(account);
+    ctx.body = await RecoveryMethodService.listAllRecoveryMethods(accountId);
 };
 
 router.post('/account/validateSecurityCode',
