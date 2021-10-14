@@ -129,7 +129,7 @@ router.post(
 router.get('/checkFundedAccountAvailable', checkFundedAccountAvailable);
 router.post(
     '/fundedAccount/clearNeedsDeposit',
-    createWithSequelizeAcccountMiddleware('body'),
+    USE_SERVICES ? (ctx, next) => verifyAccountExists(ctx, next, ctx.request.body) : createWithSequelizeAcccountMiddleware('body'),
     clearFundedAccountNeedsDeposit,
 );
 
@@ -195,10 +195,6 @@ router.post('/account/recoveryMethods', checkAccountOwnership, async ctx => {
 });
 
 function createWithSequelizeAcccountMiddleware(source) {
-    if (USE_SERVICES) {
-        return (_, next) => next();
-    }
-
     if (source !== 'body' && source !== 'params') {
         throw new Error('invalid source for accountId provided');
     }
@@ -220,6 +216,19 @@ function createWithSequelizeAcccountMiddleware(source) {
     };
 }
 
+async function verifyAccountExists(ctx, next, { accountId }) {
+    if (!accountId) {
+        throw new Error('invalid accountId provided');
+    }
+
+    const account = await AccountService.getAccount(accountId);
+    if (!account) {
+        ctx.throw(404, `Could not find account with accountId: '${accountId}'`);
+    }
+
+    return next();
+}
+
 const deletableRecoveryMethods = Object.values(RECOVERY_METHOD_KINDS);
 router.post(
     '/account/deleteRecoveryMethod',
@@ -231,7 +240,7 @@ router.post(
         }
         ctx.throw(400, `Given recoveryMethod '${kind}' invalid; must be one of: ${deletableRecoveryMethods.join(', ')}`);
     },
-    createWithSequelizeAcccountMiddleware('body'),
+    USE_SERVICES ? (ctx, next) => verifyAccountExists(ctx, next, ctx.request.body) : createWithSequelizeAcccountMiddleware('body'),
     checkAccountOwnership,
     withPublicKey,
     async ctx => {
@@ -249,11 +258,6 @@ router.post(
         }
 
         const { accountId, kind, publicKey } = ctx.request.body;
-        const account = await AccountService.getAccount(accountId);
-        if (!account) {
-            ctx.throw(404, `Could not find account with accountId: '${accountId}'`);
-        }
-
         await RecoveryMethodService.deleteRecoveryMethod({ accountId, kind, publicKey });
         ctx.body = await RecoveryMethodService.listAllRecoveryMethods(accountId);
     },
@@ -327,7 +331,7 @@ const {
 } = require(USE_SERVICES ? './middleware/fundedAccount' : './middleware/fundedAccount.legacy');
 router.get(
     '/account/walletState/:accountId',
-    createWithSequelizeAcccountMiddleware('params'),
+    USE_SERVICES ? (ctx, next) => verifyAccountExists(ctx, next, ctx.params) : createWithSequelizeAcccountMiddleware('params'),
     async (ctx) => {
         if (!USE_SERVICES) {
             const { fundedAccountNeedsDeposit, accountId } = ctx.sequelizeAccount;
@@ -341,12 +345,7 @@ router.get(
         }
 
         const { accountId } = ctx.params;
-        const account = await AccountService.getAccount(accountId);
-        if (!account) {
-            ctx.throw(404, `Could not find account with accountId: '${accountId}'`);
-        }
-
-        const { fundedAccountNeedsDeposit } = account;
+        const { fundedAccountNeedsDeposit } = await AccountService.getAccount(accountId);
         ctx.body = {
             accountId,
             fundedAccountNeedsDeposit,
@@ -443,11 +442,11 @@ const completeRecoveryInit = async ctx => {
             });
         }
 
-        // For test harness
-        ctx.app.emit(SERVER_EVENTS.SECURITY_CODE, { accountId, securityCode });
-
         await recoveryMethod.update({ securityCode });
     }
+
+    // For test harness
+    ctx.app.emit(SERVER_EVENTS.SECURITY_CODE, { accountId, securityCode });
 
     await sendSecurityCode({ ctx, securityCode, method, accountId, seedPhrase });
 

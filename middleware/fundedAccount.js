@@ -290,10 +290,6 @@ async function clearFundedAccountNeedsDeposit(ctx) {
 
     const { accountId } = ctx.request.body;
     const account = await AccountService.getAccount(accountId);
-    if (!account) {
-        ctx.throw(404, `Could not find account with accountId: '${accountId}'`);
-    }
-
     if (!account.fundedAccountNeedsDeposit) {
         // This is an idempotent call
         ctx.status = 200;
