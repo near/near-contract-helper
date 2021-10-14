@@ -24,7 +24,7 @@ const SequelizeRecoveryMethods = {
             kind,
             detail,
             publicKey,
-            requestId,
+            requestId: parseInt(requestId, 10),
             securityCode,
             createdAt,
             updatedAt,
