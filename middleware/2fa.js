@@ -261,12 +261,10 @@ const initCode = async (ctx) => {
     }
 
     // check if 2fa method matches existing recovery method
-    const recoveryMethod = await RecoveryMethodService.getRecoveryMethod({
-        where: {
-            accountId,
-            detail,
-            kind: kind.split('2fa-')[1],
-        }
+    const [recoveryMethod] = await RecoveryMethodService.listRecoveryMethods({
+        accountId,
+        detail,
+        kind: kind.split('2fa-')[1],
     });
 
     if (recoveryMethod) {

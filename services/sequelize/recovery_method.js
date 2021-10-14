@@ -70,19 +70,12 @@ const SequelizeRecoveryMethods = {
         return recoveryMethod.destroy();
     },
 
-    async getRecoveryMethod({ accountId, kind, detail }) {
-        const account = await Account.findOne({ where: { accountId } });
-        const [recoveryMethod] = await account.getRecoveryMethods({
-            where: {
-                kind: kind.split('2fa-')[1],
-                detail,
-            }
-        });
-
-        return recoveryMethod;
+    async getTwoFactorRecoveryMethod(accountId) {
+        const twoFactorRecoveryMethod = await this.getTwoFactorRecoveryMethod_internal(accountId);
+        return this.cleanRecoveryMethod(twoFactorRecoveryMethod);
     },
 
-    async getTwoFactorRecoveryMethod(accountId) {
+    async getTwoFactorRecoveryMethod_internal(accountId) {
         const account = await Account.findOne({ where: { accountId } });
         const [twoFactorRecoveryMethod] = await account.getRecoveryMethods({
             where: {
@@ -112,8 +105,13 @@ const SequelizeRecoveryMethods = {
     },
 
     async listRecoveryMethods({ accountId, detail, kind, publicKey, securityCode }) {
+        const recoveryMethods = await this.listRecoveryMethods_internal({ accountId, detail, kind, publicKey, securityCode });
+        return recoveryMethods.map((recoveryMethod) => this.cleanRecoveryMethod(recoveryMethod));
+    },
+
+    async listRecoveryMethods_internal({ accountId, detail, kind, publicKey, securityCode }) {
         const account = await Account.findOne({ where: { accountId } });
-        const recoveryMethods = await account.getRecoveryMethods({
+        const methods = await account.getRecoveryMethods({
             where: {
                 ...(detail && { detail }),
                 ...(kind && { kind }),
@@ -121,17 +119,13 @@ const SequelizeRecoveryMethods = {
                 ...(securityCode && { securityCode }),
             },
         });
-
-        return recoveryMethods.map((recoveryMethod) => this.cleanRecoveryMethod(recoveryMethod));
+        return methods;
     },
 
     async resetTwoFactorRequest(accountId) {
-        const twoFactorMethod = await this.getTwoFactorRecoveryMethod(accountId);
+        const twoFactorMethod = await this.getTwoFactorRecoveryMethod_internal(accountId);
         await twoFactorMethod.update({ requestId: -1, securityCode: null });
-
-        // sequelize updates don't actually return anything useful but we'll want the
-        // eventual interface to return the updated object so use a placeholder for now
-        return {};
+        return this.cleanRecoveryMethod(twoFactorMethod);
     },
 
     async setSecurityCode({ accountId, detail, kind, publicKey, securityCode }) {
@@ -145,11 +139,22 @@ const SequelizeRecoveryMethods = {
         });
 
         await recoveryMethod.update({ securityCode });
-        return recoveryMethod.toJSON();
+        return this.cleanRecoveryMethod(recoveryMethod);
+    },
+
+    async updateRecoveryMethod({ accountId, detail, kind, securityCode }) {
+        const [recoveryMethod] = await this.listRecoveryMethods_internal({ accountId, detail, kind, securityCode });
+        await recoveryMethod.update({
+            ...(detail && { detail }),
+            ...(kind && { kind }),
+            ...(securityCode && { securityCode }),
+        });
+
+        return this.cleanRecoveryMethod(recoveryMethod);
     },
 
     async updateTwoFactorRecoveryMethod({ accountId, detail, kind, requestId, securityCode }) {
-        const twoFactorRecoveryMethod = await this.getTwoFactorRecoveryMethod(accountId);
+        const twoFactorRecoveryMethod = await this.getTwoFactorRecoveryMethod_internal(accountId);
         await twoFactorRecoveryMethod.update({
             requestId,
             ...(detail && { detail }),
@@ -157,7 +162,7 @@ const SequelizeRecoveryMethods = {
             ...(securityCode && { securityCode }),
         });
 
-        return {};
+        return this.cleanRecoveryMethod(twoFactorRecoveryMethod);
     },
 };
 

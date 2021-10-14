@@ -31,14 +31,8 @@ const RecoveryMethodService = {
         ]);
     },
 
-    async getRecoveryMethod({ accountId, kind, detail }) {
-        const recoveryMethod = await SequelizeRecoveryMethods.getRecoveryMethod({ accountId, kind, detail });
-        return SequelizeRecoveryMethods.cleanRecoveryMethod(recoveryMethod);
-    },
-
-    async getTwoFactorRecoveryMethod(accountId) {
-        const twoFactorRecoveryMethod = await SequelizeRecoveryMethods.getTwoFactorRecoveryMethod(accountId);
-        return SequelizeRecoveryMethods.cleanRecoveryMethod(twoFactorRecoveryMethod);
+    getTwoFactorRecoveryMethod(accountId) {
+        return SequelizeRecoveryMethods.getTwoFactorRecoveryMethod(accountId);
     },
 
     isTwoFactorRequestExpired({ updatedAt }) {
@@ -55,7 +49,7 @@ const RecoveryMethodService = {
 
     async resetTwoFactorRequest(accountId) {
         const [postgresMethod] = await Promise.all([
-            ...(WRITE_TO_POSTGRES ? SequelizeRecoveryMethods.resetTwoFactorRequest(accountId) : []),
+            ...(WRITE_TO_POSTGRES ? [SequelizeRecoveryMethods.resetTwoFactorRequest(accountId)] : []),
         ]);
 
         return postgresMethod;
@@ -69,15 +63,28 @@ const RecoveryMethodService = {
         return postgresMethod;
     },
 
+    async updateRecoveryMethod({ accountId, detail, kind, securityCode }) {
+        const [postgresMethod] = await Promise.all([
+            ...(WRITE_TO_POSTGRES ? [SequelizeRecoveryMethods.updateRecoveryMethod({
+                accountId,
+                detail,
+                kind,
+                securityCode,
+            })] : []),
+        ]);
+
+        return postgresMethod;
+    },
+
     async updateTwoFactorRecoveryMethod({ accountId, detail, kind, requestId, securityCode }) {
         const [postgresMethod] = await Promise.all([
-            ...(WRITE_TO_POSTGRES ? SequelizeRecoveryMethods.updateTwoFactorRecoveryMethod({
+            ...(WRITE_TO_POSTGRES ? [SequelizeRecoveryMethods.updateTwoFactorRecoveryMethod({
                 accountId,
                 detail,
                 kind,
                 requestId,
                 securityCode,
-            }) : []),
+            })] : []),
         ]);
 
         return postgresMethod;
