@@ -13,7 +13,7 @@ const AccountService = {
 
     async deleteAccount(accountId) {
         const [postgresAccount] = await Promise.all([
-            ...(WRITE_TO_POSTGRES ? SequelizeAccounts.deleteAccount(accountId) : []),
+            ...(WRITE_TO_POSTGRES ? [SequelizeAccounts.deleteAccount(accountId)] : []),
         ]);
 
         return postgresAccount;
@@ -25,7 +25,7 @@ const AccountService = {
 
     async setAccountRequiresDeposit(accountId, requiresDeposit) {
         const [postgresAccount] = await Promise.all([
-            ...(WRITE_TO_POSTGRES ? SequelizeAccounts.setAccountRequiresDeposit(accountId, requiresDeposit) : []),
+            ...(WRITE_TO_POSTGRES ? [SequelizeAccounts.setAccountRequiresDeposit(accountId, requiresDeposit)] : []),
         ]);
 
         return postgresAccount;
