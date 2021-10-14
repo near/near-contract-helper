@@ -200,7 +200,7 @@ const isContractDeployed = async (accountId) => {
 };
 
 const getTwoFactorRecoveryMethod = async (ctx, accountId) => {
-    const account = await AccountService.getAccount(accountId);
+    const account = await AccountService.createAccount(accountId);
     if (!account) {
         console.warn(`account: ${accountId} should already exist when sending new code`);
         ctx.throw(401);
