@@ -4,8 +4,8 @@ const password = require('secure-random-password');
 
 const recaptchaValidator = require('../RecaptchaValidator');
 const { getSecurityCodeMessageContent } = require('../accountRecoveryMessageContent');
+const { USE_DB_SERVICES } = require('../features');
 const constants = require('../constants');
-
 const { IdentityVerificationMethod } = require('../models');
 const IdentityVerificationMethodService = require('../services/identity_verification_method');
 const { sendMail } = require('../utils/email');
@@ -14,8 +14,6 @@ const createEmailDomainValidator = require('../EmailDomainValidator');
 
 const ENABLE_EMAIL_IDENTITY_VERIFICATION_METHOD = process.env.ENABLE_EMAIL_IDENTITY_VERIFICATION === 'true' || false;
 const ENABLE_PHONE_IDENTITY_VERIFICATION_METHOD = process.env.ENABLE_PHONE_IDENTITY_VERIFICATION === 'true' || true;
-
-const USE_SERVICES = false;
 
 const { IDENTITY_VERIFICATION_METHOD_KINDS, SERVER_EVENTS } = constants;
 
@@ -194,7 +192,7 @@ async function createIdentityVerificationMethod(ctx) {
 
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
 
-    if (!USE_SERVICES) {
+    if (!USE_DB_SERVICES) {
         const createResult = await tryCreateIdentityVerificationEntry({ ctx, identityKey, kind, securityCode });
         if (!createResult) { return; }
 

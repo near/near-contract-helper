@@ -1,0 +1,11 @@
+const ENVIRONMENTS = {
+    DEVELOPMENT: 'development',
+    TESTNET: 'testnet',
+    TESTNET_STAGING: 'testnet_STAGING',
+    MAINNET: 'mainnet',
+    MAINNET_STAGING: 'mainnet_STAGING'
+};
+
+module.exports = {
+    ENVIRONMENTS,
+};

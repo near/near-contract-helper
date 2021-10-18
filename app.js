@@ -4,6 +4,7 @@ const app = new Koa();
 const body = require('koa-json-body');
 const cors = require('@koa/cors');
 
+const { USE_DB_SERVICES } = require('./features');
 const constants = require('./constants');
 const AccountService = require('./services/account');
 const IdentityVerificationMethodService = require('./services/identity_verification_method');
@@ -14,8 +15,6 @@ const {
     SERVER_EVENTS,
     IDENTITY_VERIFICATION_METHOD_KINDS,
 } = constants;
-
-const USE_SERVICES = false;
 
 // render.com passes requests through a proxy server; we need the source IPs to be accurate for `koa-ratelimit`
 app.proxy = true;
@@ -80,7 +79,7 @@ const {
     initCode,
     sendNewCode,
     verifyCode,
-} = require(USE_SERVICES ? './middleware/2fa' : './middleware/2fa.legacy');
+} = require(USE_DB_SERVICES ? './middleware/2fa' : './middleware/2fa.legacy');
 router.post('/2fa/getAccessKey', checkAccountOwnership, getAccessKey);
 router.post('/2fa/init', checkAccountOwnership, initCode);
 router.post('/2fa/send', checkAccountOwnership, sendNewCode);
@@ -111,7 +110,7 @@ const {
     clearFundedAccountNeedsDeposit,
     createFundedAccount,
     createIdentityVerifiedFundedAccount,
-} = require(USE_SERVICES ? './middleware/fundedAccount' : './middleware/fundedAccount.legacy');
+} = require(USE_DB_SERVICES ? './middleware/fundedAccount' : './middleware/fundedAccount.legacy');
 router.post(
     '/fundedAccount',
     fundedAccountCreateRatelimitMiddleware,
@@ -129,7 +128,7 @@ router.post(
 router.get('/checkFundedAccountAvailable', checkFundedAccountAvailable);
 router.post(
     '/fundedAccount/clearNeedsDeposit',
-    USE_SERVICES ? (ctx, next) => verifyAccountExists(ctx, next, ctx.request.body) : createWithSequelizeAcccountMiddleware('body'),
+    USE_DB_SERVICES ? (ctx, next) => verifyAccountExists(ctx, next, ctx.request.body) : createWithSequelizeAcccountMiddleware('body'),
     clearFundedAccountNeedsDeposit,
 );
 
@@ -186,7 +185,7 @@ async function recoveryMethodsFor(account) {
 
 router.post('/account/recoveryMethods', checkAccountOwnership, async ctx => {
     const { accountId } = ctx.request.body;
-    if (USE_SERVICES) {
+    if (USE_DB_SERVICES) {
         ctx.body = await RecoveryMethodService.listAllRecoveryMethods(accountId);
     } else {
         const account = await models.Account.findOne({ where: { accountId } });
@@ -240,11 +239,11 @@ router.post(
         }
         ctx.throw(400, `Given recoveryMethod '${kind}' invalid; must be one of: ${deletableRecoveryMethods.join(', ')}`);
     },
-    USE_SERVICES ? (ctx, next) => verifyAccountExists(ctx, next, ctx.request.body) : createWithSequelizeAcccountMiddleware('body'),
+    USE_DB_SERVICES ? (ctx, next) => verifyAccountExists(ctx, next, ctx.request.body) : createWithSequelizeAcccountMiddleware('body'),
     checkAccountOwnership,
     withPublicKey,
     async ctx => {
-        if (!USE_SERVICES) {
+        if (!USE_DB_SERVICES) {
             const { kind, publicKey } = ctx.request.body;
             const [recoveryMethod] = await ctx.sequelizeAccount.getRecoveryMethods({
                 where: {
@@ -285,7 +284,7 @@ router.post(
     checkAccountOwnership,
     withPublicKey,
     async (ctx) => {
-        if (!USE_SERVICES) {
+        if (!USE_DB_SERVICES) {
             const { accountId } = ctx.request.body;
             const [account] = await models.Account.findOrCreate({ where: { accountId } });
             await account.createRecoveryMethod({ kind: RECOVERY_METHOD_KINDS.PHRASE, publicKey: ctx.publicKey });
@@ -309,7 +308,7 @@ router.post(
     checkAccountOwnership,
     withPublicKey,
     async (ctx) => {
-        if (!USE_SERVICES) {
+        if (!USE_DB_SERVICES) {
             const { accountId } = ctx.request.body;
             const [account] = await models.Account.findOrCreate({ where: { accountId } });
             await account.createRecoveryMethod({ kind: RECOVERY_METHOD_KINDS.LEDGER, publicKey: ctx.publicKey });
@@ -330,12 +329,12 @@ router.post(
 
 const {
     BN_UNLOCK_FUNDED_ACCOUNT_BALANCE
-} = require(USE_SERVICES ? './middleware/fundedAccount' : './middleware/fundedAccount.legacy');
+} = require(USE_DB_SERVICES ? './middleware/fundedAccount' : './middleware/fundedAccount.legacy');
 router.get(
     '/account/walletState/:accountId',
-    USE_SERVICES ? (ctx, next) => verifyAccountExists(ctx, next, ctx.params) : createWithSequelizeAcccountMiddleware('params'),
+    USE_DB_SERVICES ? (ctx, next) => verifyAccountExists(ctx, next, ctx.params) : createWithSequelizeAcccountMiddleware('params'),
     async (ctx) => {
-        if (!USE_SERVICES) {
+        if (!USE_DB_SERVICES) {
             const { fundedAccountNeedsDeposit, accountId } = ctx.sequelizeAccount;
 
             ctx.body = {
@@ -388,7 +387,7 @@ const completeRecoveryInit = async ctx => {
     const { accountId, method, seedPhrase } = ctx.request.body;
 
     let account;
-    if (USE_SERVICES) {
+    if (USE_DB_SERVICES) {
         account = await AccountService.createAccount(accountId);
     } else {
         [account] = await models.Account.findOrCreate({ where: { accountId } });
@@ -401,7 +400,7 @@ const completeRecoveryInit = async ctx => {
 
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
 
-    if (USE_SERVICES) {
+    if (USE_DB_SERVICES) {
         const { detail, kind } = method;
         const [recoveryMethod] = await RecoveryMethodService.listRecoveryMethods({
             accountId,
@@ -452,7 +451,7 @@ const completeRecoveryInit = async ctx => {
 
     await sendSecurityCode({ ctx, securityCode, method, accountId, seedPhrase });
 
-    if (USE_SERVICES) {
+    if (USE_DB_SERVICES) {
         ctx.body = await RecoveryMethodService.listAllRecoveryMethods(accountId);
     } else {
         ctx.body = await recoveryMethodsFor(account);
@@ -670,13 +669,13 @@ const completeRecoveryValidation = ({ isNew } = {}) => async (ctx) => {
 router.post('/account/validateSecurityCode',
     checkCreateableRecoveryMethod,
     checkAccountOwnership,
-    USE_SERVICES ? completeRecoveryValidation() : completeRecoveryValidation_legacy(),
+    USE_DB_SERVICES ? completeRecoveryValidation() : completeRecoveryValidation_legacy(),
 );
 
 router.post('/account/validateSecurityCodeForTempAccount',
     checkCreateableRecoveryMethod,
     createCheckAccountDoesNotExistMiddleware({ source: 'body', fieldName: 'accountId' }),
-    USE_SERVICES ? completeRecoveryValidation({ isNew: true }) : completeRecoveryValidation_legacy({ isNew: true })
+    USE_DB_SERVICES ? completeRecoveryValidation({ isNew: true }) : completeRecoveryValidation_legacy({ isNew: true })
 );
 
 const createFiatValueMiddleware = require('./middleware/fiat');
