@@ -5,4 +5,4 @@ COPY ./package.json .
 COPY ./yarn.lock .
 RUN yarn
 COPY . .
-CMD ["sh", "-c",  "yarn start-no-env"]
+CMD ["sh", "-c",  "yarn start-without-env"]
