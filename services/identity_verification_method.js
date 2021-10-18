@@ -1,24 +1,14 @@
 const SequelizeIdentityVerificationMethods = require('./sequelize/identity_verification_method');
 
-const WRITE_TO_POSTGRES = true;
-
 const MATCH_GMAIL_IGNORED_CHARS = /[|&;$%@"<>()+,!#'*\-\/=?^_`.{}]/g;
 
 const IdentityVerificationMethodService = {
-    async claimIdentityVerificationMethod({ identityKey, kind }) {
-        const [postgresMethod] = await Promise.all([
-            ...(WRITE_TO_POSTGRES ? [SequelizeIdentityVerificationMethods.claimIdentityVerificationMethod({ identityKey, kind })] : [])
-        ]);
-
-        return postgresMethod;
+    claimIdentityVerificationMethod({ identityKey, kind }) {
+        return SequelizeIdentityVerificationMethods.claimIdentityVerificationMethod({ identityKey, kind });
     },
 
-    async getIdentityVerificationMethod({ identityKey, kind }) {
-        const [postgresMethod] = await Promise.all([
-            ...(WRITE_TO_POSTGRES ? [SequelizeIdentityVerificationMethods.getIdentityVerificationMethod({ identityKey, kind })] : [])
-        ]);
-
-        return postgresMethod;
+    getIdentityVerificationMethod({ identityKey, kind }) {
+        return SequelizeIdentityVerificationMethods.getIdentityVerificationMethod({ identityKey, kind });
     },
 
     // Identify what gmail would consider the 'root' email for a given email address
@@ -39,12 +29,8 @@ const IdentityVerificationMethodService = {
     },
 
     // return the IdentityVerificationMethod record when successful, null when invalid
-    async recoverIdentity({ identityKey, kind, securityCode }) {
-        const [postgresSuccess] = await Promise.all([
-            ...(WRITE_TO_POSTGRES ? [SequelizeIdentityVerificationMethods.recoverIdentity({ identityKey, kind, securityCode })] : []),
-        ]);
-
-        return postgresSuccess;
+    recoverIdentity({ identityKey, kind, securityCode }) {
+        return SequelizeIdentityVerificationMethods.recoverIdentity({ identityKey, kind, securityCode });
     },
 };
 

@@ -1,22 +1,12 @@
 const SequelizeAccounts = require('./sequelize/account');
 
-const WRITE_TO_POSTGRES = true;
-
 const AccountService = {
-    async createAccount(accountId, { fundedAccountNeedsDeposit } = {}) {
-        const [postgresAccount] = await Promise.all([
-            ...(WRITE_TO_POSTGRES ? [SequelizeAccounts.createAccount(accountId, { fundedAccountNeedsDeposit })] : []),
-        ]);
-
-        return postgresAccount;
+    createAccount(accountId, { fundedAccountNeedsDeposit } = {}) {
+        return SequelizeAccounts.createAccount(accountId, { fundedAccountNeedsDeposit });
     },
 
     async deleteAccount(accountId) {
-        const [postgresAccount] = await Promise.all([
-            ...(WRITE_TO_POSTGRES ? [SequelizeAccounts.deleteAccount(accountId)] : []),
-        ]);
-
-        return postgresAccount;
+        return SequelizeAccounts.deleteAccount(accountId);
     },
 
     getAccount(accountId) {
@@ -24,11 +14,7 @@ const AccountService = {
     },
 
     async setAccountRequiresDeposit(accountId, requiresDeposit) {
-        const [postgresAccount] = await Promise.all([
-            ...(WRITE_TO_POSTGRES ? [SequelizeAccounts.setAccountRequiresDeposit(accountId, requiresDeposit)] : []),
-        ]);
-
-        return postgresAccount;
+        return SequelizeAccounts.setAccountRequiresDeposit(accountId, requiresDeposit);
     },
 };
 

@@ -1,34 +1,25 @@
 const SequelizeRecoveryMethods = require('./sequelize/recovery_method');
 
 const TWO_FACTOR_REQUEST_DURATION_MS = 30 * 60000;
-const WRITE_TO_POSTGRES = true;
 
 const RecoveryMethodService = {
-    async createRecoveryMethod({ accountId, detail, kind, publicKey, requestId, securityCode }) {
-        const [postgresMethod] = await Promise.all([
-            ...(WRITE_TO_POSTGRES ? [SequelizeRecoveryMethods.createRecoveryMethod({
-                accountId,
-                detail,
-                kind,
-                publicKey,
-                requestId,
-                securityCode,
-            })]: []),
-        ]);
-
-        return postgresMethod;
+    createRecoveryMethod({ accountId, detail, kind, publicKey, requestId, securityCode }) {
+        return SequelizeRecoveryMethods.createRecoveryMethod({
+            accountId,
+            detail,
+            kind,
+            publicKey,
+            requestId,
+            securityCode,
+        });
     },
 
     deleteOtherRecoveryMethods({ accountId, detail }) {
-        return Promise.all([
-            ...(WRITE_TO_POSTGRES ? [SequelizeRecoveryMethods.deleteOtherRecoveryMethods({ accountId, detail })] : []),
-        ]);
+        return SequelizeRecoveryMethods.deleteOtherRecoveryMethods({ accountId, detail });
     },
 
     deleteRecoveryMethod({ accountId, kind, publicKey }) {
-        return Promise.all([
-            ...(WRITE_TO_POSTGRES ? [SequelizeRecoveryMethods.deleteRecoveryMethod({ accountId, kind, publicKey })] : []),
-        ]);
+        return SequelizeRecoveryMethods.deleteRecoveryMethod({ accountId, kind, publicKey });
     },
 
     getTwoFactorRecoveryMethod(accountId) {
@@ -43,51 +34,35 @@ const RecoveryMethodService = {
         return SequelizeRecoveryMethods.listAllRecoveryMethods(accountId);
     },
 
-    async listRecoveryMethods({ accountId, detail, kind, publicKey, securityCode }) {
+    listRecoveryMethods({ accountId, detail, kind, publicKey, securityCode }) {
         return SequelizeRecoveryMethods.listRecoveryMethods({ accountId, detail, kind, publicKey, securityCode });
     },
 
-    async resetTwoFactorRequest(accountId) {
-        const [postgresMethod] = await Promise.all([
-            ...(WRITE_TO_POSTGRES ? [SequelizeRecoveryMethods.resetTwoFactorRequest(accountId)] : []),
-        ]);
-
-        return postgresMethod;
+    resetTwoFactorRequest(accountId) {
+        return SequelizeRecoveryMethods.resetTwoFactorRequest(accountId);
     },
 
-    async setSecurityCode({ accountId, detail, kind, publicKey, securityCode }) {
-        const [postgresMethod] = await Promise.all([
-            ...(WRITE_TO_POSTGRES ? [SequelizeRecoveryMethods.setSecurityCode({ accountId, detail, kind, publicKey, securityCode })] : []),
-        ]);
-
-        return postgresMethod;
+    setSecurityCode({ accountId, detail, kind, publicKey, securityCode }) {
+        return SequelizeRecoveryMethods.setSecurityCode({ accountId, detail, kind, publicKey, securityCode });
     },
 
-    async updateRecoveryMethod({ accountId, detail, kind, securityCode }) {
-        const [postgresMethod] = await Promise.all([
-            ...(WRITE_TO_POSTGRES ? [SequelizeRecoveryMethods.updateRecoveryMethod({
-                accountId,
-                detail,
-                kind,
-                securityCode,
-            })] : []),
-        ]);
-
-        return postgresMethod;
+    updateRecoveryMethod({ accountId, detail, kind, securityCode }) {
+        return SequelizeRecoveryMethods.updateRecoveryMethod({
+            accountId,
+            detail,
+            kind,
+            securityCode,
+        });
     },
 
-    async updateTwoFactorRecoveryMethod({ accountId, detail, kind, requestId, securityCode }) {
-        const [postgresMethod] = await Promise.all([
-            ...(WRITE_TO_POSTGRES ? [SequelizeRecoveryMethods.updateTwoFactorRecoveryMethod({
-                accountId,
-                detail,
-                kind,
-                requestId,
-                securityCode,
-            })] : []),
-        ]);
-
-        return postgresMethod;
+    updateTwoFactorRecoveryMethod({ accountId, detail, kind, requestId, securityCode }) {
+        return SequelizeRecoveryMethods.updateTwoFactorRecoveryMethod({
+            accountId,
+            detail,
+            kind,
+            requestId,
+            securityCode,
+        });
     },
 };
 
