@@ -80,7 +80,7 @@ const {
     verifyCode,
 } = require('./middleware/2fa');
 router.post('/2fa/getAccessKey', checkAccountOwnership, getAccessKey);
-router.post('/2fa/init', checkAccountOwnership, initCode);
+router.post('/2fa/init', checkAccountOwnership, logSmsSend, initCode);
 router.post('/2fa/send', checkAccountOwnership, logSmsSend, sendNewCode);
 router.post('/2fa/verify', checkAccountOwnership, verifyCode);
 
