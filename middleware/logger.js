@@ -8,6 +8,23 @@ const {
     TWO_FACTOR_AUTH_KINDS,
 } = constants;
 
+const {
+    NODE_ENV,
+    SUMO_COLLECTOR_ID,
+    SUMO_ENDPOINT,
+} = process.env;
+
+const logger = bunyan.createLogger({
+    name: `${NODE_ENV}/near-contract-helper`,
+    streams: [{
+        type: 'raw',
+        stream: new SumoLogger({
+            collector: SUMO_COLLECTOR_ID,
+            endpoint:  SUMO_ENDPOINT,
+        }),
+    }],
+});
+
 function extractSmsMetadata(ctx) {
     let {
         identityKey: phoneNumber,
@@ -42,23 +59,6 @@ function logSmsSend(ctx, next) {
             method,
             path,
         } = ctx.request;
-
-        const {
-            NODE_ENV,
-            SUMO_COLLECTOR_ID,
-            SUMO_ENDPOINT,
-        } = process.env;
-
-        const logger = bunyan.createLogger({
-            name: `${NODE_ENV}/near-contract-helper`,
-            streams: [{
-                type: 'raw',
-                stream: new SumoLogger({
-                    collector: SUMO_COLLECTOR_ID,
-                    endpoint:  SUMO_ENDPOINT,
-                }),
-            }],
-        });
 
         logger.info({
             ip,
