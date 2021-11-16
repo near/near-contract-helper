@@ -160,9 +160,13 @@ const findLikelyNFTs = async (ctx) => {
             and args->>'method_name' like 'nft_%'
     `;
 
-    // TODO: How to query minted tokens?
+    const mintEvents = `
+        select distinct emitted_by_contract_account_id as receiver_account_id 
+        from assets__non_fungible_token_events
+        where token_new_owner_account_id = $1
+    `;
 
-    const { rows } = await pool.query([received].join(' union '), [accountId]);
+    const { rows } = await pool.query([received, mintEvents].join(' union '), [accountId]);
     ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
 };
 
