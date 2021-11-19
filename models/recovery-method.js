@@ -2,6 +2,7 @@
 module.exports = (sequelize, DataTypes) => {
     const RecoveryMethod = sequelize.define('RecoveryMethod', {
         kind: {
+            // TODO: Does this needs constraint defined somehow besides in migration?
             type: DataTypes.STRING, // 'phone', 'email', or 'phrase'
             allowNull: false
         },

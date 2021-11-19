@@ -1,4 +1,5 @@
 const nearAPI = require('near-api-js');
+const { utils: { serialize: { base_encode } } } = nearAPI;
 const nacl = require('tweetnacl');
 const crypto = require('crypto');
 const bs58 = require('bs58');
@@ -55,19 +56,39 @@ async function checkAccountOwnership(ctx, next) {
     return await next();
 }
 
-async function checkAccountDoesNotExist(ctx, next) {
-    const { accountId } = ctx.request.body;
-    let remoteAccount = null;
-    try {
-        remoteAccount = (await ctx.near.account(accountId)).state();
-    } catch (e) {
-        return await next();
+function createCheckAccountDoesNotExistMiddleware({ source, fieldName }) {
+    if (source !== 'body' && source !== 'params') {
+        throw new Error('invalid source for accountId provided');
     }
-    if (remoteAccount) {
-        ctx.throw(403, 'Account ' + accountId + ' already exists.');
-    }
-}
 
+    if (!fieldName) {
+        throw new Error('Must provide a field to look for accountId in');
+    }
+
+    return async function checkAccountDoesNotExist(ctx, next) {
+        let accountId;
+
+        if (source === 'body') {
+            accountId = ctx.request.body[fieldName];
+        } else {
+            accountId = ctx.params[fieldName];
+        }
+
+        // TODO: near-api-js should have explicit accoutn existence check
+        let remoteAccount = null;
+        try {
+            remoteAccount = await (await ctx.near.account(accountId)).state();
+        } catch (e) {
+            if (e.type === 'AccountDoesNotExist') {
+                return await next();
+            }
+            throw e;
+        }
+        if (remoteAccount) {
+            ctx.throw(403, 'Account ' + accountId + ' already exists.');
+        }
+    };
+}
 
 const creatorKeyJson = (() => {
     try {
@@ -78,9 +99,46 @@ const creatorKeyJson = (() => {
     }
 })();
 
+const creatorKeysJson = (() => {
+    let result;
+    try {
+        result = JSON.parse(process.env.ACCOUNT_CREATOR_KEYS);
+        console.log('Round-robin account creation enabled. Yeee HAWWWW :)');
+    } catch (e) {
+        console.warn(`Round-robin account creation not available.\nError parsing ACCOUNT_CREATOR_KEYS='${process.env.ACCOUNT_CREATOR_KEYS}':`, e);
+        return null;
+    }
+
+    return result;
+})();
+
+const fundedCreatorKeyJson = (() => {
+    try {
+        return JSON.parse(process.env.FUNDED_ACCOUNT_CREATOR_KEY);
+    } catch (e) {
+        console.warn(`Funded account creation not available.\nError parsing FUNDED_ACCOUNT_CREATOR_KEY='${process.env.FUNDED_ACCOUNT_CREATOR_KEY}':`, e);
+        return null;
+    }
+})();
+
+const DETERM_KEY_SEED = process.env.DETERM_KEY_SEED || creatorKeyJson.private_key;
+
 const keyStore = {
-    async getKey() {
-        return nearAPI.KeyPair.fromString(creatorKeyJson.secret_key || creatorKeyJson.private_key);
+    async getKey(networkId, accountId) {
+        // Standard account (un-funded) creation using the master creator account directly
+        if (creatorKeyJson && accountId == creatorKeyJson.account_id) {
+            return nearAPI.KeyPair.fromString(creatorKeyJson.secret_key || creatorKeyJson.private_key);
+        }
+
+        // To create new accounts funded from a source account, by way of `near.create_account` function call
+        if (fundedCreatorKeyJson && accountId === fundedCreatorKeyJson.account_id) {
+            return nearAPI.KeyPair.fromString(fundedCreatorKeyJson.secret_key || fundedCreatorKeyJson.private_key);
+        }
+
+        // return 2FA confirm key for account
+        const hash = crypto.createHash('sha256').update(accountId + DETERM_KEY_SEED).digest();
+        const keyPair = nacl.sign.keyPair.fromSeed(hash);
+        return nearAPI.KeyPair.fromString(base_encode(keyPair.secretKey));
     },
 };
 
@@ -99,8 +157,11 @@ const withNear = async (ctx, next) => {
 };
 
 module.exports = {
+    parseSeedPhrase: require('near-seed-phrase').parseSeedPhrase,
     creatorKeyJson,
+    creatorKeysJson,
+    fundedCreatorKeyJson,
     withNear,
     checkAccountOwnership,
-    checkAccountDoesNotExist,
+    createCheckAccountDoesNotExistMiddleware,
 };

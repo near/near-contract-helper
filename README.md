@@ -6,8 +6,7 @@ Microservice used to create NEAR accounts
 
 ### Requirements
 
-1) Install latest Node.js LTS release
-2) Install [HTTPie](http://httpie.org/)
+Install latest Node.js LTS release
 
 ### Install dependencies
 
@@ -39,21 +38,30 @@ npx sequelize-cli migration:generate --name migration-skeleton
 
 Create a `.env` file, copy in the default values from `.env.sample`. Read this file for information about how to change configuration settings to suit your needs.
 
-By default, it assumes that you're running a local node and local network. To do this:
+By default, it assumes that you're running a local node and local network. To do this, use [nearup](https://github.com/near/nearup) or [rainbow-bridge-cli](https://github.com/near/rainbow-bridge-cli)
 
-* clone [nearcore]
-* in your nearcore directory, get a local network running (at the time of writing, the command was `./scripts/start_localnet.py`)
+Now you can add an `ACCOUNT_CREATOR_KEY` to your `.env`. Running a local NEAR network created a `~/.near/localnet/node0/validator_key.json` file for you. Copy the contents of this file and paste them as a single line, with NO whitespace, for the `ACCOUNT_CREATOR_KEY` value in your `.env`. For example:
 
-Note that you need to add an `ACCOUNT_CREATOR_KEY` to your `.env`. Running `nearcore` locally created a `~/.near/[network]/validator_key.json` file for you. Copy the contents of this file and paste them as a single line, with NO whitespace, for the `*_KEY` value in your `.env`.
-e.g. `ACCOUNT_CREATOR_KEY={"account_id":"...","...":"...",...}`
+    ACCOUNT_CREATOR_KEY={"account_id":"node0","public_key":"...","secret_key":"..."}
 
 ### Run server
 
     yarn start
 
-### Create account
+### Create account (works only on test networks)
 
-    http post http://localhost:3000/account newAccountId=nosuchuseryet newAccountPublicKey=22skMptHjFWNyuEWY22ftn2AbLPSYpmYwGJRGwpNHbTV
+    curl -H "Content-Type: application/json" -XPOST http://0.0.0.0:3000/account --data '{"newAccountId": "nosuchuseryet", "newAccountPublicKey": "22skMptHjFWNyuEWY22ftn2AbLPSYpmYwGJRGwpNHbTV"}
+
+### Lookup account by public key
+
+    curl -XGET http://0.0.0.0:3000/publicKey/ed25519:EKveJ28ocxfHXQEfH42AowPL7HgXHkKp3kmMoSXNjiRF/accounts
+    curl -XGET https://helper.mainnet.near.org/publicKey/ed25519:EKveJ28ocxfHXQEfH42AowPL7HgXHkKp3kmMoSXNjiRF/accounts
+
+#### Sample response
+    
+    [
+        "heyheyhey.near"
+    ]
 
 
 ## Running tests
@@ -64,18 +72,17 @@ Follow the instructions above for creating the development database and `helper`
 
     create database accounts_test with owner=helper;
 
-### Ensure [nearcore] is running
+### Ensure NEAR localnet is running
 
 As mentioned in the "Environment Variables" section above, make sure you are running a local blockchain
 
 ### Run `yarn test`
 
-This will run the tests using [jest]
+This will run the tests using [mocha].
+Assertions are written using [chai] with [chai-as-promised] for async assertions.
+Spies and fake timers provided with [sinon].
 
-Tests should be run sequentially, i.e.
-```
-jest test --runInBand
-```
-
-  [nearcore]: https://github.com/nearprotocol/nearcore
-  [jest]: https://jestjs.io/
+[mocha]: https://mochajs.org/
+[chai]: https://www.chaijs.com/
+[chai-as-promised]: https://www.chaijs.com/plugins/chai-as-promised/
+[sinon]: https://sinonjs.org/

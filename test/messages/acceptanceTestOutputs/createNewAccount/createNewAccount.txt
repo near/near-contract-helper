@@ -1,0 +1,24 @@
+Text content for SMS and rich text incapable email clients:
+-----------------------------------
+
+Welcome to NEAR Wallet!
+This message contains your account activation code and recovery link for exampleaccount3456. Keep this message safe, and DO NOT SHARE IT. We cannot resend this message.
+
+1. Confirm your activation code to finish creating your account:
+123456
+
+2. In the event that you need to recover your account, click the link below, and follow the directions in NEAR Wallet.
+http://www.example.recover.url/
+
+Keep this message safe and DO NOT SHARE IT. We cannot resend this message.
+-----------------------------------
+
+Subject (included in email only):
+-----------------------------------                
+Important: Near Wallet Recovery Email for exampleaccount3456
+-----------------------------------
+
+Request Details (included in email only):
+-----------------------------------
+
+-----------------------------------

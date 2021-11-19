@@ -1,153 +1,187 @@
 const nearAPI = require('near-api-js');
-const { utils: { serialize: { base_encode } } } = nearAPI;
-const crypto = require('crypto');
-const nacl = require('tweetnacl');
-const { creatorKeyJson } = require('./near');
-const { sendSms } = require('../utils/sms');
-const { sendMail } = require('../utils/email');
-const models = require('../models');
-const Sequelize = require('sequelize');
-const Op = Sequelize.Op;
+const escapeHtml = require('escape-html');
 const password = require('secure-random-password');
-// constants
+const Sequelize = require('sequelize');
+
+const constants = require('../constants');
+const messageContentUtils2fa = require('./2faMessageContent');
+const models = require('../models');
+const emailHelper = require('../utils/email');
+const smsHelper = require('../utils/sms');
+
+const Op = Sequelize.Op;
+const { sendSms } = smsHelper;
+const { sendMail, get2faHtml } = emailHelper;
+const { SERVER_EVENTS, TWO_FACTOR_AUTH_KINDS } = constants;
+
 const SECURITY_CODE_DIGITS = 6;
-const twoFactorMethods = ['2fa-email', '2fa-phone'];
-const viewMethods = ['get_request'];
-const changeMethods = ['confirm'];
-const DETERM_KEY_SEED = process.env.DETERM_KEY_SEED || creatorKeyJson.private_key;
-const MULTISIG_CONTRACT_HASHES = process.env.MULTISIG_CONTRACT_HASHES ? process.env.MULTISIG_CONTRACT_HASHES.split() :['7GQStUCd8bmCK43bzD8PRh7sD2uyyeMJU5h8Rj3kXXJk','AEE3vt6S3pS2s7K6HXnZc46VyMyJcjygSMsaafFh67DF'];
-const CODE_EXPIRY = 300000;
+const twoFactorMethods = Object.values(TWO_FACTOR_AUTH_KINDS);
 
-// generates a deterministic key based on the accountId
-const getKeyStore = (accountId) => ({
-    async getKey() {
-        const hash = crypto.createHash('sha256').update(accountId + DETERM_KEY_SEED).digest();
-        const keyPair = nacl.sign.keyPair.fromSeed(hash);
-        return nearAPI.KeyPair.fromString(base_encode(keyPair.secretKey));
-    },
-});
+const {
+    getVerify2faMethodMessageContent,
+    getConfirmTransactionMessageContent,
+    getAddingFullAccessKeyMessageContent,
+} = messageContentUtils2fa;
 
-// get the accountId's multisig contract instance
-const getContract = async (accountId) => {
-    const keyStore = getKeyStore(accountId);
-    const near = await nearAPI.connect({
-        deps: { keyStore },
-        nodeUrl: process.env.NODE_URL
-    });
-    const contractAccount = new nearAPI.Account(near.connection, accountId);
-    const contract = new nearAPI.Contract(contractAccount, accountId, {
-        viewMethods,
-        changeMethods,
-    }, '100000000000000');
-    return contract;
-};
+const MULTISIG_CONTRACT_HASHES = process.env.MULTISIG_CONTRACT_HASHES ? process.env.MULTISIG_CONTRACT_HASHES.split() : [
+    // https://github.com/near/core-contracts/blob/fa3e2c6819ef790fdb1ec9eed6b4104cd13eb4b7/multisig/src/lib.rs
+    '7GQStUCd8bmCK43bzD8PRh7sD2uyyeMJU5h8Rj3kXXJk',
+    // https://github.com/near/core-contracts/blob/fb595e6ec09014d392e9874c2c5d6bbc910362c7/multisig/src/lib.rs
+    'AEE3vt6S3pS2s7K6HXnZc46VyMyJcjygSMsaafFh67DF',
+    // https://github.com/near/core-contracts/blob/636e7e43f1205f4d81431fad0be39c5cb65455f1/multisig/src/lib.rs
+    '8DKTSceSbxVgh4ANXwqmRqGyPWCuZAR1fCqGPXUjD5nZ',
+    // https://github.com/near/core-contracts/blob/f93c146d87a779a2063a30d2c1567701306fcae4/multisig/res/multisig.wasm
+    '55E7imniT2uuYrECn17qJAk9fLcwQW4ftNSwmCJL5Di',
+];
+
+const CODE_EXPIRY = 30 * 60000;
+const GAS_2FA_CONFIRM = process.env.GAS_2FA_CONFIRM || '100000000000000';
 
 // confirms a multisig request
-const confirmRequest = async (accountId, request_id) => {
-    const contract = await getContract(accountId);
-    try {
-        const res = await contract.confirm({ request_id });
-        return { success: true, res };
-    } catch (e) {
-        return { success: false, error: JSON.stringify(e) };
+const confirmRequest = async (near, accountId, request_id) => {
+    const account = await near.account(accountId);
+
+    return await account.functionCall(accountId, 'confirm', { request_id }, GAS_2FA_CONFIRM);
+};
+
+
+const sendMessageTo2faDestination = async ({
+    ctx,
+    deliveryOpts: { kind, destination },
+    contentData: { securityCode, publicKey, accountId, messageContent }
+}) => {
+    if (kind === TWO_FACTOR_AUTH_KINDS.PHONE) {
+        const { text } = messageContent;
+
+        await sendSms(
+            {
+                to: destination,
+                text,
+            },
+            (smsContent) => ctx.app.emit(SERVER_EVENTS.SENT_SMS, smsContent) // For test harness
+        );
+    } else if (kind === TWO_FACTOR_AUTH_KINDS.EMAIL) {
+        const { requestDetails, subject, text } = messageContent;
+
+        const html = get2faHtml(securityCode, requestDetails, {
+            public_key: publicKey,
+            accountId
+        });
+
+        await sendMail(
+            {
+                to: destination,
+                subject,
+                text,
+                html,
+            },
+            (emailContent) => ctx.app.emit(SERVER_EVENTS.SENT_EMAIL, emailContent) // For test harness
+        );
+    } else {
+        // FIXME: Should we throw an error if we get a request for an unsupported kind?
     }
 };
-/********************************
-Sending codes to 2fa methods
-method.kind = ['2fa-email', '2fa-phone']
-********************************/
-const prettyRequestInfo = (request) => `
-    Transaction Recipient: ${ request.receiver_id }
-    Actions:\n\t${ request.actions.map((r) => r.type + (r.amount ? ': ' + nearAPI.utils.format.formatNearAmount(r.amount, 4) : '')).join('\n\t') }
-`;
+
+const getRequestDataFromChain = async ({ requestId, ctx, accountId }) => {
+    let request;
+
+    // What if this throws? Why catch all failures to account.viewFunction() but not errors for this call?
+    const account = await ctx.near.account(accountId);
+
+    try {
+        request = await account.viewFunction(accountId, 'get_request', { request_id: parseInt(requestId) });
+    } catch (e) {
+        // Should this really be a generic catch()? This will fire due to e.g. network transport errors
+        const message = `could not find request id ${requestId} for account ${accountId}. ${e}`;
+        console.warn(message);
+        ctx.throw(401, message);
+    }
+
+    return request;
+};
 
 const sendCode = async (ctx, method, twoFactorMethod, requestId = -1, accountId = '') => {
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
+
+    // Emit an event so that any listening test harnesses can use the security code without needing a full
+    // integration test with e.g. SMS, e-mail.
+    ctx.app.emit(SERVER_EVENTS.SECURITY_CODE, { accountId, requestId, securityCode }); // For test harness
+
     await twoFactorMethod.update({ securityCode, requestId });
-    // get request data from chain
-    let request;
-    if (requestId !== -1) {
-        const contract = await getContract(accountId);
-        try {
-            request = await contract.get_request({ request_id: parseInt(requestId) });
-        } catch (e) {
-            const message = `could not find request id ${requestId} for account ${accountId}. ${e}`;
-            console.warn(message);
-            ctx.throw(401, message);
+
+    // Safe: assumes anything other than SMS should be HTML escaped, and that args should be shortened for SMS
+    const isForSmsDelivery = method.kind === TWO_FACTOR_AUTH_KINDS.PHONE;
+
+    const deliveryOpts = {
+        kind: method.kind,
+        destination: escapeHtml(method.detail)
+    };
+
+    if (requestId === -1) {
+        // No requestId means this is a brand new 2fa verification, not transactions being approved
+        return sendMessageTo2faDestination({
+            ctx,
+            deliveryOpts,
+            contentData: {
+                accountId,
+                securityCode,
+                messageContent: getVerify2faMethodMessageContent({
+                    accountId,
+                    destination: deliveryOpts.destination,
+                    securityCode,
+                })
+            }
+        });
+    }
+
+    // Could be either confirming 'generic' transactions, or might be a request for adding full access key (special warning case)
+    const request = await getRequestDataFromChain({ requestId, ctx, accountId });
+    const addingFakAction = request && request.actions && request.actions.find((a) => a.type === 'AddKey' && !a.permission);
+
+    if (addingFakAction && request.receiver_id === accountId) {
+        const publicKey = addingFakAction.public_key;
+
+        // adding full access key to account (AddKey with no permission)
+        return sendMessageTo2faDestination({
+            ctx,
+            deliveryOpts,
+            contentData: {
+                accountId,
+                securityCode,
+                publicKey,
+                messageContent: getAddingFullAccessKeyMessageContent({
+                    accountId,
+                    publicKey,
+                    isForSmsDelivery,
+                    request,
+                    securityCode,
+                })
+            }
+        });
+
+    }
+
+    // confirming 'normal' transactions
+    return sendMessageTo2faDestination({
+        ctx,
+        deliveryOpts,
+        contentData: {
+            accountId,
+            securityCode,
+            messageContent: getConfirmTransactionMessageContent({
+                accountId,
+                request,
+                securityCode,
+                isForSmsDelivery
+            })
         }
-    }
-    const dataOutput = request ? prettyRequestInfo(request) : `Verifying ${method.detail} as 2FA method`;
-    let isAddingFAK = false;
-    let subject = `NEAR Wallet security code: ${securityCode}`;
-    let text = `
-NEAR Wallet security code: ${securityCode}\n\n
-Important: By entering this code, you are authorizing the following transaction:\n\n
-${dataOutput}
-`;
-
-    // check if adding full access key to account (AddKey with no permission)
-    if (request && request.receiver_id === accountId && request.actions.length && request.actions.some((a) => a.type === 'AddKey' && !a.permission)) {
-        isAddingFAK = true;
-        subject = 'NEAR Wallet Message';
-        text = `
-WARNING: Entering the code below will authorize full access to your NEAR account. If you did not initiate this action, please DO NOT continue.
-
-This should only be done if you are adding a new seed phrase to your account. In all other cases, this is very dangerous.
-
-If you'd like to proceed, enter this security code: ${securityCode}
-`;
-    }
-
-    const html =
-`
-<body style="margin: 0; padding: 0;">
-    <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%">
-        <tr>
-            <td align="center">
-                <img src="https://near.org/wp-content/themes/near-19/assets/downloads/near_logo.png" width="300" height="117"
-            </td>
-        </tr>
-        <tr>
-            <td>
-                ${!isAddingFAK ? `
-                <p>NEAR Wallet security code: ${securityCode}</p>
-                <p><strong>Important:</strong> By entering this code, you are authorizing the following transaction:\n\n</p>
-                <pre>
-                    ${dataOutput}
-                </pre>
-                ` : `
-                <pre>
-                    ${text}
-                </pre>
-                `
-}
-            </td>
-        </tr>
-    </table>
-</body>
-`;
-
-
-    if (method.kind === '2fa-phone') {
-        await sendSms({
-            to: method.detail,
-            text,
-        });
-    } else if (method.kind === '2fa-email') {
-        await sendMail({
-            to: method.detail,
-            subject,
-            text,
-            html,
-        });
-    }
-    console.log(securityCode);
-    return securityCode;
+    });
 };
+
 /********************************
-Checking code_hash (is multisig deployed)
-********************************/
-const isContractDeployed = async(accountId) => {
+ Checking code_hash (is multisig deployed)
+ ********************************/
+const isContractDeployed = async (accountId) => {
     const keyStore = {
         async getKey() {
             return nearAPI.KeyPair.fromString('bs');
@@ -163,31 +197,34 @@ const isContractDeployed = async(accountId) => {
     return MULTISIG_CONTRACT_HASHES.includes(state.code_hash);
 };
 
-const getAccountAndMethod = async(ctx, accountId) => {
+const getAccountAndMethod = async (ctx, accountId) => {
     const [account] = await models.Account.findOrCreate({ where: { accountId } });
     if (!account) {
         console.warn(`account: ${accountId} should already exist when sending new code`);
         ctx.throw(401);
         return;
     }
-    let [twoFactorMethod] = await account.getRecoveryMethods({ where: {
-        kind: {
-            [Op.startsWith]: '2fa-'
-        },
-    }});
+    let [twoFactorMethod] = await account.getRecoveryMethods({
+        where: {
+            kind: {
+                [Op.startsWith]: '2fa-'
+            },
+        }
+    });
     return { account, twoFactorMethod };
 };
 
 /********************************
-@warn protect these routes using checkAccountOwnership middleware from app.js
-@warn Requires refactor
-********************************/
+ @warn protect these routes using checkAccountOwnership middleware from app.js
+ @warn Requires refactor
+ ********************************/
 // http post http://localhost:3000/2fa/getAccessKey accountId=mattlock
 // Call this to get the public key of the access key that contract-helper will be using to confirm multisig requests
 const getAccessKey = async (ctx) => {
     const { accountId } = ctx.request.body;
-    ctx.body = { publicKey: (await getKeyStore(accountId).getKey()).publicKey.toString() };
+    ctx.body = { publicKey: (await ctx.near.connection.signer.getPublicKey(accountId, 'default')).toString() };
 };
+
 // http post http://localhost:3000/2fa/init accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
 // Call ONCE to enable 2fa on this account. Adds a twoFactorMethod (passed in body) where kind should start with '2fa-'
 // This WILL send the initial code to the method specified ['2fa-email', '2fa-phone']
@@ -211,6 +248,7 @@ const initCode = async (ctx) => {
         }
         await twoFactorMethod.update({
             kind: method.kind,
+            // FIXME: Should this be escaped?
             detail: method.detail,
             requestId: -1
         });
@@ -218,21 +256,22 @@ const initCode = async (ctx) => {
         twoFactorMethod = await account.createRecoveryMethod({ kind, detail, requestId: -1 });
     }
     // check if 2fa method matches existing recovery method
-    const [recoveryMethod] = await account.getRecoveryMethods({ where: {
-        kind: kind.split('2fa-')[1],
-        detail,
-    }});
+    const [recoveryMethod] = await account.getRecoveryMethods({
+        where: {
+            kind: kind.split('2fa-')[1],
+            detail,
+        }
+    });
     if (recoveryMethod) {
         // client should deploy contract
         ctx.body = {
-            success: true, confirmed: true, message: '2fa initialized and set up using recovery method verification'
+            confirmed: true, message: '2fa initialized and set up using recovery method verification'
         };
         return;
     }
     // client waits to deploy contract until code is verified
-    await sendCode(ctx, method, twoFactorMethod);
+    await sendCode(ctx, method, twoFactorMethod, -1, accountId);
     ctx.body = {
-        success: true,
         message: '2fa initialized and code sent to verify method',
     };
 };
@@ -247,7 +286,7 @@ const sendNewCode = async (ctx) => {
     }
     await sendCode(ctx, method, twoFactorMethod, requestId, accountId);
     ctx.body = {
-        success: true, message: '2fa code sent'
+        message: '2fa code sent'
     };
 };
 // http post http://localhost:3000/2fa/verify accountId=mattlock securityCode=430888
@@ -260,12 +299,14 @@ const verifyCode = async (ctx) => {
         console.warn('invalid 2fa code provided');
         ctx.throw(401, 'invalid 2fa code provided');
     }
-    const [twoFactorMethod] = await account.getRecoveryMethods({ where: {
-        securityCode,
-        kind: {
-            [Op.startsWith]: '2fa-'
-        },
-    }});
+    const [twoFactorMethod] = await account.getRecoveryMethods({
+        where: {
+            securityCode,
+            kind: {
+                [Op.startsWith]: '2fa-'
+            },
+        }
+    });
     if (!twoFactorMethod) {
         console.warn(`${accountId} has no 2fa method for the provided security code`);
         ctx.throw(401, '2fa code not valid for request id');
@@ -277,7 +318,6 @@ const verifyCode = async (ctx) => {
         ctx.throw(401, '2fa code not valid for request id');
     }
     // only verify codes that are 5 minutes old (if testing make this impossible)
-    // console.log(twoFactorMethod.updatedAt, Date.now() - CODE_EXPIRY, twoFactorMethod);
     if (twoFactorMethod.updatedAt < Date.now() - CODE_EXPIRY) {
         console.warn(`2fa code expired for: ${accountId}`);
         ctx.throw(401, '2fa code expired');
@@ -285,11 +325,11 @@ const verifyCode = async (ctx) => {
     //security code valid
     await twoFactorMethod.update({ requestId: -1, securityCode: null });
     if (requestId !== -1) {
-        ctx.body = await confirmRequest(accountId, parseInt(requestId, 10));
+        ctx.body = await confirmRequest(ctx.near, accountId, parseInt(requestId, 10));
         return;
     }
     ctx.body = {
-        success: true, message: '2fa code verified', requestId: twoFactorMethod.requestId,
+        message: '2fa code verified', requestId: twoFactorMethod.requestId,
     };
 };
 
