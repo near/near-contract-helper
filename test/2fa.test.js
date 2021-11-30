@@ -4,9 +4,9 @@ const nearAPI = require('near-api-js');
 const { parseSeedPhrase } = require('near-seed-phrase');
 const sinon = require('sinon');
 
+const constants = require('../constants');
 const attachEchoMessageListeners = require('./attachEchoMessageListeners');
 const expectRequestHelpers = require('./expectRequestHelpers');
-const constants = require('../constants');
 const chai = require('./chai');
 const createTestServerInstance = require('./createTestServerInstance');
 const models = require('../models');
