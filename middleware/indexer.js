@@ -151,7 +151,7 @@ const findLikelyTokens = async (ctx) => {
 const findLikelyNFTs = async (ctx) => {
     const { accountId } = ctx.params;
 
-    const received = `
+    const ownershipChangeFunctionCalls = `
         select distinct receipt_receiver_account_id as receiver_account_id
         from action_receipt_actions
         where args->'args_json'->>'receiver_id' = $1
@@ -160,13 +160,13 @@ const findLikelyNFTs = async (ctx) => {
             and args->>'method_name' like 'nft_%'
     `;
 
-    const mintEvents = `
+    const ownershipChangeEvents = `
         select distinct emitted_by_contract_account_id as receiver_account_id 
         from assets__non_fungible_token_events
         where token_new_owner_account_id = $1
     `;
 
-    const { rows } = await pool.query([received, mintEvents].join(' union '), [accountId]);
+    const { rows } = await pool.query([ownershipChangeFunctionCalls, ownershipChangeEvents].join(' union '), [accountId]);
     ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
 };
 
