@@ -1,6 +1,5 @@
 const SequelizeIdentityVerificationMethods = require('./sequelize/identity_verification_method');
 
-const MATCH_GMAIL_IGNORED_CHARS = /[|&;$%@"<>()+,!#'*\-\/=?^_`.{}]/g;
 
 const IdentityVerificationMethodService = {
     claimIdentityVerificationMethod({ identityKey, kind }) {
@@ -14,6 +13,7 @@ const IdentityVerificationMethodService = {
     // Identify what gmail would consider the 'root' email for a given email address
     // GMail ignores things like . and +
     getUniqueEmail(email) {
+        const MATCH_GMAIL_IGNORED_CHARS = /[|&;$%@"<>()+,!#'*\-\/=?^_`.{}]/g;
         if (!email.includes('@')) {
             return '';
         }

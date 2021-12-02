@@ -30,6 +30,24 @@ const SequelizeIdentityVerificationMethods = {
         return verificationMethod.toJSON();
     },
 
+    // Identify what gmail would consider the 'root' email for a given email address
+    // GMail ignores things like . and +
+    getUniqueEmail(email) {
+        const MATCH_GMAIL_IGNORED_CHARS = /[|&;$%@"<>()+,!#'*\-\/=?^_`.{}]/g;
+        if (!email.includes('@')) {
+            return '';
+        }
+
+        const [usernameWithPossibleAlias, inputDomain] = email.split('@');
+        const domain = inputDomain.replace('googlemail.com', 'gmail.com');
+
+        const username = usernameWithPossibleAlias
+            .split('+')[0]
+            .replace(MATCH_GMAIL_IGNORED_CHARS, '');
+
+        return `${username}@${domain}`.toLowerCase();
+    },
+
     async recoverIdentity({ identityKey, kind, securityCode }) {
         try {
             const [verificationMethod, verificationMethodCreated] = await IdentityVerificationMethod.findOrCreate({
