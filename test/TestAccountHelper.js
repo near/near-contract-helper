@@ -1,4 +1,5 @@
 const nearAPI = require('near-api-js');
+const uuid = require('uuid');
 
 const constants = require('../constants');
 
@@ -184,7 +185,7 @@ class TestAccountHelper {
     }
 
     buildTestAccountId() {
-        return `helper-test-${Date.now()}`;
+        return `helper-test-${uuid.v4()}`;
     }
 
     async createNEARAccount(requestedAccountId) {
