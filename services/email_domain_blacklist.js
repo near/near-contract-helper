@@ -1,8 +1,8 @@
 const SequelizeEmailDomainBlacklists = require('./sequelize/email_domain_blacklist');
 
 const EmailDomainBlacklistService = {
-    getDomainBlacklistEntry(accountId) {
-        return SequelizeEmailDomainBlacklists.getDomainBlacklistEntry(accountId);
+    getDomainBlacklistEntry(domainName) {
+        return SequelizeEmailDomainBlacklists.getDomainBlacklistEntry(domainName);
     },
 
     updateDomainBlacklistEntry(blacklistEntry) {
