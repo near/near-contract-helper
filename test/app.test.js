@@ -10,6 +10,7 @@ const AccountService = require('../services/account');
 const RecoveryMethodService = require('../services/recovery_method');
 const attachEchoMessageListeners = require('./attachEchoMessageListeners');
 const chai = require('./chai');
+const { deleteAllRows } = require('./db');
 const expectRequestHelpers = require('./expectRequestHelpers');
 const createTestServerInstance = require('./createTestServerInstance');
 const TestAccountHelper = require('./TestAccountHelper');
@@ -92,7 +93,7 @@ describe('app routes', function () {
             request,
         });
 
-        await models.sequelize.sync({ force: true });
+        await deleteAllRows();
     });
 
     describe('/account/initializeRecoveryMethodForTempAccount', () => {

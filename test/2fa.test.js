@@ -9,7 +9,7 @@ const attachEchoMessageListeners = require('./attachEchoMessageListeners');
 const expectRequestHelpers = require('./expectRequestHelpers');
 const chai = require('./chai');
 const createTestServerInstance = require('./createTestServerInstance');
-const models = require('../models');
+const { deleteAllRows } = require('./db');
 const TestAccountHelper = require('./TestAccountHelper');
 
 const { expect } = chai;
@@ -56,7 +56,7 @@ describe('2fa method management', function () {
             request,
         });
 
-        await models.sequelize.sync({ force: true });
+        await deleteAllRows();
     });
 
     describe('setting up 2fa method', () => {
