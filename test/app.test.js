@@ -237,7 +237,7 @@ describe('app routes', function () {
         it('returns 403 Forbidden (signature not from accountId owner)', async () => {
             // FIXME: This is just testing incorrect blockNumber, *not* that the signature is from a different owner
             const accountId = await testAccountHelper.createNEARAccount();
-            if (USE_DB_SERVICES) {
+            if (!USE_DB_SERVICES) {
                 await models.Account.create({ accountId });
             } else {
                 await AccountService.createAccount(accountId);
