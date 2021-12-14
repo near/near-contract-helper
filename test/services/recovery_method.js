@@ -64,7 +64,7 @@ describe('RecoveryMethodService', function () {
     });
 
     describe('deleteRecoveryMethod', function () {
-        it('deletes recovery methods for the same account without the specified detail', async function () {
+        it('deletes the specified recovery method', async function () {
             await RecoveryMethodService.createRecoveryMethod({
                 accountId: ACCOUNT_ID,
                 detail: EMAIL,
