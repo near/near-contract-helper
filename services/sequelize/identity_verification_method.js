@@ -19,6 +19,17 @@ const SequelizeIdentityVerificationMethods = {
             });
     },
 
+    async createIdentityVerificationMethod_internal({ identityKey, kind, securityCode }) {
+        const verificationMethod = await IdentityVerificationMethod.create({
+            identityKey: identityKey.toLowerCase(),
+            kind,
+            securityCode,
+            uniqueIdentityKey: kind === IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL ? this.getUniqueEmail(identityKey) : null,
+        });
+
+        return verificationMethod.toJSON();
+    },
+
     async getIdentityVerificationMethod({ identityKey, kind }) {
         const verificationMethod = await IdentityVerificationMethod.findOne({
             where: {
@@ -27,7 +38,11 @@ const SequelizeIdentityVerificationMethods = {
             },
         });
 
-        return verificationMethod.toJSON();
+        if (verificationMethod) {
+            return verificationMethod.toJSON();
+        }
+
+        return null;
     },
 
     // Identify what gmail would consider the 'root' email for a given email address
