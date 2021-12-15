@@ -34,6 +34,20 @@ async function doCreateFundedAccount({
     isAccountCreatedByThisCall,
     sequelizeAccount
 }) {
+    const { available } = await fundingAccount.getAccountBalance();
+    const availableBalanceBN = new BN(available);
+
+    if(!availableBalanceBN.gt(nearAPI.utils.format.parseNearAmount('0.5'))) {
+        // Leave a buffer of 0.5N in coin-op to avoid corner cases where we got 'not enough storage' error instead of
+        // NotEnoughBalance error
+        setJSONErrorResponse({
+            ctx,
+            statusCode: 503,
+            body: { success: false, code: 'NotEnoughBalance', message: 'Not enough balance to create funded account' }
+        });
+        return;
+    }
+
     try {
         const newAccountResult = await fundingAccount.functionCall(
             FUNDED_NEW_ACCOUNT_CONTRACT_NAME,
