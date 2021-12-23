@@ -37,7 +37,7 @@ async function doCreateFundedAccount({
     const { available } = await fundingAccount.getAccountBalance();
     const availableBalanceBN = new BN(available);
 
-    if(!availableBalanceBN.gt(nearAPI.utils.format.parseNearAmount('0.5'))) {
+    if (availableBalanceBN.lte(new BN(nearAPI.utils.format.parseNearAmount('0.5')))) {
         // Leave a buffer of 0.5N in coin-op to avoid corner cases where we got 'not enough storage' error instead of
         // NotEnoughBalance error
         setJSONErrorResponse({
