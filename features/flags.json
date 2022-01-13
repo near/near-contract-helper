@@ -12,17 +12,7 @@
       "lastEditedBy": "Andy Haynes",
       "lastEditedAt": "2021-11-30T22:51:54.860Z"
     },
-    "testnet_STAGING": {
-      "enabled": false,
-      "lastEditedBy": "Andy Haynes",
-      "lastEditedAt": "2021-11-30T22:51:54.860Z"
-    },
     "mainnet": {
-      "enabled": false,
-      "lastEditedBy": "Andy Haynes",
-      "lastEditedAt": "2021-11-30T22:51:54.860Z"
-    },
-    "mainnet_STAGING": {
       "enabled": false,
       "lastEditedBy": "Andy Haynes",
       "lastEditedAt": "2021-11-30T22:51:54.860Z"
