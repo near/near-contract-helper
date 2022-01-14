@@ -12,9 +12,9 @@ const pool = new Pool({ connectionString: process.env.INDEXER_DB_CONNECTION, });
 let poolMatch;
 
 if (IS_MAINNET) {
-    poolMatch = JSON.stringify(['%.poolv1.near', '%.pool.near']).replaceAll('"', '\'');
+    poolMatch = JSON.stringify(['%.poolv1.near', '%.pool.near']).replace(/"/g, '\'');
 } else {
-    poolMatch = JSON.stringify(['%.pool.%.m0']).replaceAll('"', '\'');
+    poolMatch = JSON.stringify(['%.pool.%.m0']).replace(/"/g, '\'');
 }
 
 const findStakingDeposits = async (ctx) => {
