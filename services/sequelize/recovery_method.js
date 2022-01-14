@@ -37,8 +37,8 @@ const SequelizeRecoveryMethods = {
             kind,
             ...(detail && { detail }),
             ...(publicKey && { publicKey }),
-            ...(requestId && { requestId }),
-            ...(securityCode && { securityCode }),
+            ...((requestId || requestId === 0) && { requestId }),
+            ...((securityCode || securityCode === 0) && { securityCode }),
         });
 
         return this.cleanRecoveryMethod(recoveryMethod);
@@ -116,7 +116,7 @@ const SequelizeRecoveryMethods = {
                 ...(detail && { detail }),
                 ...(kind && { kind }),
                 ...(publicKey && { publicKey }),
-                ...(securityCode && { securityCode }),
+                ...((securityCode || securityCode === 0) && { securityCode }),
             },
         });
         return methods;
@@ -147,7 +147,7 @@ const SequelizeRecoveryMethods = {
         await recoveryMethod.update({
             ...(detail && { detail }),
             ...(kind && { kind }),
-            ...(securityCode && { securityCode }),
+            ...((securityCode || securityCode === 0) && { securityCode }),
         });
 
         return this.cleanRecoveryMethod(recoveryMethod);
@@ -159,7 +159,7 @@ const SequelizeRecoveryMethods = {
             requestId,
             ...(detail && { detail }),
             ...(kind && { kind }),
-            ...(securityCode && { securityCode }),
+            ...((securityCode || securityCode === 0) && { securityCode }),
         });
 
         return this.cleanRecoveryMethod(twoFactorRecoveryMethod);
