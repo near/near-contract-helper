@@ -626,7 +626,7 @@ const completeRecoveryValidation = ({ isNew } = {}) => async (ctx) => {
         accountId,
         detail: method.detail,
         kind: method.kind,
-        securityCode,
+        securityCode: null,
     });
 
     if (isNew && enterpriseRecaptchaToken) {
