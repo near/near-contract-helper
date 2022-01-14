@@ -250,6 +250,7 @@ const initCode = async (ctx) => {
             // FIXME: Should this be escaped?
             detail,
             kind,
+            requestId: -1,
         });
     } else {
         await RecoveryMethodService.createRecoveryMethod({
