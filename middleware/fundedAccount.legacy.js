@@ -1,9 +1,8 @@
 const nearAPI = require('near-api-js');
 const BN = require('bn.js');
 
+const models = require('../models');
 const recaptchaValidator = require('../RecaptchaValidator');
-const AccountService = require('../services/account');
-const IdentityVerificationMethodService = require('../services/identity_verification_method');
 const { fundedCreatorKeyJson } = require('./near');
 const {
     IDENTITY_VERIFICATION_ERRORS,
@@ -32,22 +31,9 @@ async function doCreateFundedAccount({
     newAccountId,
     newAccountPublicKey,
     ctx,
-    isExistingAccount,
+    isAccountCreatedByThisCall,
+    sequelizeAccount
 }) {
-    const { available } = await fundingAccount.getAccountBalance();
-    const availableBalanceBN = new BN(available);
-
-    if (availableBalanceBN.lte(new BN(nearAPI.utils.format.parseNearAmount('0.5')))) {
-        // Leave a buffer of 0.5N in coin-op to avoid corner cases where we got 'not enough storage' error instead of
-        // NotEnoughBalance error
-        setJSONErrorResponse({
-            ctx,
-            statusCode: 503,
-            body: { success: false, code: 'NotEnoughBalance', message: 'Not enough balance to create funded account' }
-        });
-        return;
-    }
-
     try {
         const newAccountResult = await fundingAccount.functionCall(
             FUNDED_NEW_ACCOUNT_CONTRACT_NAME,
@@ -66,9 +52,9 @@ async function doCreateFundedAccount({
             requiredUnlockBalance: NEW_FUNDED_ACCOUNT_BALANCE
         };
     } catch (e) {
-        if (!isExistingAccount) {
-            // Clean up if we were responsible for creating it during this API call
-            await AccountService.deleteAccount(newAccountId);
+        if (isAccountCreatedByThisCall) {
+            // Clean up SQL record if we were responsible for creating it during this API call
+            await sequelizeAccount.destroy();
         }
 
         if (e.type === 'NotEnoughBalance') {
@@ -136,22 +122,28 @@ const createFundedAccount = async (ctx) => {
         return;
     }
 
-    // If someone is using a recovery method that involves a confirmation code (email / SMS)
-    // then we need to manually set the fundedAccountNeedsDeposit on the _existing_ record
-    const isExistingAccount = !!(await AccountService.getAccount(newAccountId));
-    const [fundingAccount] = await Promise.all([
-        ctx.near.account(fundedCreatorKeyJson.account_id),
-        isExistingAccount
-            ? AccountService.setAccountRequiresDeposit(newAccountId, true)
-            : AccountService.createAccount(newAccountId, { fundedAccountNeedsDeposit: true }),
+
+    const [[sequelizeAccount, isAccountCreatedByThisCall], fundingAccount] = await Promise.all([
+        models.Account.findOrCreate({
+            where: { accountId: newAccountId },
+            defaults: { fundedAccountNeedsDeposit: true }
+        }),
+        ctx.near.account(fundedCreatorKeyJson.account_id)
     ]);
+
+    if (!isAccountCreatedByThisCall) {
+        // If someone is using a recovery method that involves a confirmation code (email / SMS)
+        // then we need to manually set the fundedAccountNeedsDeposit on the _existing_ SQL record
+        await sequelizeAccount.update({ fundedAccountNeedsDeposit: true });
+    }
 
     await doCreateFundedAccount({
         fundingAccount,
         newAccountId,
         newAccountPublicKey,
         ctx,
-        isExistingAccount,
+        isAccountCreatedByThisCall,
+        sequelizeAccount
     });
 };
 
@@ -229,9 +221,11 @@ async function createIdentityVerifiedFundedAccount(ctx) {
         return;
     }
 
-    const verificationMethod = await IdentityVerificationMethodService.getIdentityVerificationMethod({
-        identityKey,
-        kind,
+    const verificationMethod = await models.IdentityVerificationMethod.findOne({
+        where: {
+            identityKey,
+            kind,
+        }
     });
 
     if (!verificationMethod) {
@@ -267,8 +261,8 @@ async function createIdentityVerifiedFundedAccount(ctx) {
         return;
     }
 
-    const [account, fundingAccount] = await Promise.all([
-        AccountService.getAccount(newAccountId),
+    const [[sequelizeAccount, isAccountCreatedByThisCall], fundingAccount] = await Promise.all([
+        models.Account.findOrCreate({ where: { accountId: newAccountId } }),
         ctx.near.account(fundedCreatorKeyJson.account_id)
     ]);
 
@@ -277,20 +271,21 @@ async function createIdentityVerifiedFundedAccount(ctx) {
         newAccountId,
         newAccountPublicKey,
         ctx,
-        isExistingAccount: !!account,
+        isAccountCreatedByThisCall,
+        sequelizeAccount
     });
 
     if (ctx.status === 200) {
-        await IdentityVerificationMethodService.claimIdentityVerificationMethod({ identityKey, kind });
+        await verificationMethod.update({ securityCode: null, claimed: true });
     }
 }
 
 async function clearFundedAccountNeedsDeposit(ctx) {
     // DEPRECATED: Remove after coin-op v1.5 is settled
 
-    const { accountId } = ctx.request.body;
-    const account = await AccountService.getAccount(accountId);
-    if (!account.fundedAccountNeedsDeposit) {
+    const { accountId, fundedAccountNeedsDeposit } = ctx.sequelizeAccount;
+
+    if (!fundedAccountNeedsDeposit) {
         // This is an idempotent call
         ctx.status = 200;
         ctx.body = { success: true };
@@ -303,7 +298,8 @@ async function clearFundedAccountNeedsDeposit(ctx) {
     const availableBalanceBN = new BN(available);
 
     if (availableBalanceBN.gt(BN_UNLOCK_FUNDED_ACCOUNT_BALANCE)) {
-        await AccountService.setAccountRequiresDeposit(accountId, false);
+        await ctx.sequelizeAccount.update({ fundedAccountNeedsDeposit: false });
+
         ctx.status = 200;
         ctx.body = { success: true };
         return;

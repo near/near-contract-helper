@@ -1,0 +1,21 @@
+{
+  "USE_DB_SERVICES": {
+    "createdBy": "Andy Haynes",
+    "createdAt": "2021-11-30T22:51:54.860Z",
+    "development": {
+      "enabled": false,
+      "lastEditedBy": "Andy Haynes",
+      "lastEditedAt": "2021-12-10T22:57:37.231Z"
+    },
+    "testnet": {
+      "enabled": false,
+      "lastEditedBy": "Andy Haynes",
+      "lastEditedAt": "2021-11-30T22:51:54.860Z"
+    },
+    "mainnet": {
+      "enabled": false,
+      "lastEditedBy": "Andy Haynes",
+      "lastEditedAt": "2021-11-30T22:51:54.860Z"
+    }
+  }
+}
