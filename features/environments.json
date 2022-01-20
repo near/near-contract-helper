@@ -1,0 +1,5 @@
+{
+  "DEVELOPMENT": "development",
+  "TESTNET": "testnet",
+  "MAINNET": "mainnet"
+}
