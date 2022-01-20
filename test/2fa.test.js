@@ -9,7 +9,7 @@ const attachEchoMessageListeners = require('./attachEchoMessageListeners');
 const expectRequestHelpers = require('./expectRequestHelpers');
 const chai = require('./chai');
 const createTestServerInstance = require('./createTestServerInstance');
-const { deleteAllRows } = require('./db');
+const { initDb } = require('./db');
 const TestAccountHelper = require('./TestAccountHelper');
 
 const { expect } = chai;
@@ -56,7 +56,7 @@ describe('2fa method management', function () {
             request,
         });
 
-        await deleteAllRows();
+        await initDb();
     });
 
     describe('setting up 2fa method', () => {
