@@ -3,7 +3,8 @@ const crypto = require('crypto');
 const signParams = async ctx => {
     const { 
         toCurrency,
-        toWallet,} = ctx.query;
+        toWallet,
+    } = ctx.query;
 
     
     if (!toWallet || !toCurrency) {
