@@ -83,7 +83,7 @@ const {
     initCode,
     sendNewCode,
     verifyCode,
-} = require(USE_DB_SERVICES ? './middleware/2fa' : './middleware/2fa.legacy');
+} = require('./middleware/2fa');
 router.post('/2fa/getAccessKey', checkAccountOwnership, getAccessKey);
 router.post('/2fa/init', checkAccountOwnership, initCode);
 router.post('/2fa/send', checkAccountOwnership, sendNewCode);
@@ -114,7 +114,7 @@ const {
     clearFundedAccountNeedsDeposit,
     createFundedAccount,
     createIdentityVerifiedFundedAccount,
-} = require(USE_DB_SERVICES ? './middleware/fundedAccount' : './middleware/fundedAccount.legacy');
+} = require('./middleware/fundedAccount');
 router.post(
     '/fundedAccount',
     fundedAccountCreateRatelimitMiddleware,
@@ -333,7 +333,7 @@ router.post(
 
 const {
     BN_UNLOCK_FUNDED_ACCOUNT_BALANCE
-} = require(USE_DB_SERVICES ? './middleware/fundedAccount' : './middleware/fundedAccount.legacy');
+} = require('./middleware/fundedAccount');
 router.get(
     '/account/walletState/:accountId',
     USE_DB_SERVICES ? (ctx, next) => verifyAccountExists(ctx, next, ctx.params) : createWithSequelizeAcccountMiddleware('params'),
