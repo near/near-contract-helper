@@ -142,8 +142,14 @@ router.post(
     createIdentityVerificationMethod
 );
 
-const { signURL } = require('./middleware/moonpay');
-router.get('/moonpay/signURL', signURL);
+/********************************
+ Top up integration helpers
+ ********************************/
+const moonpay = require('./middleware/moonpay');
+router.get('/moonpay/signURL', moonpay.signURL);
+
+const nearpay = require('./middleware/nearpay');
+router.get('/nearpay/signParams', nearpay.signParams);
 
 const {
     findAccountsByPublicKey,
