@@ -4,7 +4,6 @@ const app = new Koa();
 const body = require('koa-json-body');
 const cors = require('@koa/cors');
 
-const { USE_DB_SERVICES } = require('./features');
 const constants = require('./constants');
 const AccountService = require('./services/account');
 const IdentityVerificationMethodService = require('./services/identity_verification_method');
@@ -132,7 +131,7 @@ router.post(
 router.get('/checkFundedAccountAvailable', checkFundedAccountAvailable);
 router.post(
     '/fundedAccount/clearNeedsDeposit',
-    USE_DB_SERVICES ? (ctx, next) => verifyAccountExists(ctx, next, ctx.request.body) : createWithSequelizeAcccountMiddleware('body'),
+    (ctx, next) => verifyAccountExists(ctx, next, ctx.request.body),
     clearFundedAccountNeedsDeposit,
 );
 
@@ -189,35 +188,8 @@ async function recoveryMethodsFor(account) {
 
 router.post('/account/recoveryMethods', checkAccountOwnership, async ctx => {
     const { accountId } = ctx.request.body;
-    if (USE_DB_SERVICES) {
-        ctx.body = await RecoveryMethodService.listAllRecoveryMethods(accountId);
-    } else {
-        const account = await models.Account.findOne({ where: { accountId } });
-        ctx.body = await recoveryMethodsFor(account);
-    }
+    ctx.body = await RecoveryMethodService.listAllRecoveryMethods(accountId);
 });
-
-function createWithSequelizeAcccountMiddleware(source) {
-    if (source !== 'body' && source !== 'params') {
-        throw new Error('invalid source for accountId provided');
-    }
-
-    return async function withSequelizeAccount(ctx, next) {
-        let accountId;
-        if (source === 'body') {
-            accountId = ctx.request.body.accountId;
-        } else {
-            accountId = ctx.params.accountId;
-        }
-
-        ctx.sequelizeAccount = await models.Account.findOne({ where: { accountId } });
-        if (ctx.sequelizeAccount) {
-            await next();
-            return;
-        }
-        ctx.throw(404, `Could not find account with accountId: '${accountId}'`);
-    };
-}
 
 async function verifyAccountExists(ctx, next, { accountId }) {
     if (!accountId) {
@@ -243,23 +215,10 @@ router.post(
         }
         ctx.throw(400, `Given recoveryMethod '${kind}' invalid; must be one of: ${deletableRecoveryMethods.join(', ')}`);
     },
-    USE_DB_SERVICES ? (ctx, next) => verifyAccountExists(ctx, next, ctx.request.body) : createWithSequelizeAcccountMiddleware('body'),
+    (ctx, next) => verifyAccountExists(ctx, next, ctx.request.body),
     checkAccountOwnership,
     withPublicKey,
     async ctx => {
-        if (!USE_DB_SERVICES) {
-            const { kind, publicKey } = ctx.request.body;
-            const [recoveryMethod] = await ctx.sequelizeAccount.getRecoveryMethods({
-                where: {
-                    kind: kind,
-                    publicKey: publicKey,
-                }
-            });
-            await recoveryMethod.destroy();
-            ctx.body = await recoveryMethodsFor(ctx.sequelizeAccount);
-            return;
-        }
-
         const { accountId, kind, publicKey } = ctx.request.body;
         await RecoveryMethodService.deleteRecoveryMethod({ accountId, kind, publicKey });
         ctx.body = await RecoveryMethodService.listAllRecoveryMethods(accountId);
@@ -288,14 +247,6 @@ router.post(
     checkAccountOwnership,
     withPublicKey,
     async (ctx) => {
-        if (!USE_DB_SERVICES) {
-            const { accountId } = ctx.request.body;
-            const [account] = await models.Account.findOrCreate({ where: { accountId } });
-            await account.createRecoveryMethod({ kind: RECOVERY_METHOD_KINDS.PHRASE, publicKey: ctx.publicKey });
-            ctx.body = await recoveryMethodsFor(account);
-            return;
-        }
-
         const { publicKey, request: { body: { accountId } } } = ctx;
         await AccountService.createAccount(accountId);
         await RecoveryMethodService.createRecoveryMethod({
@@ -312,14 +263,6 @@ router.post(
     checkAccountOwnership,
     withPublicKey,
     async (ctx) => {
-        if (!USE_DB_SERVICES) {
-            const { accountId } = ctx.request.body;
-            const [account] = await models.Account.findOrCreate({ where: { accountId } });
-            await account.createRecoveryMethod({ kind: RECOVERY_METHOD_KINDS.LEDGER, publicKey: ctx.publicKey });
-            ctx.body = await recoveryMethodsFor(account);
-            return;
-        }
-
         const { publicKey, request: { body: { accountId } } } = ctx;
         await AccountService.createAccount(accountId);
         await RecoveryMethodService.createRecoveryMethod({
@@ -336,19 +279,8 @@ const {
 } = require('./middleware/fundedAccount');
 router.get(
     '/account/walletState/:accountId',
-    USE_DB_SERVICES ? (ctx, next) => verifyAccountExists(ctx, next, ctx.params) : createWithSequelizeAcccountMiddleware('params'),
+    (ctx, next) => verifyAccountExists(ctx, next, ctx.params),
     async (ctx) => {
-        if (!USE_DB_SERVICES) {
-            const { fundedAccountNeedsDeposit, accountId } = ctx.sequelizeAccount;
-
-            ctx.body = {
-                fundedAccountNeedsDeposit,
-                accountId,
-                requiredUnlockBalance: BN_UNLOCK_FUNDED_ACCOUNT_BALANCE.toString()
-            };
-            return;
-        }
-
         const { accountId } = ctx.params;
         const { fundedAccountNeedsDeposit } = await AccountService.getAccount(accountId);
         ctx.body = {
@@ -390,12 +322,7 @@ const sendSecurityCode = async ({ ctx, securityCode, method, accountId, seedPhra
 const completeRecoveryInit = async ctx => {
     const { accountId, method, seedPhrase } = ctx.request.body;
 
-    let account;
-    if (USE_DB_SERVICES) {
-        account = await AccountService.createAccount(accountId);
-    } else {
-        [account] = await models.Account.findOrCreate({ where: { accountId } });
-    }
+    await AccountService.createAccount(accountId);
 
     let publicKey = null;
     if (seedPhrase) {
@@ -404,50 +331,30 @@ const completeRecoveryInit = async ctx => {
 
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
 
-    if (USE_DB_SERVICES) {
-        const { detail, kind } = method;
-        const [recoveryMethod] = await RecoveryMethodService.listRecoveryMethods({
+    const { detail, kind } = method;
+    const [recoveryMethod] = await RecoveryMethodService.listRecoveryMethods({
+        accountId,
+        detail,
+        kind,
+        publicKey,
+    });
+
+    if (recoveryMethod) {
+        await RecoveryMethodService.setSecurityCode({
             accountId,
             detail,
             kind,
             publicKey,
+            securityCode,
         });
-
-        if (recoveryMethod) {
-            await RecoveryMethodService.setSecurityCode({
-                accountId,
-                detail,
-                kind,
-                publicKey,
-                securityCode,
-            });
-        } else {
-            await RecoveryMethodService.createRecoveryMethod({
-                accountId,
-                detail,
-                kind,
-                publicKey,
-                securityCode,
-            });
-        }
     } else {
-        let [recoveryMethod] = await account.getRecoveryMethods({
-            where: {
-                kind: method.kind,
-                detail: method.detail,
-                publicKey
-            }
+        await RecoveryMethodService.createRecoveryMethod({
+            accountId,
+            detail,
+            kind,
+            publicKey,
+            securityCode,
         });
-
-        if (!recoveryMethod) {
-            recoveryMethod = await account.createRecoveryMethod({
-                kind: method.kind,
-                detail: method.detail,
-                publicKey
-            });
-        }
-
-        await recoveryMethod.update({ securityCode });
     }
 
     // For test harness
@@ -455,11 +362,7 @@ const completeRecoveryInit = async ctx => {
 
     await sendSecurityCode({ ctx, securityCode, method, accountId, seedPhrase });
 
-    if (USE_DB_SERVICES) {
-        ctx.body = await RecoveryMethodService.listAllRecoveryMethods(accountId);
-    } else {
-        ctx.body = await recoveryMethodsFor(account);
-    }
+    ctx.body = await RecoveryMethodService.listAllRecoveryMethods(accountId);
 };
 
 const DISABLE_PHONE_RECOVERY = process.env.DISABLE_PHONE_RECOVERY === 'true';
@@ -673,13 +576,13 @@ const completeRecoveryValidation = ({ isNew } = {}) => async (ctx) => {
 router.post('/account/validateSecurityCode',
     checkCreateableRecoveryMethod,
     checkAccountOwnership,
-    USE_DB_SERVICES ? completeRecoveryValidation() : completeRecoveryValidation_legacy(),
+    completeRecoveryValidation(),
 );
 
 router.post('/account/validateSecurityCodeForTempAccount',
     checkCreateableRecoveryMethod,
     createCheckAccountDoesNotExistMiddleware({ source: 'body', fieldName: 'accountId' }),
-    USE_DB_SERVICES ? completeRecoveryValidation({ isNew: true }) : completeRecoveryValidation_legacy({ isNew: true })
+    completeRecoveryValidation({ isNew: true })
 );
 
 const createFiatValueMiddleware = require('./middleware/fiat');
