@@ -12,7 +12,6 @@ const RecoveryMethodService = require('./services/recovery_method');
 const {
     RECOVERY_METHOD_KINDS,
     SERVER_EVENTS,
-    IDENTITY_VERIFICATION_METHOD_KINDS,
 } = constants;
 
 // render.com passes requests through a proxy server; we need the source IPs to be accurate for `koa-ratelimit`
@@ -138,7 +137,6 @@ router.post(
 const {
     createIdentityVerificationMethod,
     validateEmail,
-    getUniqueEmail
 } = require('./middleware/identityVerificationMethod');
 router.post(
     '/identityVerificationMethod',
@@ -166,25 +164,9 @@ router.get('/account/:accountId/likelyNFTs', findLikelyNFTs);
 router.get('/stakingPools', findStakingPools);
 
 const password = require('secure-random-password');
-const models = require('./models');
 const SECURITY_CODE_DIGITS = 6;
 
 const { sendSms } = require('./utils/sms');
-
-async function recoveryMethodsFor(account) {
-    if (!account) {
-        return [];
-    }
-
-    return (await account.getRecoveryMethods({
-        attributes: ['createdAt', 'detail', 'kind', 'publicKey', 'securityCode']
-    })).map(method => {
-        const json = method.toJSON();
-        json.confirmed = !method.securityCode;
-        delete json.securityCode;
-        return json;
-    });
-}
 
 router.post('/account/recoveryMethods', checkAccountOwnership, async ctx => {
     const { accountId } = ctx.request.body;
@@ -399,100 +381,6 @@ router.post('/account/initializeRecoveryMethod',
 );
 
 const recaptchaValidator = require('./RecaptchaValidator');
-
-const completeRecoveryValidation_legacy = ({ isNew } = {}) => async ctx => {
-    const {
-        accountId,
-        method,
-        securityCode,
-        enterpriseRecaptchaToken,
-        recaptchaAction,
-        recaptchaSiteKey
-    } = ctx.request.body;
-
-    if (!securityCode || isNaN(parseInt(securityCode, 10)) || securityCode.length !== 6) {
-        ctx.throw(401, 'valid securityCode required');
-    }
-
-    const account = await models.Account.findOne({ where: { accountId } });
-
-    if (!account) {
-        ctx.throw(401, 'account does not exist');
-    }
-    const [recoveryMethod] = await account.getRecoveryMethods({
-        where: {
-            kind: method.kind,
-            detail: method.detail,
-            securityCode: securityCode
-        }
-    });
-
-    if (!recoveryMethod) {
-        ctx.throw(401, 'recoveryMethod does not exist');
-    }
-
-    // for new accounts, clear all other recovery methods that may have been created
-    if (isNew) {
-        const allRecoveryMethods = await account.getRecoveryMethods();
-        for (const rm of allRecoveryMethods) {
-            if (rm.detail !== method.detail) {
-                await rm.destroy();
-            }
-        }
-    }
-
-    await recoveryMethod.update({ securityCode: null });
-
-    if (isNew && enterpriseRecaptchaToken) {
-        // Implicitly reserve a funded account for the same identity to allow the user to get a funded account without receiving 2 e-mails
-        try {
-            const { valid, score } = await recaptchaValidator.createEnterpriseAssessment({
-                token: enterpriseRecaptchaToken,
-                siteKey: recaptchaSiteKey,
-                userIpAddress: ctx.ip,
-                userAgent: ctx.header['user-agent'],
-                expectedAction: recaptchaAction
-            });
-
-            if (valid && score > 0.6) {
-                if (await validateEmail({ ctx, email: method.detail, kind: method.kind })) {
-                    // Throws `UniqueConstraintError` due to SQL constraints if an entry with matching `identityKey` and `kind` exists, but with `claimed` = true
-                    const [verificationMethod, verificationMethodCreated] = await models.IdentityVerificationMethod.findOrCreate({
-                        where: {
-                            identityKey: method.detail.toLowerCase(),
-                            kind: method.kind,
-                            claimed: false,
-                        },
-                        defaults: {
-                            securityCode,
-                            uniqueIdentityKey: method.kind === IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL ? getUniqueEmail(method.detail) : null
-                        }
-                    });
-
-                    // If the method already existed as un-claimed, sync our securityCode with it
-                    if (!verificationMethodCreated) {
-                        await verificationMethod.update({ securityCode });
-                    }
-                }
-            } else {
-                console.log('Skipping implicit identityVerificationMethod creation due to low score', {
-                    userAgent: ctx.header['user-agent'],
-                    userIpAddress: ctx.ip,
-                    expectedAction: recaptchaAction,
-                    score,
-                    valid
-                });
-            }
-        } catch (err) {
-            if (err.original && err.original.code !== '23505') { // UniqueConstraintError is not an error; it means it was claimed already
-                console.error('Failed to findOrCreate IdentityVerificationMethod', { err });
-            }
-        }
-    }
-
-    ctx.status = 200;
-    ctx.body = await recoveryMethodsFor(account);
-};
 
 const completeRecoveryValidation = ({ isNew } = {}) => async (ctx) => {
     const {
