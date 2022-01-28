@@ -5,7 +5,7 @@ const { IDENTITY_VERIFICATION_METHOD_KINDS } = constants;
 const { IdentityVerificationMethod } = models;
 
 const SequelizeIdentityVerificationMethods = {
-    async claimIdentityVerificationMethod({ identityKey, kind }) {
+    claimIdentityVerificationMethod({ identityKey, kind }) {
         return IdentityVerificationMethod.update(
             {
                 claimed: true,
