@@ -29,25 +29,6 @@ const IDENTITY_VERIFICATION_ERRORS = {
     INVALID_EMAIL_PROVIDER: { code: 'identityVerificationEmailProviderInvalid', statusCode: 400 }
 };
 
-const MATCH_GMAIL_IGNORED_CHARS = /[|&;$%@"<>()+,!#'*\-\/=?^_`.{}]/g;
-// Identify what gmail would consider the 'root' email for a given email address
-// GMail ignores things like . and +
-const getUniqueEmail = (email) => {
-    if (!email.includes('@')) {
-        return '';
-    }
-
-
-    const [usernameWithPossibleAlias, inputDomain] = email.split('@');
-    const domain = inputDomain.replace('googlemail.com', 'gmail.com');
-
-    const username = usernameWithPossibleAlias
-        .split('+')[0]
-        .replace(MATCH_GMAIL_IGNORED_CHARS, '');
-
-    return `${username}@${domain}`.toLowerCase();
-};
-
 const emailDomainValidator = createEmailDomainValidator();
 
 const setJSONErrorResponse = ({ ctx, statusCode, body }) => {
@@ -206,7 +187,6 @@ module.exports = {
     validateVerificationParams,
     emailDomainValidator,
     validateEmail,
-    getUniqueEmail,
     setAlreadyClaimedResponse,
     setInvalidRecaptchaResponse,
     IDENTITY_VERIFICATION_ERRORS
