@@ -29,6 +29,18 @@ const AccountService = {
         return getAccountById(accountId);
     },
 
+    async getOrCreateAccount(accountId) {
+        if (!USE_DYNAMODB) {
+            return this.createAccount(accountId);
+        }
+        const account = await this.getAccount(accountId);
+        if (account) {
+            return account;
+        }
+
+        return this.createAccount(accountId);
+    },
+
     async setAccountRequiresDeposit(accountId, requiresDeposit) {
         if (!USE_DYNAMODB) {
             return SequelizeAccounts.setAccountRequiresDeposit(accountId, requiresDeposit);

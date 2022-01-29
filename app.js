@@ -231,7 +231,7 @@ router.post(
     withPublicKey,
     async (ctx) => {
         const { publicKey, request: { body: { accountId } } } = ctx;
-        await AccountService.createAccount(accountId);
+        await AccountService.getOrCreateAccount(accountId);
         await RecoveryMethodService.createRecoveryMethod({
             accountId,
             kind: RECOVERY_METHOD_KINDS.PHRASE,
@@ -247,7 +247,7 @@ router.post(
     withPublicKey,
     async (ctx) => {
         const { publicKey, request: { body: { accountId } } } = ctx;
-        await AccountService.createAccount(accountId);
+        await AccountService.getOrCreateAccount(accountId);
         await RecoveryMethodService.createRecoveryMethod({
             accountId,
             kind: RECOVERY_METHOD_KINDS.LEDGER,
@@ -305,7 +305,7 @@ const sendSecurityCode = async ({ ctx, securityCode, method, accountId, seedPhra
 const completeRecoveryInit = async ctx => {
     const { accountId, method, seedPhrase } = ctx.request.body;
 
-    await AccountService.createAccount(accountId);
+    await AccountService.getOrCreateAccount(accountId);
 
     let publicKey = null;
     if (seedPhrase) {
