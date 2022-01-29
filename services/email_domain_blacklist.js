@@ -9,20 +9,27 @@ const SequelizeEmailDomainBlacklists = require('./sequelize/email_domain_blackli
 
 
 const EmailDomainBlacklistService = stampit({
+    props: {
+        db: {
+            getEmailDomainBlacklistEntry,
+            updateEmailDomainBlacklistEntry,
+        },
+        sequelize: SequelizeEmailDomainBlacklists,
+    },
     methods: {
         getDomainBlacklistEntry(domainName) {
             if (!USE_DYNAMODB) {
-                return SequelizeEmailDomainBlacklists.getDomainBlacklistEntry(domainName);
+                return this.sequelize.getDomainBlacklistEntry(domainName);
             }
-            return getEmailDomainBlacklistEntry(domainName);
+            return this.db.getEmailDomainBlacklistEntry(domainName);
         },
 
         updateDomainBlacklistEntry(blacklistEntry) {
             if (!USE_DYNAMODB) {
-                return SequelizeEmailDomainBlacklists.updateDomainBlacklistEntry(blacklistEntry);
+                return this.sequelize.updateDomainBlacklistEntry(blacklistEntry);
             }
             const { domainName, ...entry } = blacklistEntry;
-            return updateEmailDomainBlacklistEntry(domainName, entry);
+            return this.db.updateEmailDomainBlacklistEntry(domainName, entry);
         },
     },
 });
