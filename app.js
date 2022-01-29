@@ -5,6 +5,7 @@ const body = require('koa-json-body');
 const cors = require('@koa/cors');
 
 const constants = require('./constants');
+const { USE_DYNAMODB } = require('./features');
 const AccountService = require('./services/account');
 const IdentityVerificationMethodService = require('./services/identity_verification_method');
 const RecoveryMethodService = require('./services/recovery_method');
@@ -322,13 +323,23 @@ const completeRecoveryInit = async ctx => {
     });
 
     if (recoveryMethod) {
-        await RecoveryMethodService.setSecurityCode({
-            accountId,
-            detail,
-            kind,
-            publicKey,
-            securityCode,
-        });
+        if (USE_DYNAMODB) {
+            await RecoveryMethodService.updateRecoveryMethod({
+                accountId,
+                detail,
+                kind,
+                publicKey,
+                securityCode,
+            });
+        } else {
+            await RecoveryMethodService.setSecurityCode({
+                accountId,
+                detail,
+                kind,
+                publicKey,
+                securityCode,
+            });
+        }
     } else {
         await RecoveryMethodService.createRecoveryMethod({
             accountId,
