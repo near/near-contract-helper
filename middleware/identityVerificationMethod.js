@@ -149,7 +149,7 @@ async function createIdentityVerificationMethod(ctx) {
 
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
 
-    const isIdentityRecoverable = await IdentityVerificationMethodService.recoverIdentity({
+    const isIdentityRecoverable = await IdentityVerificationMethodService().recoverIdentity({
         identityKey,
         kind,
         securityCode,

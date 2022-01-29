@@ -171,7 +171,7 @@ const { sendSms } = require('./utils/sms');
 
 router.post('/account/recoveryMethods', checkAccountOwnership, async ctx => {
     const { accountId } = ctx.request.body;
-    ctx.body = await RecoveryMethodService.listAllRecoveryMethods(accountId);
+    ctx.body = await RecoveryMethodService().listAllRecoveryMethods(accountId);
 });
 
 async function verifyAccountExists(ctx, next, { accountId }) {
@@ -179,7 +179,7 @@ async function verifyAccountExists(ctx, next, { accountId }) {
         throw new Error('invalid accountId provided');
     }
 
-    const account = await AccountService.getAccount(accountId);
+    const account = await AccountService().getAccount(accountId);
     if (!account) {
         ctx.throw(404, `Could not find account with accountId: '${accountId}'`);
     }
@@ -203,8 +203,9 @@ router.post(
     withPublicKey,
     async ctx => {
         const { accountId, kind, publicKey } = ctx.request.body;
-        await RecoveryMethodService.deleteRecoveryMethod({ accountId, kind, publicKey });
-        ctx.body = await RecoveryMethodService.listAllRecoveryMethods(accountId);
+        const recoveryMethodService = RecoveryMethodService();
+        await recoveryMethodService.deleteRecoveryMethod({ accountId, kind, publicKey });
+        ctx.body = await recoveryMethodService.listAllRecoveryMethods(accountId);
     },
 );
 
@@ -231,13 +232,14 @@ router.post(
     withPublicKey,
     async (ctx) => {
         const { publicKey, request: { body: { accountId } } } = ctx;
-        await AccountService.getOrCreateAccount(accountId);
-        await RecoveryMethodService.createRecoveryMethod({
+        const recoveryMethodService = RecoveryMethodService();
+        await AccountService().getOrCreateAccount(accountId);
+        await recoveryMethodService.createRecoveryMethod({
             accountId,
             kind: RECOVERY_METHOD_KINDS.PHRASE,
             publicKey,
         });
-        ctx.body = await RecoveryMethodService.listAllRecoveryMethods(accountId);
+        ctx.body = await recoveryMethodService.listAllRecoveryMethods(accountId);
     }
 );
 
@@ -247,13 +249,14 @@ router.post(
     withPublicKey,
     async (ctx) => {
         const { publicKey, request: { body: { accountId } } } = ctx;
-        await AccountService.getOrCreateAccount(accountId);
-        await RecoveryMethodService.createRecoveryMethod({
+        const recoveryMethodService = RecoveryMethodService();
+        await AccountService().getOrCreateAccount(accountId);
+        await recoveryMethodService.createRecoveryMethod({
             accountId,
             kind: RECOVERY_METHOD_KINDS.LEDGER,
             publicKey,
         });
-        ctx.body = await RecoveryMethodService.listAllRecoveryMethods(accountId);
+        ctx.body = await recoveryMethodService.listAllRecoveryMethods(accountId);
     }
 );
 
@@ -265,7 +268,7 @@ router.get(
     (ctx, next) => verifyAccountExists(ctx, next, ctx.params),
     async (ctx) => {
         const { accountId } = ctx.params;
-        const { fundedAccountNeedsDeposit } = await AccountService.getAccount(accountId);
+        const { fundedAccountNeedsDeposit } = await AccountService().getAccount(accountId);
         ctx.body = {
             accountId,
             fundedAccountNeedsDeposit,
@@ -305,7 +308,8 @@ const sendSecurityCode = async ({ ctx, securityCode, method, accountId, seedPhra
 const completeRecoveryInit = async ctx => {
     const { accountId, method, seedPhrase } = ctx.request.body;
 
-    await AccountService.getOrCreateAccount(accountId);
+    const recoveryMethodService = RecoveryMethodService();
+    await AccountService().getOrCreateAccount(accountId);
 
     let publicKey = null;
     if (seedPhrase) {
@@ -315,7 +319,7 @@ const completeRecoveryInit = async ctx => {
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
 
     const { detail, kind } = method;
-    const [recoveryMethod] = await RecoveryMethodService.listRecoveryMethods({
+    const [recoveryMethod] = await recoveryMethodService.listRecoveryMethods({
         accountId,
         detail,
         kind,
@@ -324,7 +328,7 @@ const completeRecoveryInit = async ctx => {
 
     if (recoveryMethod) {
         if (USE_DYNAMODB) {
-            await RecoveryMethodService.updateRecoveryMethod({
+            await recoveryMethodService.updateRecoveryMethod({
                 accountId,
                 detail,
                 kind,
@@ -332,7 +336,7 @@ const completeRecoveryInit = async ctx => {
                 securityCode,
             });
         } else {
-            await RecoveryMethodService.setSecurityCode({
+            await recoveryMethodService.setSecurityCode({
                 accountId,
                 detail,
                 kind,
@@ -341,7 +345,7 @@ const completeRecoveryInit = async ctx => {
             });
         }
     } else {
-        await RecoveryMethodService.createRecoveryMethod({
+        await recoveryMethodService.createRecoveryMethod({
             accountId,
             detail,
             kind,
@@ -355,7 +359,7 @@ const completeRecoveryInit = async ctx => {
 
     await sendSecurityCode({ ctx, securityCode, method, accountId, seedPhrase });
 
-    ctx.body = await RecoveryMethodService.listAllRecoveryMethods(accountId);
+    ctx.body = await recoveryMethodService.listAllRecoveryMethods(accountId);
 };
 
 const DISABLE_PHONE_RECOVERY = process.env.DISABLE_PHONE_RECOVERY === 'true';
@@ -407,12 +411,13 @@ const completeRecoveryValidation = ({ isNew } = {}) => async (ctx) => {
         ctx.throw(401, 'valid securityCode required');
     }
 
-    const account = await AccountService.getAccount(accountId);
+    const account = await AccountService().getAccount(accountId);
     if (!account) {
         ctx.throw(401, 'account does not exist');
     }
 
-    const [recoveryMethod] = await RecoveryMethodService.listRecoveryMethods({
+    const recoveryMethodService = RecoveryMethodService();
+    const [recoveryMethod] = await recoveryMethodService.listRecoveryMethods({
         accountId,
         detail: method.detail,
         kind: method.kind,
@@ -425,10 +430,10 @@ const completeRecoveryValidation = ({ isNew } = {}) => async (ctx) => {
 
     // for new accounts, clear all other recovery methods that may have been created
     if (isNew) {
-        await RecoveryMethodService.deleteOtherRecoveryMethods({ accountId, detail: method.detail });
+        await recoveryMethodService.deleteOtherRecoveryMethods({ accountId, detail: method.detail });
     }
 
-    await RecoveryMethodService.updateRecoveryMethod({
+    await recoveryMethodService.updateRecoveryMethod({
         accountId,
         detail: method.detail,
         kind: method.kind,
@@ -447,7 +452,7 @@ const completeRecoveryValidation = ({ isNew } = {}) => async (ctx) => {
 
         if (valid && score > 0.6) {
             if (await validateEmail({ ctx, email: method.detail, kind: method.kind })) {
-                const isIdentityRecoverable = await IdentityVerificationMethodService.recoverIdentity({
+                const isIdentityRecoverable = await IdentityVerificationMethodService().recoverIdentity({
                     identityKey: method.detail,
                     kind: method.kind,
                     securityCode,
@@ -469,7 +474,7 @@ const completeRecoveryValidation = ({ isNew } = {}) => async (ctx) => {
     }
 
     ctx.status = 200;
-    ctx.body = await RecoveryMethodService.listAllRecoveryMethods(accountId);
+    ctx.body = await recoveryMethodService.listAllRecoveryMethods(accountId);
 };
 
 router.post('/account/validateSecurityCode',
