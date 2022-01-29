@@ -27,6 +27,7 @@
     "@near-wallet/feature-flags": "^0.0.4",
     "@sentry/node": "^6.5.1",
     "@sentry/tracing": "^6.2.3",
+    "@stamp/it": "^1.1.0",
     "bluebird": "^3.7.2",
     "bn.js": "5.1.0",
     "bs58": "^4.0.1",

@@ -18,7 +18,7 @@ class EmailDomainBlacklistDBClient {
         this.debugLog('persistValidationResult', validationResult);
 
         let blacklistEntry;
-        blacklistEntry = await EmailDomainBlacklistService.updateDomainBlacklistEntry({
+        blacklistEntry = await EmailDomainBlacklistService().updateDomainBlacklistEntry({
             staleAt: this.getStaleDate(Date.now()), // Allow caller to override
             ...validationResult,
         });
@@ -36,7 +36,7 @@ class EmailDomainBlacklistDBClient {
         let domainBlacklistEntry;
 
         try {
-            domainBlacklistEntry = await EmailDomainBlacklistService.getDomainBlacklistEntry(normalizeDomainName);
+            domainBlacklistEntry = await EmailDomainBlacklistService().getDomainBlacklistEntry(normalizeDomainName);
 
             // Only cache in memory for un-stale entries so, calling code knows to re-fetch
             if (domainBlacklistEntry && !isEntryStale(domainBlacklistEntry)) {

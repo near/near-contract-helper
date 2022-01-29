@@ -30,9 +30,9 @@ describe('IdentityVerificationMethodService', function () {
                 ...params,
                 securityCode: SECURITY_CODE,
             });
-            await IdentityVerificationMethodService.claimIdentityVerificationMethod(params);
+            await IdentityVerificationMethodService().claimIdentityVerificationMethod(params);
 
-            const identityVerificationMethod = await IdentityVerificationMethodService.getIdentityVerificationMethod(params);
+            const identityVerificationMethod = await IdentityVerificationMethodService().getIdentityVerificationMethod(params);
             expect(identityVerificationMethod).property('securityCode', null);
             expect(identityVerificationMethod).property('claimed', true);
         });
@@ -44,7 +44,7 @@ describe('IdentityVerificationMethodService', function () {
         });
 
         it('returns null for non-existent records', async function () {
-            const identityVerificationMethod = await IdentityVerificationMethodService.getIdentityVerificationMethod({
+            const identityVerificationMethod = await IdentityVerificationMethodService().getIdentityVerificationMethod({
                 identityKey: 'fake@gmail.com',
                 kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
             });
@@ -63,7 +63,7 @@ describe('IdentityVerificationMethodService', function () {
                 securityCode: SECURITY_CODE,
             });
 
-            const identityVerificationMethod = await IdentityVerificationMethodService.getIdentityVerificationMethod(params);
+            const identityVerificationMethod = await IdentityVerificationMethodService().getIdentityVerificationMethod(params);
             expect(identityVerificationMethod).property('identityKey', EMAIL);
             expect(identityVerificationMethod).property('kind', IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL);
         });
@@ -71,24 +71,24 @@ describe('IdentityVerificationMethodService', function () {
 
     describe('getUniqueEmail', function () {
         it('returns empty string for email addresses without @', async function () {
-            expect(IdentityVerificationMethodService.getUniqueEmail('xyz')).equal('');
+            expect(IdentityVerificationMethodService().getUniqueEmail('xyz')).equal('');
         });
 
         it('returns the same value for googlemail addresses', async function () {
-            const gmailAddress = IdentityVerificationMethodService.getUniqueEmail('test@gmail.com');
-            const googleMailAddress = IdentityVerificationMethodService.getUniqueEmail('test@googlemail.com');
+            const gmailAddress = IdentityVerificationMethodService().getUniqueEmail('test@gmail.com');
+            const googleMailAddress = IdentityVerificationMethodService().getUniqueEmail('test@googlemail.com');
             expect(gmailAddress).equal(googleMailAddress);
         });
 
         it('considers email addresses with + characters to be equivalent', async function () {
-            const gmailAddress = IdentityVerificationMethodService.getUniqueEmail('test@gmail.com');
-            const subAddress = IdentityVerificationMethodService.getUniqueEmail('test+tessst@gmail.com');
+            const gmailAddress = IdentityVerificationMethodService().getUniqueEmail('test@gmail.com');
+            const subAddress = IdentityVerificationMethodService().getUniqueEmail('test+tessst@gmail.com');
             expect(gmailAddress).equal(subAddress);
         });
 
         it('ignores special characters in email username', async function () {
-            const gmailAddress = IdentityVerificationMethodService.getUniqueEmail('test@gmail.com');
-            const invalidCharAddress = IdentityVerificationMethodService.getUniqueEmail('t|(e)#s>t@gmail.com');
+            const gmailAddress = IdentityVerificationMethodService().getUniqueEmail('test@gmail.com');
+            const invalidCharAddress = IdentityVerificationMethodService().getUniqueEmail('t|(e)#s>t@gmail.com');
             expect(gmailAddress).equal(invalidCharAddress);
         });
     });
@@ -108,9 +108,9 @@ describe('IdentityVerificationMethodService', function () {
                 ...params,
                 securityCode: SECURITY_CODE,
             });
-            await IdentityVerificationMethodService.claimIdentityVerificationMethod(params);
+            await IdentityVerificationMethodService().claimIdentityVerificationMethod(params);
 
-            const isRecovered = await IdentityVerificationMethodService.recoverIdentity({
+            const isRecovered = await IdentityVerificationMethodService().recoverIdentity({
                 ...params,
                 securityCode: SECURITY_CODE,
             });
@@ -125,11 +125,11 @@ describe('IdentityVerificationMethodService', function () {
             };
 
             await IdentityVerificationMethodSequelize.createIdentityVerificationMethod_internal(params);
-            const isRecovered = await IdentityVerificationMethodService.recoverIdentity({
+            const isRecovered = await IdentityVerificationMethodService().recoverIdentity({
                 ...params,
                 securityCode: SECURITY_CODE,
             });
-            const identityVerificationMethod = await IdentityVerificationMethodService.getIdentityVerificationMethod(params);
+            const identityVerificationMethod = await IdentityVerificationMethodService().getIdentityVerificationMethod(params);
 
             expect(isRecovered).true;
             expect(identityVerificationMethod).property('securityCode', SECURITY_CODE.toString());
@@ -142,7 +142,7 @@ describe('IdentityVerificationMethodService', function () {
             };
 
             await IdentityVerificationMethodSequelize.createIdentityVerificationMethod_internal(params);
-            const isRecovered = await IdentityVerificationMethodService.recoverIdentity({
+            const isRecovered = await IdentityVerificationMethodService().recoverIdentity({
                 ...params,
                 kind: IDENTITY_VERIFICATION_METHOD_KINDS.PHONE,
                 securityCode: SECURITY_CODE,
@@ -161,7 +161,7 @@ describe('IdentityVerificationMethodService', function () {
                 ...params,
                 identityKey: 'test+test@gmail.com',
             });
-            const isRecovered = await IdentityVerificationMethodService.recoverIdentity({
+            const isRecovered = await IdentityVerificationMethodService().recoverIdentity({
                 ...params,
                 kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
                 securityCode: SECURITY_CODE,

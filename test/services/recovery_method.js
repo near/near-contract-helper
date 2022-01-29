@@ -16,12 +16,12 @@ const PUBLIC_KEY = 'xyz';
 describe('RecoveryMethodService', function () {
     beforeEach(async function () {
         await deleteAllRows();
-        await AccountService.createAccount(ACCOUNT_ID);
+        await AccountService().createAccount(ACCOUNT_ID);
     });
 
     describe('createRecoveryMethod', function () {
         it('creates the recovery method', async function () {
-            const recoveryMethod = await RecoveryMethodService.createRecoveryMethod({
+            const recoveryMethod = await RecoveryMethodService().createRecoveryMethod({
                 accountId: ACCOUNT_ID,
                 detail: EMAIL,
                 kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
@@ -38,13 +38,13 @@ describe('RecoveryMethodService', function () {
         it('deletes recovery methods for the same account without the specified detail', async function () {
             const secondaryEmail = 'not-test@near.org';
             await Promise.all([
-                RecoveryMethodService.createRecoveryMethod({
+                RecoveryMethodService().createRecoveryMethod({
                     accountId: ACCOUNT_ID,
                     detail: EMAIL,
                     kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
                     securityCode: SECURITY_CODE,
                 }),
-                RecoveryMethodService.createRecoveryMethod({
+                RecoveryMethodService().createRecoveryMethod({
                     accountId: ACCOUNT_ID,
                     detail: secondaryEmail,
                     kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
@@ -52,11 +52,11 @@ describe('RecoveryMethodService', function () {
                 })
             ]);
 
-            let recoveryMethods = await RecoveryMethodService.listAllRecoveryMethods(ACCOUNT_ID);
+            let recoveryMethods = await RecoveryMethodService().listAllRecoveryMethods(ACCOUNT_ID);
             expect(recoveryMethods).length(2);
 
-            await RecoveryMethodService.deleteOtherRecoveryMethods({ accountId: ACCOUNT_ID, detail: EMAIL });
-            recoveryMethods = await RecoveryMethodService.listAllRecoveryMethods(ACCOUNT_ID);
+            await RecoveryMethodService().deleteOtherRecoveryMethods({ accountId: ACCOUNT_ID, detail: EMAIL });
+            recoveryMethods = await RecoveryMethodService().listAllRecoveryMethods(ACCOUNT_ID);
 
             expect(recoveryMethods).length(1);
             expect(recoveryMethods[0]).property('detail', EMAIL);
@@ -65,7 +65,7 @@ describe('RecoveryMethodService', function () {
 
     describe('deleteRecoveryMethod', function () {
         it('deletes the specified recovery method', async function () {
-            await RecoveryMethodService.createRecoveryMethod({
+            await RecoveryMethodService().createRecoveryMethod({
                 accountId: ACCOUNT_ID,
                 detail: EMAIL,
                 kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
@@ -73,23 +73,23 @@ describe('RecoveryMethodService', function () {
                 publicKey: PUBLIC_KEY,
             });
 
-            let recoveryMethods = await RecoveryMethodService.listAllRecoveryMethods(ACCOUNT_ID);
+            let recoveryMethods = await RecoveryMethodService().listAllRecoveryMethods(ACCOUNT_ID);
             expect(recoveryMethods).length(1);
 
-            await RecoveryMethodService.deleteRecoveryMethod({
+            await RecoveryMethodService().deleteRecoveryMethod({
                 accountId: ACCOUNT_ID,
                 kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
                 publicKey: PUBLIC_KEY,
             });
 
-            recoveryMethods = await RecoveryMethodService.listAllRecoveryMethods(ACCOUNT_ID);
+            recoveryMethods = await RecoveryMethodService().listAllRecoveryMethods(ACCOUNT_ID);
             expect(recoveryMethods).empty;
         });
     });
 
     describe('getTwoFactorRecoveryMethod', function () {
         it('returns null when no two-factor recovery method exists', async function () {
-            await RecoveryMethodService.createRecoveryMethod({
+            await RecoveryMethodService().createRecoveryMethod({
                 accountId: ACCOUNT_ID,
                 detail: EMAIL,
                 kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
@@ -97,12 +97,12 @@ describe('RecoveryMethodService', function () {
                 publicKey: PUBLIC_KEY,
             });
 
-            const recoveryMethod = await RecoveryMethodService.getTwoFactorRecoveryMethod(ACCOUNT_ID);
+            const recoveryMethod = await RecoveryMethodService().getTwoFactorRecoveryMethod(ACCOUNT_ID);
             expect(recoveryMethod).null;
         });
 
         it('returns the two-factor recovery method', async function () {
-            await RecoveryMethodService.createRecoveryMethod({
+            await RecoveryMethodService().createRecoveryMethod({
                 accountId: ACCOUNT_ID,
                 detail: EMAIL,
                 kind: TWO_FACTOR_AUTH_KINDS.EMAIL,
@@ -110,7 +110,7 @@ describe('RecoveryMethodService', function () {
                 publicKey: PUBLIC_KEY,
             });
 
-            const recoveryMethod = await RecoveryMethodService.getTwoFactorRecoveryMethod(ACCOUNT_ID);
+            const recoveryMethod = await RecoveryMethodService().getTwoFactorRecoveryMethod(ACCOUNT_ID);
             expect(recoveryMethod).property('kind', TWO_FACTOR_AUTH_KINDS.EMAIL);
         });
     });
@@ -118,30 +118,30 @@ describe('RecoveryMethodService', function () {
     describe('isTwoFactorRequestExpired', function () {
         it('returns true for expired requests', async function () {
             const oneHourAgo = Date.now() - (60 * 60 * 1000);
-            const isExpired = RecoveryMethodService.isTwoFactorRequestExpired({ updatedAt: oneHourAgo });
+            const isExpired = RecoveryMethodService().isTwoFactorRequestExpired({ updatedAt: oneHourAgo });
             expect(isExpired).true;
         });
 
         it('returns false for non-expired requests', async function () {
             const oneMinuteAgo = Date.now() - (60 * 1000);
-            const isExpired = RecoveryMethodService.isTwoFactorRequestExpired({ updatedAt: oneMinuteAgo });
+            const isExpired = RecoveryMethodService().isTwoFactorRequestExpired({ updatedAt: oneMinuteAgo });
             expect(isExpired).false;
         });
     });
 
     describe('listAllRecoveryMethods', function () {
         it('returns all recovery methods for the provided account', async function () {
-            let recoveryMethods = await RecoveryMethodService.listAllRecoveryMethods(ACCOUNT_ID);
+            let recoveryMethods = await RecoveryMethodService().listAllRecoveryMethods(ACCOUNT_ID);
             expect(recoveryMethods).length(0);
 
             await Promise.all([
-                RecoveryMethodService.createRecoveryMethod({
+                RecoveryMethodService().createRecoveryMethod({
                     accountId: ACCOUNT_ID,
                     detail: EMAIL,
                     kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
                     securityCode: SECURITY_CODE,
                 }),
-                RecoveryMethodService.createRecoveryMethod({
+                RecoveryMethodService().createRecoveryMethod({
                     accountId: ACCOUNT_ID,
                     detail: PHONE,
                     kind: IDENTITY_VERIFICATION_METHOD_KINDS.PHONE,
@@ -149,7 +149,7 @@ describe('RecoveryMethodService', function () {
                 })
             ]);
 
-            recoveryMethods = await RecoveryMethodService.listAllRecoveryMethods(ACCOUNT_ID);
+            recoveryMethods = await RecoveryMethodService().listAllRecoveryMethods(ACCOUNT_ID);
             expect(recoveryMethods).length(2);
         });
     });
@@ -157,13 +157,13 @@ describe('RecoveryMethodService', function () {
     describe('listRecoveryMethods', function () {
         it('returns all recovery methods for the given detail and kind', async function () {
             await Promise.all([
-                RecoveryMethodService.createRecoveryMethod({
+                RecoveryMethodService().createRecoveryMethod({
                     accountId: ACCOUNT_ID,
                     detail: EMAIL,
                     kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
                     securityCode: SECURITY_CODE,
                 }),
-                RecoveryMethodService.createRecoveryMethod({
+                RecoveryMethodService().createRecoveryMethod({
                     accountId: ACCOUNT_ID,
                     detail: PHONE,
                     kind: IDENTITY_VERIFICATION_METHOD_KINDS.PHONE,
@@ -171,7 +171,7 @@ describe('RecoveryMethodService', function () {
                 })
             ]);
 
-            const recoveryMethods = await RecoveryMethodService.listRecoveryMethods({
+            const recoveryMethods = await RecoveryMethodService().listRecoveryMethods({
                 accountId: ACCOUNT_ID,
                 detail: EMAIL,
                 kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
@@ -181,13 +181,13 @@ describe('RecoveryMethodService', function () {
 
         it('returns all recovery methods for the given security code', async function () {
             await Promise.all([
-                RecoveryMethodService.createRecoveryMethod({
+                RecoveryMethodService().createRecoveryMethod({
                     accountId: ACCOUNT_ID,
                     detail: EMAIL,
                     kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
                     securityCode: SECURITY_CODE,
                 }),
-                RecoveryMethodService.createRecoveryMethod({
+                RecoveryMethodService().createRecoveryMethod({
                     accountId: ACCOUNT_ID,
                     detail: PHONE,
                     kind: IDENTITY_VERIFICATION_METHOD_KINDS.PHONE,
@@ -195,7 +195,7 @@ describe('RecoveryMethodService', function () {
                 })
             ]);
 
-            const recoveryMethods = await RecoveryMethodService.listRecoveryMethods({
+            const recoveryMethods = await RecoveryMethodService().listRecoveryMethods({
                 accountId: ACCOUNT_ID,
                 securityCode: SECURITY_CODE.toString(),
             });
@@ -207,7 +207,7 @@ describe('RecoveryMethodService', function () {
 
     describe('resetTwoFactorRequest', function () {
         it('resets the requestId and security code on the two-factor recovery method', async function () {
-            await RecoveryMethodService.createRecoveryMethod({
+            await RecoveryMethodService().createRecoveryMethod({
                 accountId: ACCOUNT_ID,
                 detail: EMAIL,
                 kind: TWO_FACTOR_AUTH_KINDS.EMAIL,
@@ -215,11 +215,11 @@ describe('RecoveryMethodService', function () {
                 requestId: 1,
             });
 
-            let [twoFactorRecoveryMethod] = await RecoveryMethodService.listAllRecoveryMethods(ACCOUNT_ID);
+            let [twoFactorRecoveryMethod] = await RecoveryMethodService().listAllRecoveryMethods(ACCOUNT_ID);
             expect(twoFactorRecoveryMethod).property('requestId', 1);
 
-            await RecoveryMethodService.resetTwoFactorRequest(ACCOUNT_ID);
-            [twoFactorRecoveryMethod] = await RecoveryMethodService.listAllRecoveryMethods(ACCOUNT_ID);
+            await RecoveryMethodService().resetTwoFactorRequest(ACCOUNT_ID);
+            [twoFactorRecoveryMethod] = await RecoveryMethodService().listAllRecoveryMethods(ACCOUNT_ID);
             expect(twoFactorRecoveryMethod).property('requestId', -1);
         });
     });
