@@ -12,10 +12,18 @@ const SequelizeIdentityVerificationMethods = require('./sequelize/identity_verif
 const MATCH_GMAIL_IGNORED_CHARS = /[|&;$%@"<>()+,!#'*\-\/=?^_`.{}]/g;
 
 const IdentityVerificationMethodService = stampit({
+    props: {
+        db: {
+            getIdentityVerificationMethod,
+            getIdentityVerificationMethodByUniqueKey,
+            updateIdentityVerificationMethod,
+        },
+        sequelize: SequelizeIdentityVerificationMethods,
+    },
     methods: {
         claimIdentityVerificationMethod({ identityKey, kind }) {
             if (!USE_DYNAMODB) {
-                return SequelizeIdentityVerificationMethods.claimIdentityVerificationMethod({ identityKey, kind });
+                return this.sequelize.claimIdentityVerificationMethod({ identityKey, kind });
             }
             return updateIdentityVerificationMethod({
                 identityKey,
@@ -28,9 +36,9 @@ const IdentityVerificationMethodService = stampit({
 
         getIdentityVerificationMethod({ identityKey, kind }) {
             if (!USE_DYNAMODB) {
-                return SequelizeIdentityVerificationMethods.getIdentityVerificationMethod({ identityKey, kind });
+                return this.sequelize.getIdentityVerificationMethod({ identityKey, kind });
             }
-            return getIdentityVerificationMethod({ identityKey, kind });
+            return this.db.getIdentityVerificationMethod({ identityKey, kind });
         },
 
         // Identify what gmail would consider the 'root' email for a given email address
@@ -53,7 +61,7 @@ const IdentityVerificationMethodService = stampit({
         // return the IdentityVerificationMethod record when successful, null when invalid
         async recoverIdentity({ identityKey, kind, securityCode }) {
             if (!USE_DYNAMODB) {
-                return SequelizeIdentityVerificationMethods.recoverIdentity({ identityKey, kind, securityCode });
+                return this.sequelize.recoverIdentity({ identityKey, kind, securityCode });
             }
 
             // if identityKey is an email, map it to its deliverable email address
@@ -61,17 +69,17 @@ const IdentityVerificationMethodService = stampit({
             const uniqueEmailKey = (kind === IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL ? this.getUniqueEmail(identityKey) : null);
             if (uniqueEmailKey) {
                 // look up documents with the same deliverable email address as the provided identityKey
-                const duplicateIdentityVerificationMethod = await getIdentityVerificationMethodByUniqueKey(uniqueEmailKey);
+                const identityVerificationMethod = await this.db.getIdentityVerificationMethodByUniqueKey(uniqueEmailKey);
 
                 // if a document exists with the same deliverable email address, but does not have the same identity key as the one provided
                 // to this method, then the method call is attempting to add a key considered to be a duplicate and should not be created
-                if (duplicateIdentityVerificationMethod && duplicateIdentityVerificationMethod.identityKey !== identityKey) {
+                if (identityVerificationMethod && identityVerificationMethod.identityKey !== identityKey) {
                     return null;
                 }
             }
 
             // create new identity verification method if one does not already exist for the given identityKey and kind
-            return updateIdentityVerificationMethod({
+            return this.db.updateIdentityVerificationMethod({
                 identityKey,
                 kind,
             }, {

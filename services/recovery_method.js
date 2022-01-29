@@ -14,10 +14,20 @@ const SequelizeRecoveryMethods = require('./sequelize/recovery_method');
 const TWO_FACTOR_REQUEST_DURATION_MS = 30 * 60000;
 
 const RecoveryMethodService = stampit({
+    props: {
+        db: {
+            createRecoveryMethod,
+            deleteRecoveryMethod,
+            getRecoveryMethodByIdentity,
+            listRecoveryMethodsByAccountId,
+            updateRecoveryMethod,
+        },
+        sequelize: SequelizeRecoveryMethods,
+    },
     methods: {
         createRecoveryMethod({ accountId, detail, kind, publicKey, requestId, securityCode }) {
             if (!USE_DYNAMODB) {
-                return SequelizeRecoveryMethods.createRecoveryMethod({
+                return this.sequelize.createRecoveryMethod({
                     accountId,
                     detail,
                     kind,
@@ -26,7 +36,7 @@ const RecoveryMethodService = stampit({
                     securityCode,
                 });
             }
-            return createRecoveryMethod({
+            return this.db.createRecoveryMethod({
                 accountId,
                 detail,
                 kind,
@@ -38,27 +48,27 @@ const RecoveryMethodService = stampit({
 
         deleteOtherRecoveryMethods({ accountId, detail }) {
             if (!USE_DYNAMODB) {
-                return SequelizeRecoveryMethods.deleteOtherRecoveryMethods({ accountId, detail });
+                return this.sequelize.deleteOtherRecoveryMethods({ accountId, detail });
             }
-            return listRecoveryMethodsByAccountId(accountId)
+            return this.db.listRecoveryMethodsByAccountId(accountId)
                 .filter((recoveryMethod) => recoveryMethod.detail !== detail)
                 .map((recoveryMethod) => deleteRecoveryMethod(recoveryMethod));
         },
 
         deleteRecoveryMethod({ accountId, kind, publicKey }) {
             if (!USE_DYNAMODB) {
-                return SequelizeRecoveryMethods.deleteRecoveryMethod({ accountId, kind, publicKey });
+                return this.sequelize.deleteRecoveryMethod({ accountId, kind, publicKey });
             }
-            return listRecoveryMethodsByAccountId(accountId)
+            return this.db.listRecoveryMethodsByAccountId(accountId)
                 .filter((recoveryMethod) => recoveryMethod.kind === kind && recoveryMethod.publicKey === publicKey)
                 .map((recoveryMethod) => deleteRecoveryMethod(recoveryMethod));
         },
 
         getTwoFactorRecoveryMethod(accountId) {
             if (!USE_DYNAMODB) {
-                return SequelizeRecoveryMethods.getTwoFactorRecoveryMethod(accountId);
+                return this.sequelize.getTwoFactorRecoveryMethod(accountId);
             }
-            return listRecoveryMethodsByAccountId(accountId)
+            return this.db.listRecoveryMethodsByAccountId(accountId)
                 .filter((recoveryMethod) => recoveryMethod.kind.startsWith('2fa-'))
                 .get(0);
         },
@@ -69,9 +79,9 @@ const RecoveryMethodService = stampit({
 
         listAllRecoveryMethods(accountId) {
             if (!USE_DYNAMODB) {
-                return SequelizeRecoveryMethods.listAllRecoveryMethods(accountId);
+                return this.sequelize.listAllRecoveryMethods(accountId);
             }
-            return listRecoveryMethodsByAccountId(accountId)
+            return this.db.listRecoveryMethodsByAccountId(accountId)
                 .map(({ securityCode, ...recoveryMethod }) => ({
                     ...recoveryMethod,
                     confirmed: !securityCode,
@@ -81,7 +91,7 @@ const RecoveryMethodService = stampit({
 
         async listRecoveryMethods({ accountId, detail, kind, publicKey, securityCode }) {
             if (!USE_DYNAMODB) {
-                return SequelizeRecoveryMethods.listRecoveryMethods({
+                return this.sequelize.listRecoveryMethods({
                     accountId,
                     detail,
                     kind,
@@ -104,7 +114,7 @@ const RecoveryMethodService = stampit({
             ].includes(kind);
 
             if (noDetailReported || hasConstituentKeys) {
-                const recoveryMethod = await getRecoveryMethodByIdentity({
+                const recoveryMethod = await this.db.getRecoveryMethodByIdentity({
                     accountId,
                     detail,
                     kind,
@@ -118,7 +128,7 @@ const RecoveryMethodService = stampit({
                 return [recoveryMethod];
             }
 
-            return listRecoveryMethodsByAccountId(accountId)
+            return this.db.listRecoveryMethodsByAccountId(accountId)
                 .filter((recoveryMethod) =>
                     (!detail || detail === recoveryMethod.detail)
                     && (!kind || kind === recoveryMethod.kind)
@@ -129,14 +139,14 @@ const RecoveryMethodService = stampit({
 
         async resetTwoFactorRequest(accountId) {
             if (!USE_DYNAMODB) {
-                return SequelizeRecoveryMethods.resetTwoFactorRequest(accountId);
+                return this.sequelize.resetTwoFactorRequest(accountId);
             }
             const twoFactorRecoveryMethod = await this.getTwoFactorRecoveryMethod(accountId);
             if (!twoFactorRecoveryMethod) {
                 return null;
             }
 
-            return updateRecoveryMethod({
+            return this.db.updateRecoveryMethod({
                 accountId,
                 detail: twoFactorRecoveryMethod.detail,
                 kind: twoFactorRecoveryMethod.kind,
@@ -149,19 +159,19 @@ const RecoveryMethodService = stampit({
 
         // TODO remove this method when removing the USE_DYNAMODB feature flag
         setSecurityCode({ accountId, detail, kind, publicKey, securityCode }) {
-            return SequelizeRecoveryMethods.setSecurityCode({ accountId, detail, kind, publicKey, securityCode });
+            return this.sequelize.setSecurityCode({ accountId, detail, kind, publicKey, securityCode });
         },
 
         updateRecoveryMethod({ accountId, detail, kind, publicKey, securityCode }) {
             if (!USE_DYNAMODB) {
-                return SequelizeRecoveryMethods.updateRecoveryMethod({
+                return this.sequelize.updateRecoveryMethod({
                     accountId,
                     detail,
                     kind,
                     securityCode,
                 });
             }
-            return updateRecoveryMethod({
+            return this.db.updateRecoveryMethod({
                 accountId,
                 detail,
                 kind,
@@ -173,7 +183,7 @@ const RecoveryMethodService = stampit({
 
         async updateTwoFactorRecoveryMethod({ accountId, detail, kind, requestId, securityCode }) {
             if (!USE_DYNAMODB) {
-                return SequelizeRecoveryMethods.updateTwoFactorRecoveryMethod({
+                return this.sequelize.updateTwoFactorRecoveryMethod({
                     accountId,
                     detail,
                     kind,
@@ -188,7 +198,7 @@ const RecoveryMethodService = stampit({
                 return null;
             }
 
-            return updateRecoveryMethod({
+            return this.db.updateRecoveryMethod({
                 accountId,
                 detail: twoFactorRecoveryMethod.detail,
                 kind: twoFactorRecoveryMethod.kind,
