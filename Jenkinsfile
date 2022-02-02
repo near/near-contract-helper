@@ -24,7 +24,7 @@ pipeline {
                 sh "docker build . --tag $MAINNET_ECR_REPOSITORY"
             }
         }
-        stage('backend:deploy') {
+        stage('backend:deploy:testnet') {
             steps {
                 withAWS(
                     region: env.AWS_REGION,
@@ -38,7 +38,10 @@ pipeline {
                     input(message: 'Deploy to testnet?')
                     sh "aws ecs update-service --service $TESTNET_ECS_LIVE_SERVICE --cluster $TESTNET_ECS_CLUSTER --force-new-deployment"
                 }
-
+            }
+        }
+        stage('backend:deploy:mainnet') {
+            steps {
                 withAWS(
                     region: env.AWS_REGION,
                     credentials: env.AWS_CREDENTIALS,
