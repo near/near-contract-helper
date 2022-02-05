@@ -20,6 +20,7 @@ pipeline {
     stages {
         stage('backend:build') {
             steps {
+                milestone(1)
                 sh "docker build . --tag $TESTNET_ECR_REPOSITORY"
                 sh "docker build . --tag $MAINNET_ECR_REPOSITORY"
             }
@@ -32,6 +33,7 @@ pipeline {
                     role: env.AWS_TESTNET_ROLE,
                     roleAccount: env.AWS_TESTNET_ROLE_ACCOUNT
                 ) {
+                    milestone(2)
                     sh 'ecs-cli configure profile' // initialize ecs-cli with AWS credentials injected by outer withAWS block
                     sh "ecs-cli push $TESTNET_ECR_REPOSITORY"
                     sh "aws ecs update-service --service $TESTNET_ECS_STAGING_SERVICE --cluster $TESTNET_ECS_CLUSTER --force-new-deployment"
@@ -48,6 +50,7 @@ pipeline {
                     role: env.AWS_MAINNET_ROLE,
                     roleAccount: env.AWS_MAINNET_ROLE_ACCOUNT
                 ) {
+                    milestone(3)
                     sh 'ecs-cli configure profile' // initialize ecs-cli with AWS credentials injected by outer withAWS block
                     sh "ecs-cli push $MAINNET_ECR_REPOSITORY"
                     sh "aws ecs update-service --service $MAINNET_ECS_STAGING_SERVICE --cluster $MAINNET_ECS_CLUSTER --force-new-deployment"
