@@ -3,19 +3,19 @@
     "createdBy": "Andy Haynes",
     "createdAt": "2021-11-30T22:51:54.860Z",
     "development": {
-      "enabled": false,
+      "enabled": true,
       "lastEditedBy": "Andy Haynes",
-      "lastEditedAt": "2021-12-10T22:57:37.231Z"
+      "lastEditedAt": "2022-01-20T03:44:39.858Z"
     },
     "testnet": {
-      "enabled": false,
+      "enabled": true,
       "lastEditedBy": "Andy Haynes",
-      "lastEditedAt": "2021-11-30T22:51:54.860Z"
+      "lastEditedAt": "2022-01-20T03:44:39.859Z"
     },
     "mainnet": {
-      "enabled": false,
+      "enabled": true,
       "lastEditedBy": "Andy Haynes",
-      "lastEditedAt": "2021-11-30T22:51:54.860Z"
+      "lastEditedAt": "2022-01-27T04:15:37.910Z"
     }
   }
 }
