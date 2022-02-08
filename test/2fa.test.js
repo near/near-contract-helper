@@ -4,12 +4,12 @@ const nearAPI = require('near-api-js');
 const { parseSeedPhrase } = require('near-seed-phrase');
 const sinon = require('sinon');
 
+const constants = require('../constants');
 const attachEchoMessageListeners = require('./attachEchoMessageListeners');
 const expectRequestHelpers = require('./expectRequestHelpers');
-const constants = require('../constants');
 const chai = require('./chai');
 const createTestServerInstance = require('./createTestServerInstance');
-const models = require('../models');
+const { initDb } = require('./db');
 const TestAccountHelper = require('./TestAccountHelper');
 
 const { expect } = chai;
@@ -56,7 +56,7 @@ describe('2fa method management', function () {
             request,
         });
 
-        await models.sequelize.sync({ force: true });
+        await initDb();
     });
 
     describe('setting up 2fa method', () => {
