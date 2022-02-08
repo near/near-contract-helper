@@ -234,7 +234,6 @@ async function createIdentityVerifiedFundedAccount(ctx) {
     const identityVerificationMethodService = IdentityVerificationMethodService();
     const verificationMethod = await identityVerificationMethodService.getIdentityVerificationMethod({
         identityKey,
-        kind,
     });
 
     if (!verificationMethod) {

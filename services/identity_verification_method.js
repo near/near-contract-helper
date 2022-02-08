@@ -38,7 +38,7 @@ const IdentityVerificationMethodService = stampit({
             if (!USE_DYNAMODB) {
                 return this.sequelize.getIdentityVerificationMethod({ identityKey, kind });
             }
-            return this.db.getIdentityVerificationMethod({ identityKey, kind });
+            return this.db.getIdentityVerificationMethod(identityKey);
         },
 
         // Identify what gmail would consider the 'root' email for a given email address
