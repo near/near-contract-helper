@@ -12,9 +12,9 @@ const pool = new Pool({ connectionString: process.env.INDEXER_DB_CONNECTION, });
 let poolMatch;
 
 if (IS_MAINNET) {
-    poolMatch = '%.poolv1.near';
+    poolMatch = JSON.stringify(['%.poolv1.near', '%.pool.near']).replace(/"/g, '\'');
 } else {
-    poolMatch = '%.pool.%.m0';
+    poolMatch = JSON.stringify(['%.pool.%.m0', '%.factory01.littlefarm.testnet']).replace(/"/g, '\'');
 }
 
 const findStakingDeposits = async (ctx) => {
@@ -29,7 +29,7 @@ const findStakingDeposits = async (ctx) => {
                 action_kind = 'FUNCTION_CALL' and
                 args ->> 'method_name' like 'deposit%' and
                 receipt_predecessor_account_id = $1 and
-                receipt_receiver_account_id like '${poolMatch}'
+                receipt_receiver_account_id like ANY(ARRAY${poolMatch})
             group by receipt_receiver_account_id
         ), deposit_out as (
             select SUM(to_number(args ->> 'deposit', '99999999999999999999999999999999999999')) deposit,
@@ -38,7 +38,7 @@ const findStakingDeposits = async (ctx) => {
             where
                 action_kind = 'TRANSFER' and
                 receipt_receiver_account_id = $1 and
-                receipt_predecessor_account_id like '${poolMatch}'
+                receipt_predecessor_account_id like ANY(ARRAY${poolMatch})
             group by receipt_predecessor_account_id
         )
         select sum(deposit_in.deposit - coalesce(deposit_out.deposit, 0)) deposit, deposit_in.validator_id
@@ -151,7 +151,7 @@ const findLikelyTokens = async (ctx) => {
 const findLikelyNFTs = async (ctx) => {
     const { accountId } = ctx.params;
 
-    const received = `
+    const ownershipChangeFunctionCalls = `
         select distinct receipt_receiver_account_id as receiver_account_id
         from action_receipt_actions
         where args->'args_json'->>'receiver_id' = $1
@@ -160,9 +160,13 @@ const findLikelyNFTs = async (ctx) => {
             and args->>'method_name' like 'nft_%'
     `;
 
-    // TODO: How to query minted tokens?
+    const ownershipChangeEvents = `
+        select distinct emitted_by_contract_account_id as receiver_account_id 
+        from assets__non_fungible_token_events
+        where token_new_owner_account_id = $1
+    `;
 
-    const { rows } = await pool.query([received].join(' union '), [accountId]);
+    const { rows } = await pool.query([ownershipChangeFunctionCalls, ownershipChangeEvents].join(' union '), [accountId]);
     ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
 };
 
@@ -171,7 +175,7 @@ const findLikelyNFTs = async (ctx) => {
 const validatorCache = new Cache({ stdTTL: 60, checkperiod: 0, useClones: false });
 
 async function fetchAndCacheValidators(cache) {
-    const { rows: validatorDetails } = await pool.query(`SELECT account_id FROM accounts WHERE account_id LIKE '${poolMatch}'`);
+    const { rows: validatorDetails } = await pool.query(`SELECT account_id FROM accounts WHERE account_id LIKE ANY(ARRAY${poolMatch})`);
 
     const validators = validatorDetails.map((v) => v.account_id);
     cache.set('validators', validators);
