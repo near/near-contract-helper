@@ -9,13 +9,7 @@ const IS_MAINNET = WALLET_URL.includes('wallet.near.org');
 
 const pool = new Pool({ connectionString: process.env.INDEXER_DB_CONNECTION, });
 
-let poolMatch;
-
-if (IS_MAINNET) {
-    poolMatch = JSON.stringify(['%.poolv1.near', '%.pool.near']).replace(/"/g, '\'');
-} else {
-    poolMatch = JSON.stringify(['%.pool.%.m0', '%.factory01.littlefarm.testnet']).replace(/"/g, '\'');
-}
+let poolMatch ='%.stake.guildnet';
 
 const findStakingDeposits = async (ctx) => {
     const { accountId } = ctx.params;
