@@ -6,8 +6,6 @@ const {
     getIdentityVerificationMethodByUniqueKey,
     updateIdentityVerificationMethod,
 } = require('../db/methods/identity_verification_method');
-const { USE_DYNAMODB } = require('../features');
-const SequelizeIdentityVerificationMethods = require('./sequelize/identity_verification_method');
 
 const MATCH_GMAIL_IGNORED_CHARS = /[|&;$%@"<>()+,!#'*\-\/=?^_`.{}]/g;
 
@@ -18,13 +16,9 @@ const IdentityVerificationMethodService = stampit({
             getIdentityVerificationMethodByUniqueKey,
             updateIdentityVerificationMethod,
         },
-        sequelize: SequelizeIdentityVerificationMethods,
     },
     methods: {
         claimIdentityVerificationMethod({ identityKey, kind }) {
-            if (!USE_DYNAMODB) {
-                return this.sequelize.claimIdentityVerificationMethod({ identityKey, kind });
-            }
             return updateIdentityVerificationMethod({
                 identityKey,
                 kind,
@@ -34,10 +28,7 @@ const IdentityVerificationMethodService = stampit({
             });
         },
 
-        getIdentityVerificationMethod({ identityKey, kind }) {
-            if (!USE_DYNAMODB) {
-                return this.sequelize.getIdentityVerificationMethod({ identityKey, kind });
-            }
+        getIdentityVerificationMethod({ identityKey }) {
             return this.db.getIdentityVerificationMethod(identityKey);
         },
 
@@ -60,10 +51,6 @@ const IdentityVerificationMethodService = stampit({
 
         // return the IdentityVerificationMethod record when successful, null when invalid
         async recoverIdentity({ identityKey, kind, securityCode }) {
-            if (!USE_DYNAMODB) {
-                return this.sequelize.recoverIdentity({ identityKey, kind, securityCode });
-            }
-
             // if identityKey is an email, map it to its deliverable email address
             // i.e. a+0@gmail.com and a+1@gmail.com, despite being distinct addresses, will both be delivered to a@gmail.com
             const uniqueEmailKey = (kind === IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL ? this.getUniqueEmail(identityKey) : null);

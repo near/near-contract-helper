@@ -8,8 +8,6 @@ const {
     listRecoveryMethodsByAccountId,
     updateRecoveryMethod,
 } = require('../db/methods/recovery_method');
-const { USE_DYNAMODB } = require('../features');
-const SequelizeRecoveryMethods = require('./sequelize/recovery_method');
 
 const TWO_FACTOR_REQUEST_DURATION_MS = 30 * 60000;
 
@@ -22,20 +20,9 @@ const RecoveryMethodService = stampit({
             listRecoveryMethodsByAccountId,
             updateRecoveryMethod,
         },
-        sequelize: SequelizeRecoveryMethods,
     },
     methods: {
         createRecoveryMethod({ accountId, detail, kind, publicKey, requestId, securityCode }) {
-            if (!USE_DYNAMODB) {
-                return this.sequelize.createRecoveryMethod({
-                    accountId,
-                    detail,
-                    kind,
-                    publicKey,
-                    requestId,
-                    securityCode,
-                });
-            }
             return this.db.createRecoveryMethod({
                 accountId,
                 detail,
@@ -47,27 +34,18 @@ const RecoveryMethodService = stampit({
         },
 
         deleteOtherRecoveryMethods({ accountId, detail }) {
-            if (!USE_DYNAMODB) {
-                return this.sequelize.deleteOtherRecoveryMethods({ accountId, detail });
-            }
             return this.db.listRecoveryMethodsByAccountId(accountId)
                 .filter((recoveryMethod) => recoveryMethod.detail !== detail)
                 .map((recoveryMethod) => deleteRecoveryMethod(recoveryMethod));
         },
 
         deleteRecoveryMethod({ accountId, kind, publicKey }) {
-            if (!USE_DYNAMODB) {
-                return this.sequelize.deleteRecoveryMethod({ accountId, kind, publicKey });
-            }
             return this.db.listRecoveryMethodsByAccountId(accountId)
                 .filter((recoveryMethod) => recoveryMethod.kind === kind && recoveryMethod.publicKey === publicKey)
                 .map((recoveryMethod) => deleteRecoveryMethod(recoveryMethod));
         },
 
         getTwoFactorRecoveryMethod(accountId) {
-            if (!USE_DYNAMODB) {
-                return this.sequelize.getTwoFactorRecoveryMethod(accountId);
-            }
             return this.db.listRecoveryMethodsByAccountId(accountId)
                 .filter((recoveryMethod) => recoveryMethod.kind.startsWith('2fa-'))
                 .get(0);
@@ -78,9 +56,6 @@ const RecoveryMethodService = stampit({
         },
 
         listAllRecoveryMethods(accountId) {
-            if (!USE_DYNAMODB) {
-                return this.sequelize.listAllRecoveryMethods(accountId);
-            }
             return this.db.listRecoveryMethodsByAccountId(accountId)
                 .map(({ securityCode, ...recoveryMethod }) => ({
                     ...recoveryMethod,
@@ -90,16 +65,6 @@ const RecoveryMethodService = stampit({
         },
 
         async listRecoveryMethods({ accountId, detail, kind, publicKey, securityCode }) {
-            if (!USE_DYNAMODB) {
-                return this.sequelize.listRecoveryMethods({
-                    accountId,
-                    detail,
-                    kind,
-                    publicKey,
-                    securityCode
-                });
-            }
-
             const hasSecurityCode = !!(securityCode || securityCode === 0);
 
             // the table keys can be used to uniquely identify a recovery method document if either:
@@ -138,9 +103,6 @@ const RecoveryMethodService = stampit({
         },
 
         async resetTwoFactorRequest(accountId) {
-            if (!USE_DYNAMODB) {
-                return this.sequelize.resetTwoFactorRequest(accountId);
-            }
             const twoFactorRecoveryMethod = await this.getTwoFactorRecoveryMethod(accountId);
             if (!twoFactorRecoveryMethod) {
                 return null;
@@ -157,20 +119,7 @@ const RecoveryMethodService = stampit({
             });
         },
 
-        // TODO remove this method when removing the USE_DYNAMODB feature flag
-        setSecurityCode({ accountId, detail, kind, publicKey, securityCode }) {
-            return this.sequelize.setSecurityCode({ accountId, detail, kind, publicKey, securityCode });
-        },
-
         updateRecoveryMethod({ accountId, detail, kind, publicKey, securityCode }) {
-            if (!USE_DYNAMODB) {
-                return this.sequelize.updateRecoveryMethod({
-                    accountId,
-                    detail,
-                    kind,
-                    securityCode,
-                });
-            }
             return this.db.updateRecoveryMethod({
                 accountId,
                 detail,
@@ -181,16 +130,7 @@ const RecoveryMethodService = stampit({
             });
         },
 
-        async updateTwoFactorRecoveryMethod({ accountId, detail, kind, requestId, securityCode }) {
-            if (!USE_DYNAMODB) {
-                return this.sequelize.updateTwoFactorRecoveryMethod({
-                    accountId,
-                    detail,
-                    kind,
-                    requestId,
-                    securityCode,
-                });
-            }
+        async updateTwoFactorRecoveryMethod({ accountId, requestId, securityCode }) {
             // FIXME leaving this for consistency with existing implementation for now, but this should work as an
             //  identity lookup if the composite key parameters are always provided
             const twoFactorRecoveryMethod = await this.getTwoFactorRecoveryMethod(accountId);
