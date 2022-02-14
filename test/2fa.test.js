@@ -200,6 +200,7 @@ describe('2fa method management', function () {
 
         describe('malformed security codes should be rejected', () => {
             const expectInvalid2faCodeProvidedError = expectFailedWithCode(401, 'invalid 2fa code provided');
+            const expectInvalid2faCodeForRequestError = expectFailedWithCode(401, '2fa code not valid for request id');
 
             it('verify 2fa method should fail when given code that is too long', async () => {
                 return testAccountHelper.verify2faMethod({
@@ -236,6 +237,16 @@ describe('2fa method management', function () {
                     requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
                 })
                     .then(expectInvalid2faCodeProvidedError);
+            });
+
+            it('verify 2fa method should fail when the wrong code is provided', async () => {
+                const offsetSecurityCode = securityCode > 0 ? securityCode - 1 : securityCode + 1;
+                return testAccountHelper.verify2faMethod({
+                    accountId,
+                    requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
+                    securityCode: offsetSecurityCode.toString(),
+                })
+                    .then(expectInvalid2faCodeForRequestError);
             });
         });
     });
