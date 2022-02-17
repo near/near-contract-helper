@@ -1,36 +1,39 @@
+const { USE_DYNAMODB } = require('../../features');
 const AccountService = require('../../services/account');
 const chai = require('../chai');
 const { deleteAllRows } = require('../db');
+const initLocalDynamo = require('../local_dynamo');
+const { generateAccountId } = require('../utils');
 
 const { expect } = chai;
 
-function* generateAccountId() {
-    let accountSuffix = 1;
-    while (true) {
-        yield `account${accountSuffix++}.near`;
-    }
-}
-
-const accountGenerator = generateAccountId();
-function getAccountId() {
-    return accountGenerator.next().value;
-}
-
 describe('AccountService', function () {
+    let terminateLocalDynamo;
     before(async function() {
-        await deleteAllRows();
+        if (USE_DYNAMODB) {
+            this.timeout(10000);
+            ({ terminateLocalDynamo } = await initLocalDynamo());
+        } else {
+            await deleteAllRows();
+        }
+    });
+
+    after(async function() {
+        if (USE_DYNAMODB) {
+            await terminateLocalDynamo();
+        }
     });
 
     describe('createAccount', function () {
         it('accounts are created with default parameters', async function () {
-            const accountId = getAccountId();
+            const accountId = generateAccountId();
             const account = await AccountService().createAccount(accountId);
             expect(account).property('accountId', accountId);
             expect(account).property('fundedAccountNeedsDeposit', false);
         });
 
         it('accounts are correctly created with fundedAccountNeedsDeposit', async function () {
-            const accountId = getAccountId();
+            const accountId = generateAccountId();
             const account = await AccountService().createAccount(accountId, { fundedAccountNeedsDeposit: true });
             expect(account).property('accountId', accountId);
             expect(account).property('fundedAccountNeedsDeposit', true);
@@ -39,7 +42,7 @@ describe('AccountService', function () {
 
     describe('deleteAccount', function () {
         it('the account with matching accountId is deleted', async function () {
-            const accountId = getAccountId();
+            const accountId = generateAccountId();
             let account = await AccountService().createAccount(accountId);
             expect(account).property('accountId', accountId);
 
@@ -51,7 +54,7 @@ describe('AccountService', function () {
 
     describe('getAccount', function () {
         it('the account with matching accountId is returned', async function () {
-            const accountId = getAccountId();
+            const accountId = generateAccountId();
             let account = await AccountService().createAccount(accountId);
             expect(account).property('accountId', accountId);
 
@@ -68,7 +71,7 @@ describe('AccountService', function () {
 
     describe('setAccountRequiresDeposit', function () {
         it('sets the fundedAccountNeedsDeposit flag', async function () {
-            const accountId = getAccountId();
+            const accountId = generateAccountId();
             let account = await AccountService().createAccount(accountId);
             expect(account).property('fundedAccountNeedsDeposit', false);
 
