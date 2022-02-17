@@ -58,7 +58,6 @@ const IdentityVerificationMethodService = stampit({
             return `${username}@${domain}`.toLowerCase();
         },
 
-        // return the IdentityVerificationMethod record when successful, null when invalid
         async recoverIdentity({ identityKey, kind, securityCode }) {
             if (!USE_DYNAMODB) {
                 return this.sequelize.recoverIdentity({ identityKey, kind, securityCode });
@@ -74,18 +73,26 @@ const IdentityVerificationMethodService = stampit({
                 // if a document exists with the same deliverable email address, but does not have the same identity key as the one provided
                 // to this method, then the method call is attempting to add a key considered to be a duplicate and should not be created
                 if (identityVerificationMethod && identityVerificationMethod.identityKey !== identityKey) {
-                    return null;
+                    return false;
                 }
             }
 
+            // if an identity verification method exists for this identityKey but with a different kind then it cannot be recovered
+            let identityVerificationMethod = await this.db.getIdentityVerificationMethod(identityKey);
+            if (identityVerificationMethod && identityVerificationMethod.kind !== kind) {
+                return false;
+            }
+
             // create new identity verification method if one does not already exist for the given identityKey and kind
-            return this.db.updateIdentityVerificationMethod({
+            identityVerificationMethod = await this.db.updateIdentityVerificationMethod({
                 identityKey,
-                kind,
             }, {
+                kind,
                 securityCode,
                 ...(uniqueEmailKey && { uniqueIdentityKey: uniqueEmailKey }),
             });
+
+            return !identityVerificationMethod.claimed;
         },
     },
 });
