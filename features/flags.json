@@ -3,29 +3,29 @@
     "createdBy": "Andy Haynes",
     "createdAt": "2022-01-28T21:20:05.270Z",
     "development": {
-      "enabled": false,
+      "enabled": true,
       "lastEditedBy": "Andy Haynes",
-      "lastEditedAt": "2022-01-28T21:20:05.270Z"
+      "lastEditedAt": "2022-02-17T21:30:08.477Z"
     },
     "testnet": {
-      "enabled": false,
+      "enabled": true,
       "lastEditedBy": "Andy Haynes",
-      "lastEditedAt": "2022-01-28T21:20:05.270Z"
+      "lastEditedAt": "2022-02-17T21:30:08.478Z"
     },
     "mainnet": {
-      "enabled": false,
+      "enabled": true,
       "lastEditedBy": "Andy Haynes",
-      "lastEditedAt": "2022-01-28T21:20:05.270Z"
+      "lastEditedAt": "2022-02-17T21:30:08.478Z"
     },
     "testnet_STAGING": {
-      "enabled": false,
+      "enabled": true,
       "lastEditedBy": "Andy Haynes",
-      "lastEditedAt": "2022-01-31T21:14:31.321Z"
+      "lastEditedAt": "2022-02-17T21:30:08.478Z"
     },
     "mainnet_STAGING": {
-      "enabled": false,
+      "enabled": true,
       "lastEditedBy": "Andy Haynes",
-      "lastEditedAt": "2022-01-31T21:14:42.135Z"
+      "lastEditedAt": "2022-02-17T21:30:08.478Z"
     }
   }
 }
