@@ -1,34 +1,57 @@
+const Promise = require('bluebird');
+
 const Constants = require('../../constants');
+const { USE_DYNAMODB } = require('../../features');
 const AccountService = require('../../services/account');
 const RecoveryMethodService = require('../../services/recovery_method');
 const chai = require('../chai');
 const { deleteAllRows } = require('../db');
+const initLocalDynamo = require('../local_dynamo');
+const { generateEmailAddress, generateSmsNumber } = require('../utils');
 
 const { IDENTITY_VERIFICATION_METHOD_KINDS, TWO_FACTOR_AUTH_KINDS } = Constants;
 const { expect } = chai;
 
 const ACCOUNT_ID = 'near.near';
-const EMAIL = 'test@near.org';
-const PHONE = '+1-111-222-3333';
-const SECURITY_CODE = 123456;
+const SECURITY_CODE = '123456';
 const PUBLIC_KEY = 'xyz';
 
 describe('RecoveryMethodService', function () {
     beforeEach(async function () {
-        await deleteAllRows();
-        await AccountService().createAccount(ACCOUNT_ID);
+        if (USE_DYNAMODB) {
+            const methods = await RecoveryMethodService().listRecoveryMethods({ accountId: ACCOUNT_ID });
+            await Promise.all(methods.map((method) => RecoveryMethodService().deleteRecoveryMethod(method)));
+        } else {
+            await deleteAllRows();
+            await AccountService().createAccount(ACCOUNT_ID);
+        }
+    });
+
+    let terminateLocalDynamo;
+    before(async function() {
+        if (USE_DYNAMODB) {
+            this.timeout(10000);
+            ({ terminateLocalDynamo } = await initLocalDynamo());
+        }
+    });
+
+    after(async function() {
+        if (USE_DYNAMODB) {
+            await terminateLocalDynamo();
+        }
     });
 
     describe('createRecoveryMethod', function () {
         it('creates the recovery method', async function () {
+            const email = generateEmailAddress();
             const recoveryMethod = await RecoveryMethodService().createRecoveryMethod({
                 accountId: ACCOUNT_ID,
-                detail: EMAIL,
+                detail: email,
                 kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
                 securityCode: SECURITY_CODE,
             });
 
-            expect(recoveryMethod).property('detail', EMAIL);
+            expect(recoveryMethod).property('detail', email);
             expect(recoveryMethod).property('kind', IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL);
             expect(recoveryMethod).property('securityCode', SECURITY_CODE.toString());
         });
@@ -36,11 +59,12 @@ describe('RecoveryMethodService', function () {
 
     describe('deleteOtherRecoveryMethods', function () {
         it('deletes recovery methods for the same account without the specified detail', async function () {
-            const secondaryEmail = 'not-test@near.org';
+            const email = generateEmailAddress();
+            const secondaryEmail = generateEmailAddress();
             await Promise.all([
                 RecoveryMethodService().createRecoveryMethod({
                     accountId: ACCOUNT_ID,
-                    detail: EMAIL,
+                    detail: email,
                     kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
                     securityCode: SECURITY_CODE,
                 }),
@@ -55,11 +79,11 @@ describe('RecoveryMethodService', function () {
             let recoveryMethods = await RecoveryMethodService().listAllRecoveryMethods(ACCOUNT_ID);
             expect(recoveryMethods).length(2);
 
-            await RecoveryMethodService().deleteOtherRecoveryMethods({ accountId: ACCOUNT_ID, detail: EMAIL });
+            await RecoveryMethodService().deleteOtherRecoveryMethods({ accountId: ACCOUNT_ID, detail: email });
             recoveryMethods = await RecoveryMethodService().listAllRecoveryMethods(ACCOUNT_ID);
 
             expect(recoveryMethods).length(1);
-            expect(recoveryMethods[0]).property('detail', EMAIL);
+            expect(recoveryMethods[0]).property('detail', email);
         });
     });
 
@@ -67,7 +91,7 @@ describe('RecoveryMethodService', function () {
         it('deletes the specified recovery method', async function () {
             await RecoveryMethodService().createRecoveryMethod({
                 accountId: ACCOUNT_ID,
-                detail: EMAIL,
+                detail: generateEmailAddress(),
                 kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
                 securityCode: SECURITY_CODE,
                 publicKey: PUBLIC_KEY,
@@ -91,7 +115,7 @@ describe('RecoveryMethodService', function () {
         it('returns null when no two-factor recovery method exists', async function () {
             await RecoveryMethodService().createRecoveryMethod({
                 accountId: ACCOUNT_ID,
-                detail: EMAIL,
+                detail: generateEmailAddress(),
                 kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
                 securityCode: SECURITY_CODE,
                 publicKey: PUBLIC_KEY,
@@ -104,7 +128,7 @@ describe('RecoveryMethodService', function () {
         it('returns the two-factor recovery method', async function () {
             await RecoveryMethodService().createRecoveryMethod({
                 accountId: ACCOUNT_ID,
-                detail: EMAIL,
+                detail: generateEmailAddress(),
                 kind: TWO_FACTOR_AUTH_KINDS.EMAIL,
                 securityCode: SECURITY_CODE,
                 publicKey: PUBLIC_KEY,
@@ -137,13 +161,13 @@ describe('RecoveryMethodService', function () {
             await Promise.all([
                 RecoveryMethodService().createRecoveryMethod({
                     accountId: ACCOUNT_ID,
-                    detail: EMAIL,
+                    detail: generateEmailAddress(),
                     kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
                     securityCode: SECURITY_CODE,
                 }),
                 RecoveryMethodService().createRecoveryMethod({
                     accountId: ACCOUNT_ID,
-                    detail: PHONE,
+                    detail: generateSmsNumber(),
                     kind: IDENTITY_VERIFICATION_METHOD_KINDS.PHONE,
                     securityCode: SECURITY_CODE,
                 })
@@ -156,16 +180,17 @@ describe('RecoveryMethodService', function () {
 
     describe('listRecoveryMethods', function () {
         it('returns all recovery methods for the given detail and kind', async function () {
+            const email = generateEmailAddress();
             await Promise.all([
                 RecoveryMethodService().createRecoveryMethod({
                     accountId: ACCOUNT_ID,
-                    detail: EMAIL,
+                    detail: email,
                     kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
                     securityCode: SECURITY_CODE,
                 }),
                 RecoveryMethodService().createRecoveryMethod({
                     accountId: ACCOUNT_ID,
-                    detail: PHONE,
+                    detail: generateSmsNumber(),
                     kind: IDENTITY_VERIFICATION_METHOD_KINDS.PHONE,
                     securityCode: '654321',
                 })
@@ -173,23 +198,24 @@ describe('RecoveryMethodService', function () {
 
             const recoveryMethods = await RecoveryMethodService().listRecoveryMethods({
                 accountId: ACCOUNT_ID,
-                detail: EMAIL,
+                detail: email,
                 kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
             });
             expect(recoveryMethods).length(1);
         });
 
         it('returns all recovery methods for the given security code', async function () {
+            const email = generateEmailAddress();
             await Promise.all([
                 RecoveryMethodService().createRecoveryMethod({
                     accountId: ACCOUNT_ID,
-                    detail: EMAIL,
+                    detail: email,
                     kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
                     securityCode: SECURITY_CODE,
                 }),
                 RecoveryMethodService().createRecoveryMethod({
                     accountId: ACCOUNT_ID,
-                    detail: PHONE,
+                    detail: generateSmsNumber(),
                     kind: IDENTITY_VERIFICATION_METHOD_KINDS.PHONE,
                     securityCode: '654321',
                 })
@@ -201,7 +227,7 @@ describe('RecoveryMethodService', function () {
             });
 
             expect(recoveryMethods).length(1);
-            expect(recoveryMethods[0]).property('detail', EMAIL);
+            expect(recoveryMethods[0]).property('detail', email);
         });
     });
 
@@ -209,7 +235,7 @@ describe('RecoveryMethodService', function () {
         it('resets the requestId and security code on the two-factor recovery method', async function () {
             await RecoveryMethodService().createRecoveryMethod({
                 accountId: ACCOUNT_ID,
-                detail: EMAIL,
+                detail: generateEmailAddress(),
                 kind: TWO_FACTOR_AUTH_KINDS.EMAIL,
                 securityCode: SECURITY_CODE,
                 requestId: 1,

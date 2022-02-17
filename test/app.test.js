@@ -4,11 +4,13 @@ const nearAPI = require('near-api-js');
 const { parseSeedPhrase } = require('near-seed-phrase');
 
 const constants = require('../constants');
+const { USE_DYNAMODB } = require('../features');
 const AccountService = require('../services/account');
 const RecoveryMethodService = require('../services/recovery_method');
 const attachEchoMessageListeners = require('./attachEchoMessageListeners');
 const chai = require('./chai');
 const { initDb } = require('./db');
+const initLocalDynamo = require('./local_dynamo');
 const expectRequestHelpers = require('./expectRequestHelpers');
 const createTestServerInstance = require('./createTestServerInstance');
 const TestAccountHelper = require('./TestAccountHelper');
@@ -60,6 +62,7 @@ describe('app routes', function () {
     this.timeout(15000);
 
     let app, request, testAccountHelper;
+    let terminateLocalDynamo;
 
     before(async () => {
         const keyStore = new nearAPI.keyStores.InMemoryKeyStore();
@@ -76,7 +79,17 @@ describe('app routes', function () {
             request,
         });
 
-        await initDb();
+        if (USE_DYNAMODB) {
+            ({ terminateLocalDynamo } = await initLocalDynamo());
+        } else {
+            await initDb();
+        }
+    });
+
+    after(async function() {
+        if (USE_DYNAMODB) {
+            await terminateLocalDynamo();
+        }
     });
 
     describe('/account/initializeRecoveryMethodForTempAccount', () => {

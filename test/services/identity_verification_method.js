@@ -3,49 +3,80 @@ const IdentityVerificationMethodService = require('../../services/identity_verif
 const IdentityVerificationMethodSequelize = require('../../services/sequelize/identity_verification_method');
 const chai = require('../chai');
 const { deleteAllRows } = require('../db');
+const { USE_DYNAMODB } = require('../../features');
+const initLocalDynamo = require('../local_dynamo');
+const { generateEmailAddress } = require('../utils');
 
 const { IDENTITY_VERIFICATION_METHOD_KINDS } = Constants;
 const { expect } = chai;
 
-const EMAIL = 'test@near.org';
-const SECURITY_CODE = 123456;
+const SECURITY_CODE = '123456';
 
 describe('IdentityVerificationMethodService', function () {
+    let terminateLocalDynamo;
     before(async function() {
-        await deleteAllRows();
+        if (USE_DYNAMODB) {
+            this.timeout(10000);
+            ({ terminateLocalDynamo } = await initLocalDynamo());
+        } else {
+            await deleteAllRows();
+        }
+    });
+
+    after(async function() {
+        if (USE_DYNAMODB) {
+            await terminateLocalDynamo();
+        }
     });
 
     describe('claimIdentityVerificationMethod', function () {
         beforeEach(async function () {
-            await deleteAllRows();
+            if (!USE_DYNAMODB) {
+                await deleteAllRows();
+            }
         });
 
         it('updates an unclaimed identity verification method to be claimed', async function () {
             const params = {
-                identityKey: EMAIL,
+                identityKey: generateEmailAddress(),
                 kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
             };
 
-            await IdentityVerificationMethodSequelize.createIdentityVerificationMethod_internal({
-                ...params,
-                securityCode: SECURITY_CODE,
-            });
+            if (USE_DYNAMODB) {
+                await IdentityVerificationMethodService().recoverIdentity({
+                    ...params,
+                    securityCode: SECURITY_CODE,
+                });
+            } else {
+                await IdentityVerificationMethodSequelize.createIdentityVerificationMethod_internal({
+                    ...params,
+                    securityCode: SECURITY_CODE,
+                });
+            }
+
             await IdentityVerificationMethodService().claimIdentityVerificationMethod(params);
 
             const identityVerificationMethod = await IdentityVerificationMethodService().getIdentityVerificationMethod(params);
-            expect(identityVerificationMethod).property('securityCode', null);
+            if (USE_DYNAMODB) {
+                expect(identityVerificationMethod).not.have.property('securityCode');
+            } else {
+                expect(identityVerificationMethod).property('securityCode', null);
+            }
+
             expect(identityVerificationMethod).property('claimed', true);
         });
     });
 
     describe('getIdentityVerificationMethod', function () {
         beforeEach(async function () {
-            await deleteAllRows();
+            if (!USE_DYNAMODB) {
+                await deleteAllRows();
+            }
         });
 
         it('returns null for non-existent records', async function () {
             const identityVerificationMethod = await IdentityVerificationMethodService().getIdentityVerificationMethod({
-                identityKey: 'fake@gmail.com',
+                identityKey: generateEmailAddress(),
                 kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
             });
 
@@ -54,18 +85,25 @@ describe('IdentityVerificationMethodService', function () {
 
         it('gets the identity verification method based on identityKey and kind', async function () {
             const params = {
-                identityKey: EMAIL,
+                identityKey: generateEmailAddress(),
                 kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
             };
 
-            await IdentityVerificationMethodSequelize.createIdentityVerificationMethod_internal({
-                ...params,
-                securityCode: SECURITY_CODE,
-            });
+            if (USE_DYNAMODB) {
+                await IdentityVerificationMethodService().recoverIdentity({
+                    ...params,
+                    securityCode: SECURITY_CODE,
+                });
+            } else {
+                await IdentityVerificationMethodSequelize.createIdentityVerificationMethod_internal({
+                    ...params,
+                    securityCode: SECURITY_CODE,
+                });
+            }
 
             const identityVerificationMethod = await IdentityVerificationMethodService().getIdentityVerificationMethod(params);
-            expect(identityVerificationMethod).property('identityKey', EMAIL);
-            expect(identityVerificationMethod).property('kind', IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL);
+            expect(identityVerificationMethod).property('identityKey', params.identityKey);
+            expect(identityVerificationMethod).property('kind', params.kind);
         });
     });
 
@@ -95,19 +133,29 @@ describe('IdentityVerificationMethodService', function () {
 
     describe('recoverIdentity', function () {
         beforeEach(async function () {
-            await deleteAllRows();
+            if (!USE_DYNAMODB) {
+                await deleteAllRows();
+            }
         });
 
         it('returns false for already-claimed identity verification methods', async function () {
             const params = {
-                identityKey: EMAIL,
+                identityKey: generateEmailAddress(),
                 kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
             };
 
-            await IdentityVerificationMethodSequelize.createIdentityVerificationMethod_internal({
-                ...params,
-                securityCode: SECURITY_CODE,
-            });
+            if (USE_DYNAMODB) {
+                await IdentityVerificationMethodService().recoverIdentity({
+                    ...params,
+                    securityCode: SECURITY_CODE,
+                });
+            } else {
+                await IdentityVerificationMethodSequelize.createIdentityVerificationMethod_internal({
+                    ...params,
+                    securityCode: SECURITY_CODE,
+                });
+            }
+
             await IdentityVerificationMethodService().claimIdentityVerificationMethod(params);
 
             const isRecovered = await IdentityVerificationMethodService().recoverIdentity({
@@ -120,11 +168,16 @@ describe('IdentityVerificationMethodService', function () {
 
         it('updates unclaimed identity verification methods', async function () {
             const params = {
-                identityKey: EMAIL,
+                identityKey: generateEmailAddress(),
                 kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
             };
 
-            await IdentityVerificationMethodSequelize.createIdentityVerificationMethod_internal(params);
+            if (USE_DYNAMODB) {
+                await IdentityVerificationMethodService().recoverIdentity(params);
+            } else {
+                await IdentityVerificationMethodSequelize.createIdentityVerificationMethod_internal(params);
+            }
+
             const isRecovered = await IdentityVerificationMethodService().recoverIdentity({
                 ...params,
                 securityCode: SECURITY_CODE,
@@ -137,11 +190,16 @@ describe('IdentityVerificationMethodService', function () {
 
         it('returns false when the identityKey exists for a different value for kind', async function () {
             const params = {
-                identityKey: EMAIL,
+                identityKey: generateEmailAddress(),
                 kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
             };
 
-            await IdentityVerificationMethodSequelize.createIdentityVerificationMethod_internal(params);
+            if (USE_DYNAMODB) {
+                await IdentityVerificationMethodService().recoverIdentity(params);
+            } else {
+                await IdentityVerificationMethodSequelize.createIdentityVerificationMethod_internal(params);
+            }
+
             const isRecovered = await IdentityVerificationMethodService().recoverIdentity({
                 ...params,
                 kind: IDENTITY_VERIFICATION_METHOD_KINDS.PHONE,
@@ -157,10 +215,19 @@ describe('IdentityVerificationMethodService', function () {
                 kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
             };
 
-            await IdentityVerificationMethodSequelize.createIdentityVerificationMethod_internal({
-                ...params,
-                identityKey: 'test+test@gmail.com',
-            });
+
+            if (USE_DYNAMODB) {
+                await IdentityVerificationMethodService().recoverIdentity({
+                    ...params,
+                    identityKey: 'test+test@gmail.com',
+                });
+            } else {
+                await IdentityVerificationMethodSequelize.createIdentityVerificationMethod_internal({
+                    ...params,
+                    identityKey: 'test+test@gmail.com',
+                });
+            }
+
             const isRecovered = await IdentityVerificationMethodService().recoverIdentity({
                 ...params,
                 kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
