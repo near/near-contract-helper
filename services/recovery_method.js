@@ -70,7 +70,8 @@ const RecoveryMethodService = stampit({
             }
             return this.db.listRecoveryMethodsByAccountId(accountId)
                 .filter((recoveryMethod) => recoveryMethod.kind.startsWith('2fa-'))
-                .get(0);
+                .get(0)
+                .then((method) => method || null);
         },
 
         isTwoFactorRequestExpired({ updatedAt }) {
@@ -85,7 +86,7 @@ const RecoveryMethodService = stampit({
                 .map(({ securityCode, ...recoveryMethod }) => ({
                     ...recoveryMethod,
                     confirmed: !securityCode,
-                    requestId: parseInt(recoveryMethod.securityCode, 10),
+                    requestId: parseInt(recoveryMethod.requestId, 10),
                 }));
         },
 
@@ -133,7 +134,7 @@ const RecoveryMethodService = stampit({
                     (!detail || detail === recoveryMethod.detail)
                     && (!kind || kind === recoveryMethod.kind)
                     && (!publicKey || publicKey === recoveryMethod.publicKey)
-                    && (hasSecurityCode && securityCode === recoveryMethod.securityCode)
+                    && (!hasSecurityCode || securityCode === recoveryMethod.securityCode)
                 );
         },
 
