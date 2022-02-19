@@ -36,6 +36,8 @@ const VERBOSE_OUTPUT_CONFIG = {
     ECHO_MESSAGE_CONTENT: VERBOSE_OUTPUT || false
 };
 
+const expectInvalid2faCodeForRequestError = expectFailedWithCode(401, '2fa code not valid for request id');
+
 describe('2fa method management', function () {
     this.timeout(15000);
 
@@ -125,6 +127,14 @@ describe('2fa method management', function () {
                 .length(6)
                 .not.equal(initialSecurityCode);
 
+            // old security code is invalidated
+            await testAccountHelper.verify2faMethod({
+                accountId,
+                requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
+                securityCode: initialSecurityCode,
+            })
+                .then(expectInvalid2faCodeForRequestError);
+
             const { body } = await testAccountHelper.verify2faMethod({
                 accountId,
                 requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
@@ -155,6 +165,48 @@ describe('2fa method management', function () {
                 method: twoFactorMethods.email,
             });
             expectFailedWithCode(401, 'account with multisig contract already has 2fa method')(result);
+        });
+    });
+
+    describe('/send', function () {
+        let accountId;
+        let securityCode;
+
+        // Would prefer beforeAll, but `testContext.logs` is cleared in the global beforeEach() that would run after beforeAll here
+        beforeEach(async () => {
+            if (!accountId) {
+                ({
+                    accountId,
+                    securityCode
+                } = await testAccountHelper.create2faEnabledNEARAccount({ method: twoFactorMethods.email }));
+            }
+        });
+
+        describe('resent 2FA requests', () => {
+            it('previously-generated codes are invalid', async () => {
+                const { securityCode: newSecurityCode } = await testAccountHelper.send2faMethod({
+                    accountId,
+                    requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
+                    method: twoFactorMethods.email,
+                });
+
+                expect(newSecurityCode).not.equal(securityCode);
+
+                // old security code is invalidated
+                await testAccountHelper.verify2faMethod({
+                    accountId,
+                    requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
+                    securityCode,
+                })
+                    .then(expectInvalid2faCodeForRequestError);
+
+                await testAccountHelper.verify2faMethod({
+                    accountId,
+                    requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
+                    securityCode: newSecurityCode
+                })
+                    .then(expectJSONResponse);
+            });
         });
     });
 
@@ -200,7 +252,6 @@ describe('2fa method management', function () {
 
         describe('malformed security codes should be rejected', () => {
             const expectInvalid2faCodeProvidedError = expectFailedWithCode(401, 'invalid 2fa code provided');
-            const expectInvalid2faCodeForRequestError = expectFailedWithCode(401, '2fa code not valid for request id');
 
             it('verify 2fa method should fail when given code that is too long', async () => {
                 return testAccountHelper.verify2faMethod({

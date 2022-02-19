@@ -157,6 +157,18 @@ class TestAccountHelper {
         return { result, securityCode: this.getSecurityCodeForAccount(accountId) };
     }
 
+    async send2faMethod({ accountId, method, requestId, valid }) {
+        const signature = await this.signatureForLatestBlock({ accountId, valid });
+
+        this.clearSecurityCodeForAccount(accountId);
+
+        const result = await this._request
+            .post('/2fa/send')
+            .send({ accountId, method, requestId, ...signature });
+
+        return { result, securityCode: this.getSecurityCodeForAccount(accountId) };
+    }
+
     async verify2faMethod({ accountId, requestId, securityCode, valid }) {
         const signature = await this.signatureForLatestBlock({ accountId, valid });
 
