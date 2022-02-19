@@ -214,14 +214,12 @@ const getTwoFactorRecoveryMethod = async (ctx, accountId) => {
  @warn protect these routes using checkAccountOwnership middleware from app.js
  @warn Requires refactor
  ********************************/
-// http post http://localhost:3000/2fa/getAccessKey accountId=mattlock
 // Call this to get the public key of the access key that contract-helper will be using to confirm multisig requests
 const getAccessKey = async (ctx) => {
     const { accountId } = ctx.request.body;
     ctx.body = { publicKey: (await ctx.near.connection.signer.getPublicKey(accountId, 'default')).toString() };
 };
 
-// http post http://localhost:3000/2fa/init accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
 // Call ONCE to enable 2fa on this account. Adds a twoFactorMethod (passed in body) where kind should start with '2fa-'
 // This WILL send the initial code to the method specified ['2fa-email', '2fa-phone']
 const initCode = async (ctx) => {
@@ -283,7 +281,6 @@ const initCode = async (ctx) => {
     };
 };
 
-// http post http://localhost:3000/2fa/send accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}' requestId=0
 // Call anytime after calling initCode to resend a new code, the new code will overwrite the old code
 const sendNewCode = async (ctx) => {
     const { accountId, method, requestId } = ctx.request.body;
@@ -299,7 +296,6 @@ const sendNewCode = async (ctx) => {
     };
 };
 
-// http post http://localhost:3000/2fa/verify accountId=mattlock securityCode=430888
 // call when you want to verify the "current" securityCode
 const verifyCode = async (ctx) => {
     const { accountId, securityCode, requestId } = ctx.request.body;
@@ -321,7 +317,7 @@ const verifyCode = async (ctx) => {
         ctx.throw(401, '2fa code not valid for request id');
     }
 
-    // only verify codes that are 5 minutes old (if testing make this impossible)
+    // only validate recently-generated codes
     if (RecoveryMethodService.isTwoFactorRequestExpired(twoFactorMethod)) {
         console.warn(`2fa code expired for: ${accountId}`);
         ctx.throw(401, '2fa code expired');
