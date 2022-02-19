@@ -122,6 +122,17 @@ describe('RecoveryMethodService', function () {
             expect(isExpired).true;
         });
 
+        it('returns true for future values', async function () {
+            const oneMinuteFromNow = Date.now() + (60 * 1000);
+            const isExpired = RecoveryMethodService.isTwoFactorRequestExpired({ updatedAt: oneMinuteFromNow });
+            expect(isExpired).true;
+        });
+
+        it('returns true for empty values', async function () {
+            const isExpired = RecoveryMethodService.isTwoFactorRequestExpired({});
+            expect(isExpired).true;
+        });
+
         it('returns false for non-expired requests', async function () {
             const oneMinuteAgo = Date.now() - (60 * 1000);
             const isExpired = RecoveryMethodService.isTwoFactorRequestExpired({ updatedAt: oneMinuteAgo });

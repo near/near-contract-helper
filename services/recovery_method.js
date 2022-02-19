@@ -27,6 +27,11 @@ const RecoveryMethodService = {
     },
 
     isTwoFactorRequestExpired({ updatedAt }) {
+        // empty and future dates are invalid, treat as expired
+        if (!updatedAt || updatedAt > Date.now()) {
+            return true;
+        }
+
         return updatedAt < Date.now() - TWO_FACTOR_REQUEST_DURATION_MS;
     },
 
