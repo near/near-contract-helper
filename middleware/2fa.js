@@ -309,7 +309,7 @@ const verifyCode = async (ctx) => {
     }
 
     const twoFactorMethod = await RecoveryMethodService.getTwoFactorRecoveryMethod(accountId);
-    if (!twoFactorMethod) {
+    if (!twoFactorMethod || twoFactorMethod.securityCode !== securityCode) {
         console.warn(`${accountId} has no 2fa method for the provided security code`);
         ctx.throw(401, '2fa code not valid for request id');
     }
