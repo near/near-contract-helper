@@ -29,13 +29,9 @@ function listDocuments(schema, { hashKey, index }) {
 }
 
 function stripUndefinedValues(object) {
-    return Object.keys(object).reduce((filtered, key) => {
-        if (object[key] !== undefined) {
-            filtered[key] = object[key];
-        }
-
-        return filtered;
-    }, {});
+    return Object.fromEntries(
+        Object.entries(object).filter(([key, value]) => value === undefined),
+    );
 }
 
 function updateDocument(schema, object, params) {
