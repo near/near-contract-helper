@@ -30,7 +30,7 @@ function listDocuments(schema, { hashKey, index }) {
 
 function stripUndefinedValues(object) {
     return Object.fromEntries(
-        Object.entries(object).filter(([key, value]) => value === undefined),
+        Object.entries(object).filter(([, value]) => value !== undefined),
     );
 }
 
