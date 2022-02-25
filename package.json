@@ -5,11 +5,7 @@
   "main": "app.js",
   "scripts": {
     "start": "env $(sed 's/ # .*//' .env) supervisor app",
-<<<<<<< HEAD
-	"stop": "pkill --signal SIGINT app",
-=======
     "docker:start": "node app.js",
->>>>>>> upstream/master
     "test": "yarn lint && mocha",
     "lint": "eslint .",
     "fix": "eslint . --fix",
