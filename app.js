@@ -63,6 +63,10 @@ app.use(async function (ctx, next) {
 const Router = require('koa-router');
 const router = new Router();
 
+router.get('/health', (ctx) => {
+    ctx.status = 200;
+});
+
 const {
     withNear,
     checkAccountOwnership,
