@@ -14,7 +14,6 @@ const { sendMail, get2faHtml } = emailHelper;
 const { SERVER_EVENTS, TWO_FACTOR_AUTH_KINDS } = constants;
 
 const SECURITY_CODE_DIGITS = 6;
-const twoFactorMethods = Object.values(TWO_FACTOR_AUTH_KINDS);
 
 const {
     getVerify2faMethodMessageContent,
@@ -223,7 +222,7 @@ const getAccessKey = async (ctx) => {
 
 // http post http://localhost:3000/2fa/init accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
 // Call ONCE to enable 2fa on this account. Adds a twoFactorMethod (passed in body) where kind should start with '2fa-'
-// This WILL send the initial code to the method specified ['2fa-email', '2fa-phone']
+// This WILL send the initial code to the method specified ['2fa-email']
 const initCode = async (ctx) => {
     const { accountId, method, testContractDeployed = false } = ctx.request.body;
     if (!method || !method.kind || !method.detail) {
@@ -232,7 +231,7 @@ const initCode = async (ctx) => {
     }
 
     const { kind, detail } = method;
-    if (!twoFactorMethods.includes(kind)) {
+    if (kind !== TWO_FACTOR_AUTH_KINDS.EMAIL) {
         ctx.throw(401, 'invalid 2fa method ' + kind);
         return;
     }
