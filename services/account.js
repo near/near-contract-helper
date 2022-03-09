@@ -27,7 +27,7 @@ class AccountService {
         return this.db.createAccount({ accountId, fundedAccountNeedsDeposit });
     }
 
-    async deleteAccount(accountId) {
+    deleteAccount(accountId) {
         if (!USE_DYNAMODB) {
             return this.sequelize.deleteAccount(accountId);
         }
@@ -53,7 +53,7 @@ class AccountService {
         return this.createAccount(accountId);
     }
 
-    async setAccountRequiresDeposit(accountId, requiresDeposit) {
+    setAccountRequiresDeposit(accountId, requiresDeposit) {
         if (!USE_DYNAMODB) {
             return this.sequelize.setAccountRequiresDeposit(accountId, requiresDeposit);
         }
