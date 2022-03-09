@@ -7,7 +7,7 @@ const { getStaleDate: getStaleDateUtil, isEntryStale } = require('./utils');
 class EmailDomainBlacklistDBClient {
     constructor({
         cache = new Cache({ stdTTL: 60 * 60 * 12, checkperiod: 0, useClones: false }),
-        emailDomainBlacklistService = EmailDomainBlacklistService(),
+        emailDomainBlacklistService = new EmailDomainBlacklistService(),
         getStaleDate = getStaleDateUtil
     }) {
         this.cache = cache;

@@ -30,7 +30,7 @@ const IDENTITY_VERIFICATION_ERRORS = {
 };
 
 const emailDomainValidator = createEmailDomainValidator();
-const identityVerificationMethodService = IdentityVerificationMethodService();
+const identityVerificationMethodService = new IdentityVerificationMethodService();
 
 const setJSONErrorResponse = ({ ctx, statusCode, body }) => {
     ctx.status = statusCode;

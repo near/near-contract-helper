@@ -16,8 +16,8 @@ const ACCOUNT_ID = 'near.near';
 const SECURITY_CODE = '123456';
 const PUBLIC_KEY = 'xyz';
 
-const accountService = AccountService();
-const recoveryMethodService = RecoveryMethodService();
+const accountService = new AccountService();
+const recoveryMethodService = new RecoveryMethodService();
 
 describe('RecoveryMethodService', function () {
     beforeEach(async function () {

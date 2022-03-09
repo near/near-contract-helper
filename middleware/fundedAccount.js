@@ -13,8 +13,8 @@ const {
     setInvalidRecaptchaResponse
 } = require('./identityVerificationMethod');
 
-const accountService = AccountService();
-const identityVerificationMethodService = IdentityVerificationMethodService();
+const accountService = new AccountService();
+const identityVerificationMethodService = new IdentityVerificationMethodService();
 
 // TODO: Adjust gas to correct amounts
 const MAX_GAS_FOR_ACCOUNT_CREATE = process.env.MAX_GAS_FOR_ACCOUNT_CREATE || '100000000000000';

@@ -7,7 +7,7 @@ const { generateAccountId } = require('../utils');
 
 const { expect } = chai;
 
-const accountService = AccountService();
+const accountService = new AccountService();
 
 describe('AccountService', function () {
     let terminateLocalDynamo;

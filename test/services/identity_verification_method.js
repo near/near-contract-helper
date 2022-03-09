@@ -12,7 +12,7 @@ const { expect } = chai;
 
 const SECURITY_CODE = '123456';
 
-const identityVerificationMethodService = IdentityVerificationMethodService();
+const identityVerificationMethodService = new IdentityVerificationMethodService();
 
 describe('IdentityVerificationMethodService', function () {
     let terminateLocalDynamo;

@@ -9,7 +9,7 @@ const { expect } = chai;
 const DOMAIN_NAME = 'near.org';
 const STALE_AT = (new Date()).toString();
 
-const emailDomainBlacklistService = EmailDomainBlacklistService();
+const emailDomainBlacklistService = new EmailDomainBlacklistService();
 
 describe('EmailDomainBlacklistService', function () {
     let terminateLocalDynamo;

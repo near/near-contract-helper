@@ -15,8 +15,8 @@ const { SERVER_EVENTS, TWO_FACTOR_AUTH_KINDS } = constants;
 
 const SECURITY_CODE_DIGITS = 6;
 
-const accountService = AccountService();
-const recoveryMethodService = RecoveryMethodService();
+const accountService = new AccountService();
+const recoveryMethodService = new RecoveryMethodService();
 
 const {
     getVerify2faMethodMessageContent,

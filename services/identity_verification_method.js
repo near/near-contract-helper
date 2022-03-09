@@ -1,5 +1,3 @@
-const stampit = require('@stamp/it');
-
 const { IDENTITY_VERIFICATION_METHOD_KINDS } = require('../constants');
 const {
     getIdentityVerificationMethod,
@@ -11,90 +9,92 @@ const SequelizeIdentityVerificationMethods = require('./sequelize/identity_verif
 
 const MATCH_GMAIL_IGNORED_CHARS = /[|&;$%@"<>()+,!#'*\-\/=?^_`.{}]/g;
 
-const IdentityVerificationMethodService = stampit({
-    props: {
+class IdentityVerificationMethodService {
+    constructor(params = {
         db: {
             getIdentityVerificationMethod,
             getIdentityVerificationMethodByUniqueKey,
             updateIdentityVerificationMethod,
         },
         sequelize: SequelizeIdentityVerificationMethods,
-    },
-    methods: {
-        claimIdentityVerificationMethod({ identityKey, kind }) {
-            if (!USE_DYNAMODB) {
-                return this.sequelize.claimIdentityVerificationMethod({ identityKey, kind });
-            }
-            return updateIdentityVerificationMethod({
-                identityKey,
-                kind,
-            }, {
-                claimed: true,
-                securityCode: null,
-            });
-        },
+    }) {
+        this.db = params.db;
+        this.sequelize = params.sequelize;
+    }
 
-        getIdentityVerificationMethod({ identityKey, kind }) {
-            if (!USE_DYNAMODB) {
-                return this.sequelize.getIdentityVerificationMethod({ identityKey, kind });
-            }
-            return this.db.getIdentityVerificationMethod(identityKey);
-        },
+    claimIdentityVerificationMethod({ identityKey, kind }) {
+        if (!USE_DYNAMODB) {
+            return this.sequelize.claimIdentityVerificationMethod({ identityKey, kind });
+        }
+        return updateIdentityVerificationMethod({
+            identityKey,
+            kind,
+        }, {
+            claimed: true,
+            securityCode: null,
+        });
+    }
 
-        // Identify what gmail would consider the 'root' email for a given email address
-        // GMail ignores things like . and +
-        getUniqueEmail(email) {
-            if (!email.includes('@')) {
-                return '';
-            }
+    getIdentityVerificationMethod({ identityKey, kind }) {
+        if (!USE_DYNAMODB) {
+            return this.sequelize.getIdentityVerificationMethod({ identityKey, kind });
+        }
+        return this.db.getIdentityVerificationMethod(identityKey);
+    }
 
-            const [usernameWithPossibleAlias, inputDomain] = email.split('@');
-            const domain = inputDomain.replace('googlemail.com', 'gmail.com');
+    // Identify what gmail would consider the 'root' email for a given email address
+    // GMail ignores things like . and +
+    getUniqueEmail(email) {
+        if (!email.includes('@')) {
+            return '';
+        }
 
-            const username = usernameWithPossibleAlias
-                .split('+')[0]
-                .replace(MATCH_GMAIL_IGNORED_CHARS, '');
+        const [usernameWithPossibleAlias, inputDomain] = email.split('@');
+        const domain = inputDomain.replace('googlemail.com', 'gmail.com');
 
-            return `${username}@${domain}`.toLowerCase();
-        },
+        const username = usernameWithPossibleAlias
+            .split('+')[0]
+            .replace(MATCH_GMAIL_IGNORED_CHARS, '');
 
-        async recoverIdentity({ identityKey, kind, securityCode }) {
-            if (!USE_DYNAMODB) {
-                return this.sequelize.recoverIdentity({ identityKey, kind, securityCode });
-            }
+        return `${username}@${domain}`.toLowerCase();
+    }
 
-            // if identityKey is an email, map it to its deliverable email address
-            // i.e. a+0@gmail.com and a+1@gmail.com, despite being distinct addresses, will both be delivered to a@gmail.com
-            const uniqueEmailKey = (kind === IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL ? this.getUniqueEmail(identityKey) : null);
-            if (uniqueEmailKey) {
-                // look up documents with the same deliverable email address as the provided identityKey
-                const identityVerificationMethod = await this.db.getIdentityVerificationMethodByUniqueKey(uniqueEmailKey);
+    async recoverIdentity({ identityKey, kind, securityCode }) {
+        if (!USE_DYNAMODB) {
+            return this.sequelize.recoverIdentity({ identityKey, kind, securityCode });
+        }
 
-                // if a document exists with the same deliverable email address, but does not have the same identity key as the one provided
-                // to this method, then the method call is attempting to add a key considered to be a duplicate and should not be created
-                if (identityVerificationMethod && identityVerificationMethod.identityKey !== identityKey) {
-                    return false;
-                }
-            }
+        // if identityKey is an email, map it to its deliverable email address
+        // i.e. a+0@gmail.com and a+1@gmail.com, despite being distinct addresses, will both be delivered to a@gmail.com
+        const uniqueEmailKey = (kind === IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL ? this.getUniqueEmail(identityKey) : null);
+        if (uniqueEmailKey) {
+            // look up documents with the same deliverable email address as the provided identityKey
+            const identityVerificationMethod = await this.db.getIdentityVerificationMethodByUniqueKey(uniqueEmailKey);
 
-            // if an identity verification method exists for this identityKey but with a different kind then it cannot be recovered
-            let identityVerificationMethod = await this.db.getIdentityVerificationMethod(identityKey);
-            if (identityVerificationMethod && identityVerificationMethod.kind !== kind) {
+            // if a document exists with the same deliverable email address, but does not have the same identity key as the one provided
+            // to this method, then the method call is attempting to add a key considered to be a duplicate and should not be created
+            if (identityVerificationMethod && identityVerificationMethod.identityKey !== identityKey) {
                 return false;
             }
+        }
 
-            // create new identity verification method if one does not already exist for the given identityKey and kind
-            identityVerificationMethod = await this.db.updateIdentityVerificationMethod({
-                identityKey,
-            }, {
-                kind,
-                securityCode,
-                ...(uniqueEmailKey && { uniqueIdentityKey: uniqueEmailKey }),
-            });
+        // if an identity verification method exists for this identityKey but with a different kind then it cannot be recovered
+        let identityVerificationMethod = await this.db.getIdentityVerificationMethod(identityKey);
+        if (identityVerificationMethod && identityVerificationMethod.kind !== kind) {
+            return false;
+        }
 
-            return !identityVerificationMethod.claimed;
-        },
-    },
-});
+        // create new identity verification method if one does not already exist for the given identityKey and kind
+        identityVerificationMethod = await this.db.updateIdentityVerificationMethod({
+            identityKey,
+        }, {
+            kind,
+            securityCode,
+            ...(uniqueEmailKey && { uniqueIdentityKey: uniqueEmailKey }),
+        });
+
+        return !identityVerificationMethod.claimed;
+    }
+}
 
 module.exports = IdentityVerificationMethodService;

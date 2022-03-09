@@ -21,8 +21,8 @@ const {
     expectFailedWithCode
 } = expectRequestHelpers;
 
-const accountService = AccountService();
-const recoveryMethodService = RecoveryMethodService();
+const accountService = new AccountService();
+const recoveryMethodService = new RecoveryMethodService();
 
 const { RECOVERY_METHOD_KINDS } = constants;
 
