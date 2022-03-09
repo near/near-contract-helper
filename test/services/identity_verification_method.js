@@ -12,6 +12,8 @@ const { expect } = chai;
 
 const SECURITY_CODE = '123456';
 
+const identityVerificationMethodService = IdentityVerificationMethodService();
+
 describe('IdentityVerificationMethodService', function () {
     let terminateLocalDynamo;
     before(async function() {
@@ -43,7 +45,7 @@ describe('IdentityVerificationMethodService', function () {
             };
 
             if (USE_DYNAMODB) {
-                await IdentityVerificationMethodService().recoverIdentity({
+                await identityVerificationMethodService.recoverIdentity({
                     ...params,
                     securityCode: SECURITY_CODE,
                 });
@@ -54,9 +56,9 @@ describe('IdentityVerificationMethodService', function () {
                 });
             }
 
-            await IdentityVerificationMethodService().claimIdentityVerificationMethod(params);
+            await identityVerificationMethodService.claimIdentityVerificationMethod(params);
 
-            const identityVerificationMethod = await IdentityVerificationMethodService().getIdentityVerificationMethod(params);
+            const identityVerificationMethod = await identityVerificationMethodService.getIdentityVerificationMethod(params);
             if (USE_DYNAMODB) {
                 expect(identityVerificationMethod).not.have.property('securityCode');
             } else {
@@ -75,7 +77,7 @@ describe('IdentityVerificationMethodService', function () {
         });
 
         it('returns null for non-existent records', async function () {
-            const identityVerificationMethod = await IdentityVerificationMethodService().getIdentityVerificationMethod({
+            const identityVerificationMethod = await identityVerificationMethodService.getIdentityVerificationMethod({
                 identityKey: generateEmailAddress(),
                 kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
             });
@@ -90,7 +92,7 @@ describe('IdentityVerificationMethodService', function () {
             };
 
             if (USE_DYNAMODB) {
-                await IdentityVerificationMethodService().recoverIdentity({
+                await identityVerificationMethodService.recoverIdentity({
                     ...params,
                     securityCode: SECURITY_CODE,
                 });
@@ -101,7 +103,7 @@ describe('IdentityVerificationMethodService', function () {
                 });
             }
 
-            const identityVerificationMethod = await IdentityVerificationMethodService().getIdentityVerificationMethod(params);
+            const identityVerificationMethod = await identityVerificationMethodService.getIdentityVerificationMethod(params);
             expect(identityVerificationMethod).property('identityKey', params.identityKey);
             expect(identityVerificationMethod).property('kind', params.kind);
         });
@@ -109,24 +111,24 @@ describe('IdentityVerificationMethodService', function () {
 
     describe('getUniqueEmail', function () {
         it('returns empty string for email addresses without @', async function () {
-            expect(IdentityVerificationMethodService().getUniqueEmail('xyz')).equal('');
+            expect(identityVerificationMethodService.getUniqueEmail('xyz')).equal('');
         });
 
         it('returns the same value for googlemail addresses', async function () {
-            const gmailAddress = IdentityVerificationMethodService().getUniqueEmail('test@gmail.com');
-            const googleMailAddress = IdentityVerificationMethodService().getUniqueEmail('test@googlemail.com');
+            const gmailAddress = identityVerificationMethodService.getUniqueEmail('test@gmail.com');
+            const googleMailAddress = identityVerificationMethodService.getUniqueEmail('test@googlemail.com');
             expect(gmailAddress).equal(googleMailAddress);
         });
 
         it('considers email addresses with + characters to be equivalent', async function () {
-            const gmailAddress = IdentityVerificationMethodService().getUniqueEmail('test@gmail.com');
-            const subAddress = IdentityVerificationMethodService().getUniqueEmail('test+tessst@gmail.com');
+            const gmailAddress = identityVerificationMethodService.getUniqueEmail('test@gmail.com');
+            const subAddress = identityVerificationMethodService.getUniqueEmail('test+tessst@gmail.com');
             expect(gmailAddress).equal(subAddress);
         });
 
         it('ignores special characters in email username', async function () {
-            const gmailAddress = IdentityVerificationMethodService().getUniqueEmail('test@gmail.com');
-            const invalidCharAddress = IdentityVerificationMethodService().getUniqueEmail('t|(e)#s>t@gmail.com');
+            const gmailAddress = identityVerificationMethodService.getUniqueEmail('test@gmail.com');
+            const invalidCharAddress = identityVerificationMethodService.getUniqueEmail('t|(e)#s>t@gmail.com');
             expect(gmailAddress).equal(invalidCharAddress);
         });
     });
@@ -145,7 +147,7 @@ describe('IdentityVerificationMethodService', function () {
             };
 
             if (USE_DYNAMODB) {
-                await IdentityVerificationMethodService().recoverIdentity({
+                await identityVerificationMethodService.recoverIdentity({
                     ...params,
                     securityCode: SECURITY_CODE,
                 });
@@ -156,9 +158,9 @@ describe('IdentityVerificationMethodService', function () {
                 });
             }
 
-            await IdentityVerificationMethodService().claimIdentityVerificationMethod(params);
+            await identityVerificationMethodService.claimIdentityVerificationMethod(params);
 
-            const isRecovered = await IdentityVerificationMethodService().recoverIdentity({
+            const isRecovered = await identityVerificationMethodService.recoverIdentity({
                 ...params,
                 securityCode: SECURITY_CODE,
             });
@@ -173,16 +175,16 @@ describe('IdentityVerificationMethodService', function () {
             };
 
             if (USE_DYNAMODB) {
-                await IdentityVerificationMethodService().recoverIdentity(params);
+                await identityVerificationMethodService.recoverIdentity(params);
             } else {
                 await IdentityVerificationMethodSequelize.createIdentityVerificationMethod_internal(params);
             }
 
-            const isRecovered = await IdentityVerificationMethodService().recoverIdentity({
+            const isRecovered = await identityVerificationMethodService.recoverIdentity({
                 ...params,
                 securityCode: SECURITY_CODE,
             });
-            const identityVerificationMethod = await IdentityVerificationMethodService().getIdentityVerificationMethod(params);
+            const identityVerificationMethod = await identityVerificationMethodService.getIdentityVerificationMethod(params);
 
             expect(isRecovered).true;
             expect(identityVerificationMethod).property('securityCode', SECURITY_CODE.toString());
@@ -195,12 +197,12 @@ describe('IdentityVerificationMethodService', function () {
             };
 
             if (USE_DYNAMODB) {
-                await IdentityVerificationMethodService().recoverIdentity(params);
+                await identityVerificationMethodService.recoverIdentity(params);
             } else {
                 await IdentityVerificationMethodSequelize.createIdentityVerificationMethod_internal(params);
             }
 
-            const isRecovered = await IdentityVerificationMethodService().recoverIdentity({
+            const isRecovered = await identityVerificationMethodService.recoverIdentity({
                 ...params,
                 kind: IDENTITY_VERIFICATION_METHOD_KINDS.PHONE,
                 securityCode: SECURITY_CODE,
@@ -217,7 +219,7 @@ describe('IdentityVerificationMethodService', function () {
 
 
             if (USE_DYNAMODB) {
-                await IdentityVerificationMethodService().recoverIdentity({
+                await identityVerificationMethodService.recoverIdentity({
                     ...params,
                     identityKey: 'test+test@gmail.com',
                 });
@@ -228,7 +230,7 @@ describe('IdentityVerificationMethodService', function () {
                 });
             }
 
-            const isRecovered = await IdentityVerificationMethodService().recoverIdentity({
+            const isRecovered = await identityVerificationMethodService.recoverIdentity({
                 ...params,
                 kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
                 securityCode: SECURITY_CODE,

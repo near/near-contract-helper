@@ -9,6 +9,8 @@ const { expect } = chai;
 const DOMAIN_NAME = 'near.org';
 const STALE_AT = (new Date()).toString();
 
+const emailDomainBlacklistService = EmailDomainBlacklistService();
+
 describe('EmailDomainBlacklistService', function () {
     let terminateLocalDynamo;
     before(async function() {
@@ -32,17 +34,17 @@ describe('EmailDomainBlacklistService', function () {
         });
 
         it('gets the specified blacklist entry by domain', async function () {
-            await EmailDomainBlacklistService().updateDomainBlacklistEntry({
+            await emailDomainBlacklistService.updateDomainBlacklistEntry({
                 domainName: DOMAIN_NAME,
                 staleAt: STALE_AT,
             });
 
-            const blacklistEntry = await EmailDomainBlacklistService().getDomainBlacklistEntry(DOMAIN_NAME);
+            const blacklistEntry = await emailDomainBlacklistService.getDomainBlacklistEntry(DOMAIN_NAME);
             expect(blacklistEntry).property('domainName', DOMAIN_NAME);
         });
 
         it('returns null for nonexistent domains', async function () {
-            const blacklistEntry = await EmailDomainBlacklistService().getDomainBlacklistEntry(DOMAIN_NAME);
+            const blacklistEntry = await emailDomainBlacklistService.getDomainBlacklistEntry(DOMAIN_NAME);
             expect(blacklistEntry).property('domainName', DOMAIN_NAME);
         });
     });
@@ -55,29 +57,29 @@ describe('EmailDomainBlacklistService', function () {
         });
 
         it('creates the blacklist entry when one does not already exist', async function () {
-            await EmailDomainBlacklistService().updateDomainBlacklistEntry({
+            await emailDomainBlacklistService.updateDomainBlacklistEntry({
                 domainName: DOMAIN_NAME,
                 staleAt: STALE_AT,
             });
-            const blacklistEntry = await EmailDomainBlacklistService().getDomainBlacklistEntry(DOMAIN_NAME);
+            const blacklistEntry = await emailDomainBlacklistService.getDomainBlacklistEntry(DOMAIN_NAME);
             expect(blacklistEntry).property('domainName', DOMAIN_NAME);
         });
 
         it('updates the existing blacklist entry', async function () {
-            let blacklistEntry = await EmailDomainBlacklistService().getDomainBlacklistEntry(DOMAIN_NAME);
+            let blacklistEntry = await emailDomainBlacklistService.getDomainBlacklistEntry(DOMAIN_NAME);
             if (USE_DYNAMODB) {
                 expect(blacklistEntry).not.have.property('isTemporaryEmailService');
             } else {
                 expect(blacklistEntry).property('isTemporaryEmailService', null);
             }
 
-            await EmailDomainBlacklistService().updateDomainBlacklistEntry({
+            await emailDomainBlacklistService.updateDomainBlacklistEntry({
                 domainName: DOMAIN_NAME,
                 staleAt: STALE_AT,
                 isTemporaryEmailService: true,
             });
 
-            blacklistEntry = await EmailDomainBlacklistService().getDomainBlacklistEntry(DOMAIN_NAME);
+            blacklistEntry = await emailDomainBlacklistService.getDomainBlacklistEntry(DOMAIN_NAME);
             expect(blacklistEntry).property('isTemporaryEmailService', true);
         });
     });

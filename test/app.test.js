@@ -21,6 +21,9 @@ const {
     expectFailedWithCode
 } = expectRequestHelpers;
 
+const accountService = AccountService();
+const recoveryMethodService = RecoveryMethodService();
+
 const { RECOVERY_METHOD_KINDS } = constants;
 
 const recoveryMethods = {
@@ -51,7 +54,7 @@ const VERBOSE_OUTPUT_CONFIG = {
 
 function createAllRecoveryMethods({ accountId }) {
     return Promise.all(
-        Object.values(recoveryMethods).map((recoveryMethod) => RecoveryMethodService().createRecoveryMethod({
+        Object.values(recoveryMethods).map((recoveryMethod) => recoveryMethodService.createRecoveryMethod({
             accountId,
             ...recoveryMethod,
         })),
@@ -233,7 +236,7 @@ describe('app routes', function () {
         it('returns 403 Forbidden (signature not from accountId owner)', async () => {
             // FIXME: This is just testing incorrect blockNumber, *not* that the signature is from a different owner
             const accountId = await testAccountHelper.createNEARAccount();
-            await AccountService().createAccount(accountId);
+            await accountService.createAccount(accountId);
 
             await testAccountHelper.getRecoveryMethods({ accountId, valid: false })
                 .then((res) => {
@@ -262,7 +265,7 @@ describe('app routes', function () {
 
         it('returns recovery methods (account found, verified ownership)', async () => {
             const accountId = await testAccountHelper.createNEARAccount();
-            await AccountService().createAccount(accountId);
+            await accountService.createAccount(accountId);
             await createAllRecoveryMethods({ accountId });
 
             const { body: methods } = await testAccountHelper.getRecoveryMethods({ accountId })
@@ -299,7 +302,7 @@ describe('app routes', function () {
                 .send({ accountId, signature: 'wut' })
                 .then(expectFailedWithCode(403, 'You must provide an accountId, blockNumber, and blockNumberSignature'));
 
-            const account = await AccountService().getAccount(accountId);
+            const account = await accountService.getAccount(accountId);
             expect(account).not.ok;
         });
 
@@ -327,7 +330,7 @@ describe('app routes', function () {
                 .then(expectJSONResponse);
 
             expect(phrase).property('kind', RECOVERY_METHOD_KINDS.PHRASE);
-            const account = await AccountService().getAccount(accountId);
+            const account = await accountService.getAccount(accountId);
             expect(account).ok;
         });
     });
@@ -342,7 +345,7 @@ describe('app routes', function () {
                 .send({ accountId, signature: 'wut' })
                 .then(expectFailedWithCode(403, 'You must provide an accountId, blockNumber, and blockNumberSignature'));
 
-            return expect(AccountService().getAccount(accountId)).eventually.not.ok;
+            return expect(accountService.getAccount(accountId)).eventually.not.ok;
         });
 
         it('requires a publicKey', async () => {
@@ -367,7 +370,7 @@ describe('app routes', function () {
 
             expect(result).property('kind', RECOVERY_METHOD_KINDS.LEDGER);
 
-            return expect(AccountService().getAccount(accountId)).eventually.ok;
+            return expect(accountService.getAccount(accountId)).eventually.ok;
         });
     });
 
@@ -375,7 +378,7 @@ describe('app routes', function () {
     describe('/account/deleteRecoveryMethod', () => {
         it('returns 400 (recoveryMethod invalid)', async () => {
             const accountId = `account-${Date.now()}`;
-            await AccountService().createAccount(accountId);
+            await accountService.createAccount(accountId);
             return request.post('/account/deleteRecoveryMethod')
                 .send({
                     accountId,
@@ -396,7 +399,7 @@ describe('app routes', function () {
         it('returns 403 Forbidden (signature not from accountId owner)', async () => {
             // FIXME: This is just testing incorrect blockNumber, *not* that the signature is from a different owner
             const accountId = await testAccountHelper.createNEARAccount();
-            await AccountService().createAccount(accountId);
+            await accountService.createAccount(accountId);
 
             return request.post('/account/deleteRecoveryMethod')
                 .send({
@@ -412,7 +415,7 @@ describe('app routes', function () {
 
         it('returns 400 (public key not specified)', async () => {
             const accountId = await testAccountHelper.createNEARAccount();
-            await AccountService().createAccount(accountId);
+            await accountService.createAccount(accountId);
             await createAllRecoveryMethods({ accountId });
 
             const signature = await testAccountHelper.signatureForLatestBlock({ accountId });
@@ -424,10 +427,10 @@ describe('app routes', function () {
 
         it('deletes specified recoveryMethod; returns recovery methods (account found, verified ownership, valid recoveryMethod)', async () => {
             const accountId = await testAccountHelper.createNEARAccount();
-            await AccountService().createAccount(accountId);
+            await accountService.createAccount(accountId);
             await createAllRecoveryMethods({ accountId });
 
-            await RecoveryMethodService().createRecoveryMethod({
+            await recoveryMethodService.createRecoveryMethod({
                 accountId,
                 kind: RECOVERY_METHOD_KINDS.EMAIL,
                 detail: 'hello@example.com',
@@ -459,8 +462,8 @@ describe('app routes', function () {
 
         it('does not return 400 for old accounts with publicKey=NULL', async () => {
             const accountId = await testAccountHelper.createNEARAccount();
-            await AccountService().createAccount(accountId);
-            await RecoveryMethodService().createRecoveryMethod({
+            await accountService.createAccount(accountId);
+            await recoveryMethodService.createRecoveryMethod({
                 accountId,
                 kind: RECOVERY_METHOD_KINDS.PHRASE,
                 publicKey: null,

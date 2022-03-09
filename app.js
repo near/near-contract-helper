@@ -15,6 +15,10 @@ const {
     SERVER_EVENTS,
 } = constants;
 
+const accountService = AccountService();
+const identityVerificationMethodService = IdentityVerificationMethodService();
+const recoveryMethodService = RecoveryMethodService();
+
 // render.com passes requests through a proxy server; we need the source IPs to be accurate for `koa-ratelimit`
 app.proxy = true;
 
@@ -171,7 +175,7 @@ const { sendSms } = require('./utils/sms');
 
 router.post('/account/recoveryMethods', checkAccountOwnership, async ctx => {
     const { accountId } = ctx.request.body;
-    ctx.body = await RecoveryMethodService().listAllRecoveryMethods(accountId);
+    ctx.body = await recoveryMethodService.listAllRecoveryMethods(accountId);
 });
 
 async function verifyAccountExists(ctx, next, { accountId }) {
@@ -179,7 +183,7 @@ async function verifyAccountExists(ctx, next, { accountId }) {
         throw new Error('invalid accountId provided');
     }
 
-    const account = await AccountService().getAccount(accountId);
+    const account = await accountService.getAccount(accountId);
     if (!account) {
         ctx.throw(404, `Could not find account with accountId: '${accountId}'`);
     }
@@ -203,7 +207,6 @@ router.post(
     withPublicKey,
     async ctx => {
         const { accountId, kind, publicKey } = ctx.request.body;
-        const recoveryMethodService = RecoveryMethodService();
         await recoveryMethodService.deleteRecoveryMethod({ accountId, kind, publicKey });
         ctx.body = await recoveryMethodService.listAllRecoveryMethods(accountId);
     },
@@ -232,8 +235,7 @@ router.post(
     withPublicKey,
     async (ctx) => {
         const { publicKey, request: { body: { accountId } } } = ctx;
-        const recoveryMethodService = RecoveryMethodService();
-        await AccountService().getOrCreateAccount(accountId);
+        await accountService.getOrCreateAccount(accountId);
         await recoveryMethodService.createRecoveryMethod({
             accountId,
             kind: RECOVERY_METHOD_KINDS.PHRASE,
@@ -249,8 +251,7 @@ router.post(
     withPublicKey,
     async (ctx) => {
         const { publicKey, request: { body: { accountId } } } = ctx;
-        const recoveryMethodService = RecoveryMethodService();
-        await AccountService().getOrCreateAccount(accountId);
+        await accountService.getOrCreateAccount(accountId);
         await recoveryMethodService.createRecoveryMethod({
             accountId,
             kind: RECOVERY_METHOD_KINDS.LEDGER,
@@ -268,7 +269,7 @@ router.get(
     (ctx, next) => verifyAccountExists(ctx, next, ctx.params),
     async (ctx) => {
         const { accountId } = ctx.params;
-        const { fundedAccountNeedsDeposit } = await AccountService().getAccount(accountId);
+        const { fundedAccountNeedsDeposit } = await accountService.getAccount(accountId);
         ctx.body = {
             accountId,
             fundedAccountNeedsDeposit,
@@ -308,8 +309,7 @@ const sendSecurityCode = async ({ ctx, securityCode, method, accountId, seedPhra
 const completeRecoveryInit = async ctx => {
     const { accountId, method, seedPhrase } = ctx.request.body;
 
-    const recoveryMethodService = RecoveryMethodService();
-    await AccountService().getOrCreateAccount(accountId);
+    await accountService.getOrCreateAccount(accountId);
 
     let publicKey = null;
     if (seedPhrase) {
@@ -411,12 +411,11 @@ const completeRecoveryValidation = ({ isNew } = {}) => async (ctx) => {
         ctx.throw(401, 'valid securityCode required');
     }
 
-    const account = await AccountService().getAccount(accountId);
+    const account = await accountService.getAccount(accountId);
     if (!account) {
         ctx.throw(401, 'account does not exist');
     }
 
-    const recoveryMethodService = RecoveryMethodService();
     const [recoveryMethod] = await recoveryMethodService.listRecoveryMethods({
         accountId,
         detail: method.detail,
@@ -452,7 +451,7 @@ const completeRecoveryValidation = ({ isNew } = {}) => async (ctx) => {
 
         if (valid && score > 0.6) {
             if (await validateEmail({ ctx, email: method.detail, kind: method.kind })) {
-                const isIdentityRecoverable = await IdentityVerificationMethodService().recoverIdentity({
+                const isIdentityRecoverable = await identityVerificationMethodService.recoverIdentity({
                     identityKey: method.detail,
                     kind: method.kind,
                     securityCode,

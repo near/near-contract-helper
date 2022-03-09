@@ -15,6 +15,9 @@ const { SERVER_EVENTS, TWO_FACTOR_AUTH_KINDS } = constants;
 
 const SECURITY_CODE_DIGITS = 6;
 
+const accountService = AccountService();
+const recoveryMethodService = RecoveryMethodService();
+
 const {
     getVerify2faMethodMessageContent,
     getConfirmTransactionMessageContent,
@@ -104,7 +107,7 @@ const sendCode = async (ctx, method, requestId = -1, accountId = '') => {
     // integration test with e.g. SMS, e-mail.
     ctx.app.emit(SERVER_EVENTS.SECURITY_CODE, { accountId, requestId, securityCode }); // For test harness
 
-    await RecoveryMethodService().updateTwoFactorRecoveryMethod({
+    await recoveryMethodService.updateTwoFactorRecoveryMethod({
         accountId,
         requestId,
         securityCode,
@@ -199,14 +202,14 @@ const isContractDeployed = async (accountId) => {
 };
 
 const getTwoFactorRecoveryMethod = async (ctx, accountId) => {
-    const account = await AccountService().getOrCreateAccount(accountId);
+    const account = await accountService.getOrCreateAccount(accountId);
     if (!account) {
         console.warn(`account: ${accountId} should already exist when sending new code`);
         ctx.throw(401);
         return;
     }
 
-    return RecoveryMethodService().getTwoFactorRecoveryMethod(accountId);
+    return recoveryMethodService.getTwoFactorRecoveryMethod(accountId);
 };
 
 /********************************
@@ -238,7 +241,6 @@ const initCode = async (ctx) => {
 
     const hasContractDeployed = await isContractDeployed(accountId);
     const twoFactorMethod = await getTwoFactorRecoveryMethod(ctx, accountId);
-    const recoveryMethodService = RecoveryMethodService();
     if (twoFactorMethod) {
         // check if multisig contract is already deployed
         if (hasContractDeployed || testContractDeployed) {
@@ -308,7 +310,6 @@ const verifyCode = async (ctx) => {
         ctx.throw(401, 'invalid 2fa code provided');
     }
 
-    const recoveryMethodService = RecoveryMethodService();
     const twoFactorMethod = await recoveryMethodService.getTwoFactorRecoveryMethod(accountId);
     if (!twoFactorMethod || twoFactorMethod.securityCode !== securityCode) {
         console.warn(`${accountId} has no 2fa method for the provided security code`);

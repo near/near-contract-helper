@@ -13,6 +13,9 @@ const {
     setInvalidRecaptchaResponse
 } = require('./identityVerificationMethod');
 
+const accountService = AccountService();
+const identityVerificationMethodService = IdentityVerificationMethodService();
+
 // TODO: Adjust gas to correct amounts
 const MAX_GAS_FOR_ACCOUNT_CREATE = process.env.MAX_GAS_FOR_ACCOUNT_CREATE || '100000000000000';
 const NEW_FUNDED_ACCOUNT_BALANCE = process.env.FUNDED_ACCOUNT_BALANCE || nearAPI.utils.format.parseNearAmount('0.35');
@@ -68,7 +71,7 @@ async function doCreateFundedAccount({
     } catch (e) {
         if (!isExistingAccount) {
             // Clean up if we were responsible for creating it during this API call
-            await AccountService().deleteAccount(newAccountId);
+            await accountService.deleteAccount(newAccountId);
         }
 
         if (e.type === 'NotEnoughBalance') {
@@ -135,8 +138,6 @@ const createFundedAccount = async (ctx) => {
         });
         return;
     }
-
-    const accountService = AccountService();
 
     // If someone is using a recovery method that involves a confirmation code (email / SMS)
     // then we need to manually set the fundedAccountNeedsDeposit on the _existing_ record
@@ -231,7 +232,6 @@ async function createIdentityVerifiedFundedAccount(ctx) {
         return;
     }
 
-    const identityVerificationMethodService = IdentityVerificationMethodService();
     const verificationMethod = await identityVerificationMethodService.getIdentityVerificationMethod({
         identityKey,
     });
@@ -270,7 +270,7 @@ async function createIdentityVerifiedFundedAccount(ctx) {
     }
 
     const [account, fundingAccount] = await Promise.all([
-        AccountService().getAccount(newAccountId),
+        accountService.getAccount(newAccountId),
         ctx.near.account(fundedCreatorKeyJson.account_id)
     ]);
 
@@ -291,7 +291,6 @@ async function clearFundedAccountNeedsDeposit(ctx) {
     // DEPRECATED: Remove after coin-op v1.5 is settled
 
     const { accountId } = ctx.request.body;
-    const accountService = AccountService();
     const account = await accountService.getAccount(accountId);
     if (!account.fundedAccountNeedsDeposit) {
         // This is an idempotent call

@@ -30,6 +30,7 @@ const IDENTITY_VERIFICATION_ERRORS = {
 };
 
 const emailDomainValidator = createEmailDomainValidator();
+const identityVerificationMethodService = IdentityVerificationMethodService();
 
 const setJSONErrorResponse = ({ ctx, statusCode, body }) => {
     ctx.status = statusCode;
@@ -149,7 +150,7 @@ async function createIdentityVerificationMethod(ctx) {
 
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
 
-    const isIdentityRecoverable = await IdentityVerificationMethodService().recoverIdentity({
+    const isIdentityRecoverable = await identityVerificationMethodService.recoverIdentity({
         identityKey,
         kind,
         securityCode,
