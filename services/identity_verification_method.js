@@ -1,7 +1,5 @@
-const { IDENTITY_VERIFICATION_METHOD_KINDS } = require('../constants');
 const {
     getIdentityVerificationMethod,
-    getIdentityVerificationMethodByUniqueKey,
     updateIdentityVerificationMethod,
 } = require('../db/methods/identity_verification_method');
 const { USE_DYNAMODB } = require('../features');
@@ -13,7 +11,6 @@ class IdentityVerificationMethodService {
     constructor(params = {
         db: {
             getIdentityVerificationMethod,
-            getIdentityVerificationMethodByUniqueKey,
             updateIdentityVerificationMethod,
         },
         sequelize: SequelizeIdentityVerificationMethods,
@@ -22,13 +19,18 @@ class IdentityVerificationMethodService {
         this.sequelize = params.sequelize;
     }
 
-    claimIdentityVerificationMethod({ identityKey, kind }) {
+    async claimIdentityVerificationMethod({ identityKey, kind }) {
         if (!USE_DYNAMODB) {
             return this.sequelize.claimIdentityVerificationMethod({ identityKey, kind });
         }
+        // do not upsert documents that do not exist or exist under a different kind
+        const identityVerificationMethod = await this.getIdentityVerificationMethod({ identityKey });
+        if (!identityVerificationMethod || identityVerificationMethod.kind !== kind) {
+            return null;
+        }
+
         return updateIdentityVerificationMethod({
-            identityKey,
-            kind,
+            uniqueIdentityKey: this.getUniqueIdentityKey(identityKey),
         }, {
             claimed: true,
             securityCode: null,
@@ -39,7 +41,7 @@ class IdentityVerificationMethodService {
         if (!USE_DYNAMODB) {
             return this.sequelize.getIdentityVerificationMethod({ identityKey, kind });
         }
-        return this.db.getIdentityVerificationMethod(identityKey);
+        return this.db.getIdentityVerificationMethod(this.getUniqueIdentityKey(identityKey));
     }
 
     // Identify what gmail would consider the 'root' email for a given email address
@@ -59,41 +61,35 @@ class IdentityVerificationMethodService {
         return `${username}@${domain}`.toLowerCase();
     }
 
+    getUniqueIdentityKey(identityKey) {
+        return this.getUniqueEmail(identityKey) || identityKey;
+    }
+
     async recoverIdentity({ identityKey, kind, securityCode }) {
         if (!USE_DYNAMODB) {
             return this.sequelize.recoverIdentity({ identityKey, kind, securityCode });
         }
 
-        // if identityKey is an email, map it to its deliverable email address
-        // i.e. a+0@gmail.com and a+1@gmail.com, despite being distinct addresses, will both be delivered to a@gmail.com
-        const uniqueEmailKey = (kind === IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL ? this.getUniqueEmail(identityKey) : null);
-        if (uniqueEmailKey) {
-            // look up documents with the same deliverable email address as the provided identityKey
-            const identityVerificationMethod = await this.db.getIdentityVerificationMethodByUniqueKey(uniqueEmailKey);
+        const identityVerificationMethod = await this.getIdentityVerificationMethod({ identityKey });
 
-            // if a document exists with the same deliverable email address, but does not have the same identity key as the one provided
-            // to this method, then the method call is attempting to add a key considered to be a duplicate and should not be created
-            if (identityVerificationMethod && identityVerificationMethod.identityKey !== identityKey) {
-                return false;
-            }
-        }
+        // allow recovery when no record exists for the given identity or the record is unclaimed and matches the given kind
+        const isRecoverable = !identityVerificationMethod
+            || (identityVerificationMethod.kind === kind && !identityVerificationMethod.claimed);
 
-        // if an identity verification method exists for this identityKey but with a different kind then it cannot be recovered
-        let identityVerificationMethod = await this.db.getIdentityVerificationMethod(identityKey);
-        if (identityVerificationMethod && identityVerificationMethod.kind !== kind) {
+        if (!isRecoverable) {
             return false;
         }
 
         // create new identity verification method if one does not already exist for the given identityKey and kind
-        identityVerificationMethod = await this.db.updateIdentityVerificationMethod({
-            identityKey,
+        await this.db.updateIdentityVerificationMethod({
+            uniqueIdentityKey: this.getUniqueIdentityKey(identityKey),
         }, {
+            identityKey,
             kind,
             securityCode,
-            ...(uniqueEmailKey && { uniqueIdentityKey: uniqueEmailKey }),
         });
 
-        return !identityVerificationMethod.claimed;
+        return true;
     }
 }
 

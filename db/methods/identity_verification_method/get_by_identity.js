@@ -1,9 +1,9 @@
 const { getDocument } = require('../../dynamo');
 const IdentityVerificationMethod = require('../../schemas/identity_verification_method');
 
-function getIdentityVerificationMethodByIdentity(identityKey) {
+function getIdentityVerificationMethodByIdentity(uniqueIdentityKey) {
     return getDocument(IdentityVerificationMethod, {
-        identityKey,
+        uniqueIdentityKey,
     });
 }
 

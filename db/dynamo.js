@@ -15,13 +15,8 @@ function getDocument(schema, keys) {
         .then((document) => document && document.toJSON());
 }
 
-function listDocuments(schema, { hashKey, index }) {
-    let query = Promise.promisifyAll(schema.query(hashKey));
-    if (index) {
-        query = query.usingIndex(index);
-    }
-
-    return query
+function listDocuments(schema, { hashKey }) {
+    return Promise.promisifyAll(schema.query(hashKey))
         .loadAll()
         .execAsync()
         .get('Items')
