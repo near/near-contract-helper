@@ -1,11 +1,14 @@
 const { updateDocument } = require('../../dynamo');
 const EmailDomainBlacklist = require('../../schemas/email_domain_blacklist');
 
-function updateEmailDomainBlacklist(domainName, blacklistEntry) {
+function updateEmailDomainBlacklistEntry(domainName, { error, hasValidDNSMXRecord, isTemporaryEmailService, staleAt }) {
     return updateDocument(EmailDomainBlacklist, {
         domainName,
-        ...blacklistEntry,
+        error,
+        hasValidDNSMXRecord,
+        isTemporaryEmailService,
+        staleAt,
     });
 }
 
-module.exports = updateEmailDomainBlacklist;
+module.exports = updateEmailDomainBlacklistEntry;

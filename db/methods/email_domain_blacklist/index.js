@@ -1,4 +1,4 @@
-const getEmailDomainBlacklistEntry = require('./get_by_domain_name');
+const getEmailDomainBlacklistEntry = require('./get_by_identity');
 const updateEmailDomainBlacklistEntry = require('./update');
 
 module.exports = {

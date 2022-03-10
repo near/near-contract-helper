@@ -30,7 +30,7 @@ class EmailDomainBlacklistService {
             return this.sequelize.updateDomainBlacklistEntry(blacklistEntry);
         }
         const { domainName, ...entry } = blacklistEntry;
-        return this.db.updateEmailDomainBlacklistEntry(domainName, entry);
+        return this.db.updateEmailDomainBlacklistEntry({ domainName }, entry);
     }
 }
 
