@@ -102,7 +102,7 @@ class RecoveryMethodService {
             });
         }
 
-        const hasSecurityCode = !!(securityCode || securityCode === 0);
+        const hasSecurityCode = !!(securityCode || parseInt(securityCode, 10) === 0);
 
         // the table keys can be used to uniquely identify a recovery method document if either:
         // - all constituent properties of the composite index are provided to this method
