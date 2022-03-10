@@ -1,12 +1,12 @@
 const Promise = require('bluebird');
 
 function createDocument(schema, object, params) {
-    return schema.createAsync(stripUndefinedValues(object), { ...params, overwrite: false })
+    return schema.createAsync(stripUndefinedValues(object), { overwrite: false, ...params })
         .then((document) => document.toJSON());
 }
 
 function deleteDocument(schema, object, params) {
-    return schema.destroyAsync(object, { ...params, ReturnValues: 'ALL_OLD' })
+    return schema.destroyAsync(object, { ReturnValues: 'ALL_OLD', ...params })
         .then((document) => document.toJSON());
 }
 
@@ -30,7 +30,7 @@ function stripUndefinedValues(object) {
 }
 
 function updateDocument(schema, object, params) {
-    return schema.updateAsync(stripUndefinedValues(object), { ...params, ReturnValues: 'ALL_NEW' })
+    return schema.updateAsync(stripUndefinedValues(object), { ReturnValues: 'ALL_NEW', ...params })
         .then((document) => document.toJSON());
 }
 
