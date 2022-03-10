@@ -313,13 +313,9 @@ const completeRecoveryInit = async ctx => {
 
     await accountService.getOrCreateAccount(accountId);
 
-    let publicKey = null;
-    if (seedPhrase) {
-        ({ publicKey } = parseSeedPhrase(seedPhrase));
-    }
-
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
 
+    const { publicKey } = parseSeedPhrase(seedPhrase);
     const { detail, kind } = method;
     const [recoveryMethod] = await recoveryMethodService.listRecoveryMethods({
         accountId,
