@@ -314,33 +314,16 @@ const completeRecoveryInit = async ctx => {
     await accountService.getOrCreateAccount(accountId);
 
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
-
     const { publicKey } = parseSeedPhrase(seedPhrase);
     const { detail, kind } = method;
-    const [recoveryMethod] = await recoveryMethodService.listRecoveryMethods({
+
+    await recoveryMethodService.updateRecoveryMethod({
         accountId,
         detail,
         kind,
         publicKey,
+        securityCode,
     });
-
-    if (recoveryMethod) {
-        await recoveryMethodService.updateRecoveryMethod({
-            accountId,
-            detail,
-            kind,
-            publicKey,
-            securityCode,
-        });
-    } else {
-        await recoveryMethodService.createRecoveryMethod({
-            accountId,
-            detail,
-            kind,
-            publicKey,
-            securityCode,
-        });
-    }
 
     // For test harness
     ctx.app.emit(SERVER_EVENTS.SECURITY_CODE, { accountId, securityCode });
