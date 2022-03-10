@@ -305,8 +305,10 @@ const sendSecurityCode = async ({ ctx, securityCode, method, accountId, seedPhra
     }
 };
 
-
 const completeRecoveryInit = async ctx => {
+    if (!USE_DYNAMODB) {
+        return completeRecoveryInit_legacy(ctx);
+    }
     const { accountId, method, seedPhrase } = ctx.request.body;
 
     await accountService.getOrCreateAccount(accountId);
@@ -327,23 +329,59 @@ const completeRecoveryInit = async ctx => {
     });
 
     if (recoveryMethod) {
-        if (USE_DYNAMODB) {
-            await recoveryMethodService.updateRecoveryMethod({
-                accountId,
-                detail,
-                kind,
-                publicKey,
-                securityCode,
-            });
-        } else {
-            await recoveryMethodService.setSecurityCode({
-                accountId,
-                detail,
-                kind,
-                publicKey,
-                securityCode,
-            });
-        }
+        await recoveryMethodService.updateRecoveryMethod({
+            accountId,
+            detail,
+            kind,
+            publicKey,
+            securityCode,
+        });
+    } else {
+        await recoveryMethodService.createRecoveryMethod({
+            accountId,
+            detail,
+            kind,
+            publicKey,
+            securityCode,
+        });
+    }
+
+    // For test harness
+    ctx.app.emit(SERVER_EVENTS.SECURITY_CODE, { accountId, securityCode });
+
+    await sendSecurityCode({ ctx, securityCode, method, accountId, seedPhrase });
+
+    ctx.body = await recoveryMethodService.listAllRecoveryMethods(accountId);
+};
+
+const completeRecoveryInit_legacy = async ctx => {
+    const { accountId, method, seedPhrase } = ctx.request.body;
+
+    await accountService.getOrCreateAccount(accountId);
+
+    let publicKey = null;
+    if (seedPhrase) {
+        ({ publicKey } = parseSeedPhrase(seedPhrase));
+    }
+
+    const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
+
+    const { detail, kind } = method;
+    const [recoveryMethod] = await recoveryMethodService.listRecoveryMethods({
+        accountId,
+        detail,
+        kind,
+        publicKey,
+    });
+
+    if (recoveryMethod) {
+        await recoveryMethodService.setSecurityCode({
+            accountId,
+            detail,
+            kind,
+            publicKey,
+            securityCode,
+        });
     } else {
         await recoveryMethodService.createRecoveryMethod({
             accountId,
