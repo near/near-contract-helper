@@ -14,7 +14,7 @@ let poolMatch;
 if (IS_MAINNET) {
     poolMatch = JSON.stringify(['%.poolv1.near', '%.pool.near']).replace(/"/g, '\'');
 } else {
-    poolMatch = JSON.stringify(['%.pool.%.m0', '%.factory01.littlefarm.testnet']).replace(/"/g, '\'');
+    poolMatch = JSON.stringify(['%.pool.%.m0', '%.factory01.littlefarm.testnet', '%.factory.colorpalette.testnet']).replace(/"/g, '\'');
 }
 
 const findStakingDeposits = async (ctx) => {

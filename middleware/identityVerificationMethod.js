@@ -4,9 +4,7 @@ const password = require('secure-random-password');
 
 const recaptchaValidator = require('../RecaptchaValidator');
 const { getSecurityCodeMessageContent } = require('../accountRecoveryMessageContent');
-const { USE_DB_SERVICES } = require('../features');
 const constants = require('../constants');
-const { IdentityVerificationMethod } = require('../models');
 const IdentityVerificationMethodService = require('../services/identity_verification_method');
 const { sendMail } = require('../utils/email');
 const { sendSms } = require('../utils/sms');
@@ -29,25 +27,6 @@ const IDENTITY_VERIFICATION_ERRORS = {
     VERIFICATION_CODE_EXPIRED: { code: 'identityVerificationCodeExpired', statusCode: 409 },
     RECAPTCHA_INVALID: { code: 'identityVerificationRecaptchaInvalid', statusCode: 400 },
     INVALID_EMAIL_PROVIDER: { code: 'identityVerificationEmailProviderInvalid', statusCode: 400 }
-};
-
-const MATCH_GMAIL_IGNORED_CHARS = /[|&;$%@"<>()+,!#'*\-\/=?^_`.{}]/g;
-// Identify what gmail would consider the 'root' email for a given email address
-// GMail ignores things like . and +
-const getUniqueEmail = (email) => {
-    if (!email.includes('@')) {
-        return '';
-    }
-
-
-    const [usernameWithPossibleAlias, inputDomain] = email.split('@');
-    const domain = inputDomain.replace('googlemail.com', 'gmail.com');
-
-    const username = usernameWithPossibleAlias
-        .split('+')[0]
-        .replace(MATCH_GMAIL_IGNORED_CHARS, '');
-
-    return `${username}@${domain}`.toLowerCase();
 };
 
 const emailDomainValidator = createEmailDomainValidator();
@@ -122,28 +101,6 @@ function setAlreadyClaimedResponse(ctx) {
     });
 }
 
-async function tryCreateIdentityVerificationEntry({ ctx, identityKey, kind, securityCode }) {
-    try {
-        const [verificationMethod, verificationMethodCreatedByThisCall] = await IdentityVerificationMethod.findOrCreate({
-            where: {
-                identityKey: identityKey.toLowerCase(),
-                kind,
-            },
-            defaults: {
-                securityCode,
-                uniqueIdentityKey: kind === IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL ? getUniqueEmail(identityKey) : null
-            }
-        });
-        return { verificationMethod, verificationMethodCreatedByThisCall };
-    } catch (err) {
-        if (err.original && err.original.code === '23505') { // UniqueConstraintError is not an error; it means it was claimed already
-            setAlreadyClaimedResponse(ctx);
-            return false;
-        }
-        throw err;
-    }
-}
-
 function setInvalidRecaptchaResponse(ctx) {
     setJSONErrorResponse({
         ctx,
@@ -192,36 +149,15 @@ async function createIdentityVerificationMethod(ctx) {
 
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
 
-    if (!USE_DB_SERVICES) {
-        const createResult = await tryCreateIdentityVerificationEntry({ ctx, identityKey, kind, securityCode });
-        if (!createResult) { return; }
+    const isIdentityRecoverable = await IdentityVerificationMethodService.recoverIdentity({
+        identityKey,
+        kind,
+        securityCode,
+    });
 
-        const {
-            verificationMethod,
-            verificationMethodCreatedByThisCall
-        } = createResult;
-
-        // Set a new security code every time someone POSTs for a particular kind and identityKey combination
-        // unless the existing has already been claimed.
-        if (verificationMethod.claimed === true) {
-            setAlreadyClaimedResponse(ctx);
-            return;
-        }
-
-        if (!verificationMethodCreatedByThisCall) {
-            await verificationMethod.update({ securityCode });
-        }
-    } else {
-        const isIdentityRecoverable = await IdentityVerificationMethodService.recoverIdentity({
-            identityKey,
-            kind,
-            securityCode,
-        });
-
-        if (!isIdentityRecoverable) {
-            setAlreadyClaimedResponse(ctx);
-            return;
-        }
+    if (!isIdentityRecoverable) {
+        setAlreadyClaimedResponse(ctx);
+        return;
     }
 
     const { html, subject, text } = getSecurityCodeMessageContent({ securityCode });
@@ -251,7 +187,6 @@ module.exports = {
     validateVerificationParams,
     emailDomainValidator,
     validateEmail,
-    getUniqueEmail,
     setAlreadyClaimedResponse,
     setInvalidRecaptchaResponse,
     IDENTITY_VERIFICATION_ERRORS
