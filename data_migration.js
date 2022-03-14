@@ -1,4 +1,5 @@
 const Promise = require('bluebird');
+const fs = require('fs');
 const inquirer = require('inquirer');
 const { Pool } = require('pg');
 
@@ -121,7 +122,14 @@ async function postMigration() {
         }
     );
 
-    console.log(JSON.stringify(recoveryMethods, null, 2));
+    let resultsPath = `${environment}_data_migration${isWetRun ? '' : '_dry'}.json`;
+    let fileExists = fs.existsSync(resultsPath);
+    let suffix = 0;
+    while (fileExists) {
+        resultsPath = resultsPath.split('.').join(`_${++suffix}.`);
+        fileExists = fs.existsSync(resultsPath);
+    }
+    fs.writeFileSync(resultsPath, JSON.stringify(recoveryMethods, null, 2));
 }
 
 postMigration();
