@@ -118,7 +118,6 @@ class RecoveryMethodService {
         if (noDetailReported || hasConstituentKeys) {
             const recoveryMethod = await this.db.getRecoveryMethodByIdentity({
                 accountId,
-                detail,
                 kind,
                 publicKey,
             });

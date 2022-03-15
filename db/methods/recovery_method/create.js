@@ -5,7 +5,7 @@ const { buildRecoveryMethodRangeKey } = require('../../utils');
 function createRecoveryMethod({ accountId, detail, kind, publicKey, requestId, securityCode }) {
     return createDocument(RecoveryMethod, {
         accountId,
-        compositeKey: buildRecoveryMethodRangeKey({ detail, kind, publicKey }),
+        compositeKey: buildRecoveryMethodRangeKey({ kind, publicKey }),
         detail,
         kind,
         publicKey,

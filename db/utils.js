@@ -1,5 +1,5 @@
-function buildRecoveryMethodRangeKey({ detail, kind, publicKey }) {
-    return [detail, kind, publicKey].join(':');
+function buildRecoveryMethodRangeKey({ kind, publicKey }) {
+    return [kind, publicKey].join(':');
 }
 
 function buildTableName(baseName) {
