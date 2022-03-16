@@ -1,19 +1,52 @@
+const {
+    getIdentityVerificationMethod,
+    updateIdentityVerificationMethod,
+} = require('../db/methods/identity_verification_method');
+const { USE_DYNAMODB } = require('../features');
 const SequelizeIdentityVerificationMethods = require('./sequelize/identity_verification_method');
 
+const MATCH_GMAIL_IGNORED_CHARS = /[|&;$%@"<>()+,!#'*\-\/=?^_`.{}]/g;
 
-const IdentityVerificationMethodService = {
-    claimIdentityVerificationMethod({ identityKey, kind }) {
-        return SequelizeIdentityVerificationMethods.claimIdentityVerificationMethod({ identityKey, kind });
-    },
+class IdentityVerificationMethodService {
+    constructor(params = {
+        db: {
+            getIdentityVerificationMethod,
+            updateIdentityVerificationMethod,
+        },
+        sequelize: SequelizeIdentityVerificationMethods,
+    }) {
+        this.db = params.db;
+        this.sequelize = params.sequelize;
+    }
+
+    async claimIdentityVerificationMethod({ identityKey, kind }) {
+        if (!USE_DYNAMODB) {
+            return this.sequelize.claimIdentityVerificationMethod({ identityKey, kind });
+        }
+        // do not upsert documents that do not exist or exist under a different kind
+        const identityVerificationMethod = await this.getIdentityVerificationMethod({ identityKey });
+        if (!identityVerificationMethod || identityVerificationMethod.kind !== kind) {
+            return null;
+        }
+
+        return updateIdentityVerificationMethod({
+            uniqueIdentityKey: this.getUniqueIdentityKey(identityKey),
+        }, {
+            claimed: true,
+            securityCode: null,
+        });
+    }
 
     getIdentityVerificationMethod({ identityKey, kind }) {
-        return SequelizeIdentityVerificationMethods.getIdentityVerificationMethod({ identityKey, kind });
-    },
+        if (!USE_DYNAMODB) {
+            return this.sequelize.getIdentityVerificationMethod({ identityKey, kind });
+        }
+        return this.db.getIdentityVerificationMethod(this.getUniqueIdentityKey(identityKey));
+    }
 
     // Identify what gmail would consider the 'root' email for a given email address
     // GMail ignores things like . and +
     getUniqueEmail(email) {
-        const MATCH_GMAIL_IGNORED_CHARS = /[|&;$%@"<>()+,!#'*\-\/=?^_`.{}]/g;
         if (!email.includes('@')) {
             return '';
         }
@@ -26,12 +59,38 @@ const IdentityVerificationMethodService = {
             .replace(MATCH_GMAIL_IGNORED_CHARS, '');
 
         return `${username}@${domain}`.toLowerCase();
-    },
+    }
 
-    // return the IdentityVerificationMethod record when successful, null when invalid
-    recoverIdentity({ identityKey, kind, securityCode }) {
-        return SequelizeIdentityVerificationMethods.recoverIdentity({ identityKey, kind, securityCode });
-    },
-};
+    getUniqueIdentityKey(identityKey) {
+        return this.getUniqueEmail(identityKey) || identityKey;
+    }
+
+    async recoverIdentity({ identityKey, kind, securityCode }) {
+        if (!USE_DYNAMODB) {
+            return this.sequelize.recoverIdentity({ identityKey, kind, securityCode });
+        }
+
+        const identityVerificationMethod = await this.getIdentityVerificationMethod({ identityKey });
+
+        // allow recovery when no record exists for the given identity or the record is unclaimed and matches the given kind
+        const isRecoverable = !identityVerificationMethod
+            || (identityVerificationMethod.kind === kind && !identityVerificationMethod.claimed);
+
+        if (!isRecoverable) {
+            return false;
+        }
+
+        // create new identity verification method if one does not already exist for the given identityKey and kind
+        await this.db.updateIdentityVerificationMethod({
+            uniqueIdentityKey: this.getUniqueIdentityKey(identityKey),
+        }, {
+            identityKey,
+            kind,
+            securityCode,
+        });
+
+        return true;
+    }
+}
 
 module.exports = IdentityVerificationMethodService;

@@ -13,6 +13,9 @@ const {
     setInvalidRecaptchaResponse
 } = require('./identityVerificationMethod');
 
+const accountService = new AccountService();
+const identityVerificationMethodService = new IdentityVerificationMethodService();
+
 // TODO: Adjust gas to correct amounts
 const MAX_GAS_FOR_ACCOUNT_CREATE = process.env.MAX_GAS_FOR_ACCOUNT_CREATE || '100000000000000';
 const NEW_FUNDED_ACCOUNT_BALANCE = process.env.FUNDED_ACCOUNT_BALANCE || nearAPI.utils.format.parseNearAmount('0.35');
@@ -68,7 +71,7 @@ async function doCreateFundedAccount({
     } catch (e) {
         if (!isExistingAccount) {
             // Clean up if we were responsible for creating it during this API call
-            await AccountService.deleteAccount(newAccountId);
+            await accountService.deleteAccount(newAccountId);
         }
 
         if (e.type === 'NotEnoughBalance') {
@@ -138,12 +141,12 @@ const createFundedAccount = async (ctx) => {
 
     // If someone is using a recovery method that involves a confirmation code (email / SMS)
     // then we need to manually set the fundedAccountNeedsDeposit on the _existing_ record
-    const isExistingAccount = !!(await AccountService.getAccount(newAccountId));
+    const isExistingAccount = !!(await accountService.getAccount(newAccountId));
     const [fundingAccount] = await Promise.all([
         ctx.near.account(fundedCreatorKeyJson.account_id),
         isExistingAccount
-            ? AccountService.setAccountRequiresDeposit(newAccountId, true)
-            : AccountService.createAccount(newAccountId, { fundedAccountNeedsDeposit: true }),
+            ? accountService.setAccountRequiresDeposit(newAccountId, true)
+            : accountService.createAccount(newAccountId, { fundedAccountNeedsDeposit: true }),
     ]);
 
     await doCreateFundedAccount({
@@ -229,9 +232,8 @@ async function createIdentityVerifiedFundedAccount(ctx) {
         return;
     }
 
-    const verificationMethod = await IdentityVerificationMethodService.getIdentityVerificationMethod({
+    const verificationMethod = await identityVerificationMethodService.getIdentityVerificationMethod({
         identityKey,
-        kind,
     });
 
     if (!verificationMethod) {
@@ -268,7 +270,7 @@ async function createIdentityVerifiedFundedAccount(ctx) {
     }
 
     const [account, fundingAccount] = await Promise.all([
-        AccountService.getAccount(newAccountId),
+        accountService.getAccount(newAccountId),
         ctx.near.account(fundedCreatorKeyJson.account_id)
     ]);
 
@@ -281,7 +283,7 @@ async function createIdentityVerifiedFundedAccount(ctx) {
     });
 
     if (ctx.status === 200) {
-        await IdentityVerificationMethodService.claimIdentityVerificationMethod({ identityKey, kind });
+        await identityVerificationMethodService.claimIdentityVerificationMethod({ identityKey, kind });
     }
 }
 
@@ -289,7 +291,7 @@ async function clearFundedAccountNeedsDeposit(ctx) {
     // DEPRECATED: Remove after coin-op v1.5 is settled
 
     const { accountId } = ctx.request.body;
-    const account = await AccountService.getAccount(accountId);
+    const account = await accountService.getAccount(accountId);
     if (!account.fundedAccountNeedsDeposit) {
         // This is an idempotent call
         ctx.status = 200;
@@ -303,7 +305,7 @@ async function clearFundedAccountNeedsDeposit(ctx) {
     const availableBalanceBN = new BN(available);
 
     if (availableBalanceBN.gt(BN_UNLOCK_FUNDED_ACCOUNT_BALANCE)) {
-        await AccountService.setAccountRequiresDeposit(accountId, false);
+        await accountService.setAccountRequiresDeposit(accountId, false);
         ctx.status = 200;
         ctx.body = { success: true };
         return;

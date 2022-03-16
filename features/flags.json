@@ -1,1 +1,31 @@
-{}
+{
+  "USE_DYNAMODB": {
+    "createdBy": "Andy Haynes",
+    "createdAt": "2022-01-28T21:20:05.270Z",
+    "development": {
+      "enabled": false,
+      "lastEditedBy": "Andy Haynes",
+      "lastEditedAt": "2022-01-28T21:20:05.270Z"
+    },
+    "testnet": {
+      "enabled": false,
+      "lastEditedBy": "Andy Haynes",
+      "lastEditedAt": "2022-01-28T21:20:05.270Z"
+    },
+    "mainnet": {
+      "enabled": false,
+      "lastEditedBy": "Andy Haynes",
+      "lastEditedAt": "2022-01-28T21:20:05.270Z"
+    },
+    "testnet_STAGING": {
+      "enabled": false,
+      "lastEditedBy": "Andy Haynes",
+      "lastEditedAt": "2022-01-31T21:14:31.321Z"
+    },
+    "mainnet_STAGING": {
+      "enabled": false,
+      "lastEditedBy": "Andy Haynes",
+      "lastEditedAt": "2022-01-31T21:14:42.135Z"
+    }
+  }
+}

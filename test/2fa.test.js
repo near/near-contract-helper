@@ -5,11 +5,13 @@ const { parseSeedPhrase } = require('near-seed-phrase');
 const sinon = require('sinon');
 
 const constants = require('../constants');
+const { USE_DYNAMODB } = require('../features');
 const attachEchoMessageListeners = require('./attachEchoMessageListeners');
 const expectRequestHelpers = require('./expectRequestHelpers');
 const chai = require('./chai');
 const createTestServerInstance = require('./createTestServerInstance');
 const { initDb } = require('./db');
+const initLocalDynamo = require('./local_dynamo');
 const TestAccountHelper = require('./TestAccountHelper');
 
 const { expect } = chai;
@@ -40,6 +42,7 @@ describe('2fa method management', function () {
     this.timeout(15000);
 
     let app, request, testAccountHelper;
+    let terminateLocalDynamo;
 
     before(async () => {
         const keyStore = new nearAPI.keyStores.InMemoryKeyStore();
@@ -56,7 +59,17 @@ describe('2fa method management', function () {
             request,
         });
 
-        await initDb();
+        if (USE_DYNAMODB) {
+            ({ terminateLocalDynamo } = await initLocalDynamo());
+        } else {
+            await initDb();
+        }
+    });
+
+    after(async () => {
+        if (USE_DYNAMODB) {
+            await terminateLocalDynamo();
+        }
     });
 
     describe('setting up 2fa method', () => {
