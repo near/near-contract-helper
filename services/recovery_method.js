@@ -111,10 +111,10 @@ class RecoveryMethodService {
 
         return this.db.updateRecoveryMethod({
             accountId,
-            detail: twoFactorRecoveryMethod.detail,
             kind: twoFactorRecoveryMethod.kind,
             publicKey: twoFactorRecoveryMethod.publicKey,
         }, {
+            detail: twoFactorRecoveryMethod.detail,
             requestId: -1,
             securityCode: null,
         });
@@ -136,10 +136,10 @@ class RecoveryMethodService {
         }
         return this.db.updateRecoveryMethod({
             accountId,
-            detail,
             kind,
             publicKey,
         }, {
+            detail,
             securityCode,
         });
     }
@@ -163,10 +163,10 @@ class RecoveryMethodService {
 
         return this.db.updateRecoveryMethod({
             accountId,
-            detail: twoFactorRecoveryMethod.detail,
             kind: twoFactorRecoveryMethod.kind,
             publicKey: twoFactorRecoveryMethod.publicKey,
         }, {
+            detail: twoFactorRecoveryMethod.detail,
             requestId,
             securityCode,
         });
