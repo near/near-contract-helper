@@ -420,6 +420,7 @@ const completeRecoveryValidation = ({ isNew } = {}) => async (ctx) => {
         method,
         securityCode,
         enterpriseRecaptchaToken,
+        publicKey,
         recaptchaAction,
         recaptchaSiteKey
     } = ctx.request.body;
@@ -449,6 +450,7 @@ const completeRecoveryValidation = ({ isNew } = {}) => async (ctx) => {
             accountId,
             detail: method.detail,
             kind: method.kind,
+            publicKey,
             securityCode,
         });
 
@@ -466,6 +468,7 @@ const completeRecoveryValidation = ({ isNew } = {}) => async (ctx) => {
         accountId,
         detail: method.detail,
         kind: method.kind,
+        publicKey,
         securityCode: null,
     });
 
