@@ -52,7 +52,7 @@ class RecoveryMethodService {
         }
         return this.db.listRecoveryMethodsByAccountId(accountId)
             .filter((recoveryMethod) => recoveryMethod.detail !== detail)
-            .map((recoveryMethod) => deleteRecoveryMethod(recoveryMethod));
+            .map((recoveryMethod) => this.db.deleteRecoveryMethod(recoveryMethod));
     }
 
     deleteRecoveryMethod({ accountId, kind, publicKey }) {
@@ -61,7 +61,7 @@ class RecoveryMethodService {
         }
         return this.db.listRecoveryMethodsByAccountId(accountId)
             .filter((recoveryMethod) => recoveryMethod.kind === kind && recoveryMethod.publicKey === publicKey)
-            .map((recoveryMethod) => deleteRecoveryMethod(recoveryMethod));
+            .map((recoveryMethod) => this.db.deleteRecoveryMethod(recoveryMethod));
     }
 
     getTwoFactorRecoveryMethod(accountId) {
