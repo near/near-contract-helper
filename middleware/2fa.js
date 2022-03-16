@@ -263,21 +263,6 @@ const initCode = async (ctx) => {
         });
     }
 
-    // check if 2fa method matches existing recovery method
-    const [recoveryMethod] = await recoveryMethodService.listRecoveryMethods({
-        accountId,
-        detail,
-        kind: kind.split('2fa-')[1],
-    });
-
-    if (recoveryMethod) {
-        // client should deploy contract
-        ctx.body = {
-            confirmed: true, message: '2fa initialized and set up using recovery method verification'
-        };
-        return;
-    }
-
     // client waits to deploy contract until code is verified
     await sendCode(ctx, method, -1, accountId);
     ctx.body = {
