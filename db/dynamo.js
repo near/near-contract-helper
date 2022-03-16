@@ -7,7 +7,7 @@ function createDocument(schema, object, params) {
 
 function deleteDocument(schema, object, params) {
     return schema.destroyAsync(object, { ReturnValues: 'ALL_OLD', ...params })
-        .then((document) => document.toJSON());
+        .then((document) => document && document.toJSON());
 }
 
 function getDocument(schema, keys) {
