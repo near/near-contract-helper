@@ -1,4 +1,3 @@
-const { RECOVERY_METHOD_KINDS } = require('../constants');
 const {
     createRecoveryMethod,
     deleteRecoveryMethod,
@@ -92,50 +91,13 @@ class RecoveryMethodService {
     }
 
     async listRecoveryMethods({ accountId, detail, kind, publicKey, securityCode }) {
-        if (!USE_DYNAMODB) {
-            return this.sequelize.listRecoveryMethods({
-                accountId,
-                detail,
-                kind,
-                publicKey,
-                securityCode
-            });
-        }
-
-        const hasSecurityCode = !!(securityCode || parseInt(securityCode, 10) === 0);
-
-        // the table keys can be used to uniquely identify a recovery method document if either:
-        // - all constituent properties of the composite index are provided to this method
-        // - the recovery method kind indicates that a value for detail will never be reported because it does not exist or is private
-        // if neither condition is met then the property either does not exist or has been omitted, but the
-        // since the distinction cannot reliably be made, all recovery methods for the account will be fetched
-        const hasConstituentKeys = detail && kind && publicKey;
-        const noDetailReported = [
-            RECOVERY_METHOD_KINDS.LEDGER,
-            RECOVERY_METHOD_KINDS.PHRASE,
-        ].includes(kind);
-
-        if (noDetailReported || hasConstituentKeys) {
-            const recoveryMethod = await this.db.getRecoveryMethodByIdentity({
-                accountId,
-                kind,
-                publicKey,
-            });
-
-            if (!recoveryMethod || (hasSecurityCode && recoveryMethod.securityCode !== securityCode)) {
-                return [];
-            }
-
-            return [recoveryMethod];
-        }
-
-        return this.db.listRecoveryMethodsByAccountId(accountId)
-            .filter((recoveryMethod) =>
-                (!detail || detail === recoveryMethod.detail)
-                && (!kind || kind === recoveryMethod.kind)
-                && (!publicKey || publicKey === recoveryMethod.publicKey)
-                && (!hasSecurityCode || securityCode === recoveryMethod.securityCode)
-            );
+        return this.sequelize.listRecoveryMethods({
+            accountId,
+            detail,
+            kind,
+            publicKey,
+            securityCode
+        });
     }
 
     async resetTwoFactorRequest(accountId) {
