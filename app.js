@@ -433,15 +433,28 @@ const completeRecoveryValidation = ({ isNew } = {}) => async (ctx) => {
         ctx.throw(401, 'account does not exist');
     }
 
-    const [recoveryMethod] = await recoveryMethodService.listRecoveryMethods({
-        accountId,
-        detail: method.detail,
-        kind: method.kind,
-        securityCode,
-    });
+    if (!USE_DYNAMODB) {
+        const [recoveryMethod] = await recoveryMethodService.listRecoveryMethods({
+            accountId,
+            detail: method.detail,
+            kind: method.kind,
+            securityCode,
+        });
 
-    if (!recoveryMethod) {
-        ctx.throw(401, 'recoveryMethod does not exist');
+        if (!recoveryMethod) {
+            ctx.throw(401, 'recoveryMethod does not exist');
+        }
+    } else {
+        const isValidRecoveryMethod = await recoveryMethodService.validateSecurityCode({
+            accountId,
+            detail: method.detail,
+            kind: method.kind,
+            securityCode,
+        });
+
+        if (!isValidRecoveryMethod) {
+            ctx.throw(401, 'recoveryMethod does not exist');
+        }
     }
 
     // for new accounts, clear all other recovery methods that may have been created

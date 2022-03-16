@@ -209,6 +209,17 @@ class RecoveryMethodService {
             securityCode,
         });
     }
+
+    async validateSecurityCode({ accountId, detail, kind, securityCode }) {
+        const [recoveryMethod] = await this.db.listRecoveryMethodsByAccountId(accountId)
+            .filter((recoveryMethod) =>
+                recoveryMethod.detail === detail
+                && recoveryMethod.kind === kind
+                && recoveryMethod.securityCode === securityCode
+            );
+
+        return !!recoveryMethod;
+    }
 }
 
 module.exports = RecoveryMethodService;
