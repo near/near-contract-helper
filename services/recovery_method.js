@@ -52,7 +52,7 @@ class RecoveryMethodService {
         }
         return this.db.listRecoveryMethodsByAccountId(accountId)
             .filter((recoveryMethod) => recoveryMethod.detail !== detail)
-            .map((recoveryMethod) => deleteRecoveryMethod(recoveryMethod));
+            .map((recoveryMethod) => this.db.deleteRecoveryMethod(recoveryMethod));
     }
 
     deleteRecoveryMethod({ accountId, kind, publicKey }) {
@@ -61,7 +61,7 @@ class RecoveryMethodService {
         }
         return this.db.listRecoveryMethodsByAccountId(accountId)
             .filter((recoveryMethod) => recoveryMethod.kind === kind && recoveryMethod.publicKey === publicKey)
-            .map((recoveryMethod) => deleteRecoveryMethod(recoveryMethod));
+            .map((recoveryMethod) => this.db.deleteRecoveryMethod(recoveryMethod));
     }
 
     getTwoFactorRecoveryMethod(accountId) {
@@ -172,15 +172,25 @@ class RecoveryMethodService {
         });
     }
 
-    async validateSecurityCode({ accountId, detail, kind, securityCode }) {
-        const [recoveryMethod] = await this.db.listRecoveryMethodsByAccountId(accountId)
-            .filter((recoveryMethod) =>
-                recoveryMethod.detail === detail
-                && recoveryMethod.kind === kind
-                && recoveryMethod.securityCode === securityCode
-            );
+    async validateSecurityCode({ accountId, detail, kind, publicKey, securityCode }) {
+        if (!publicKey) {
+            const [recoveryMethod] = await this.db.listRecoveryMethodsByAccountId(accountId)
+                .filter((recoveryMethod) =>
+                    recoveryMethod.detail === detail
+                    && recoveryMethod.kind === kind
+                    && recoveryMethod.securityCode === securityCode
+                );
 
-        return !!recoveryMethod;
+            return !!recoveryMethod;
+        }
+
+        const recoveryMethod = await this.db.getRecoveryMethodByIdentity({
+            accountId,
+            kind,
+            publicKey,
+        });
+
+        return !!recoveryMethod && recoveryMethod.securityCode === securityCode;
     }
 }
 

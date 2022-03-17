@@ -11,6 +11,9 @@ function updateRecoveryMethod({ accountId, kind, publicKey }, { detail, requestI
         publicKey,
         requestId,
         securityCode,
+    }, {
+        UpdateExpression: 'SET createdAt = if_not_exists(createdAt, :now)',
+        ExpressionAttributeValues: { ':now': (new Date()).toISOString() },
     });
 }
 

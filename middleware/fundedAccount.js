@@ -1,6 +1,7 @@
 const nearAPI = require('near-api-js');
 const BN = require('bn.js');
 
+const { USE_DYNAMODB } = require('../features');
 const recaptchaValidator = require('../RecaptchaValidator');
 const AccountService = require('../services/account');
 const IdentityVerificationMethodService = require('../services/identity_verification_method');
@@ -234,6 +235,7 @@ async function createIdentityVerifiedFundedAccount(ctx) {
 
     const verificationMethod = await identityVerificationMethodService.getIdentityVerificationMethod({
         identityKey,
+        ...(USE_DYNAMODB ? {} : { kind }),
     });
 
     if (!verificationMethod) {

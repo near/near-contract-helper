@@ -29,7 +29,7 @@ class IdentityVerificationMethodService {
             return null;
         }
 
-        return updateIdentityVerificationMethod({
+        return this.db.updateIdentityVerificationMethod({
             uniqueIdentityKey: this.getUniqueIdentityKey(identityKey),
         }, {
             claimed: true,
