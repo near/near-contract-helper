@@ -74,53 +74,57 @@ async function postMigration() {
             on  a."id" = d."AccountId"
     `);
 
-    const recoveryMethods = await Promise.reduce(
-        deletedRecoveryMethods,
-        async (methodGroups, recoveryMethod) => {
-            // non-ledger recovery methods can safely be deleted
-            if (recoveryMethod.kind !== RECOVERY_METHOD_KINDS.LEDGER) {
-                methodGroups.deletedExpected.push(recoveryMethod);
+    const recoveryMethods = {
+        deleted: [],
+        deletedExpected: [],
+        deletedFailures: [],
+        ledger: [],
+    };
 
-                if (isWetRun) {
-                    try {
-                        await deleteRecoveryMethod(recoveryMethod);
-                    } catch (error) {
-                        methodGroups.deletedFailures.push({ error, recoveryMethod });
-                    }
-                    methodGroups.deleted.push(recoveryMethod);
-                }
-            } else {
-                // get the current ledger method for this accountId + publicKey
-                // if it was created *after* the deletedAt date then the account holder has deleted and
-                // recreated the ledger recovery method and should not be deleted in DynamoDB
-                const currentMethod = await getRecoveryMethodByIdentity(recoveryMethod);
-                const isDeletable = currentMethod && recoveryMethod.deletedAt > currentMethod.createdAt;
-                methodGroups.ledger.push({ currentMethod, recoveryMethod });
-                if (isDeletable) {
-                    methodGroups.deletedExpected.push({ currentMethod, recoveryMethod });
-                }
+    try {
+        await Promise.map(
+            deletedRecoveryMethods,
+            async (recoveryMethod) => {
+                // non-ledger recovery methods can safely be deleted
+                if (recoveryMethod.kind !== RECOVERY_METHOD_KINDS.LEDGER) {
+                    recoveryMethods.deletedExpected.push(recoveryMethod);
 
-                if (isWetRun) {
-                    try {
-                        if (isDeletable) {
-                            await deleteRecoveryMethod(currentMethod);
-                            methodGroups.deleted.push(currentMethod);
+                    if (isWetRun) {
+                        try {
+                            await deleteRecoveryMethod(recoveryMethod);
+                            recoveryMethods.deleted.push(recoveryMethod);
+                        } catch (error) {
+                            recoveryMethods.deletedFailures.push({ error, recoveryMethod });
                         }
-                    } catch (error) {
-                        methodGroups.deletedFailures.push({ error, recoveryMethod });
+                    }
+                } else {
+                    // get the current ledger method for this accountId + publicKey
+                    // if it was created *after* the deletedAt date then the account holder has deleted and
+                    // recreated the ledger recovery method and should not be deleted in DynamoDB
+                    const currentMethod = await getRecoveryMethodByIdentity(recoveryMethod);
+                    const isDeletable = currentMethod && recoveryMethod.deletedAt > currentMethod.createdAt;
+                    recoveryMethods.ledger.push({ currentMethod, recoveryMethod });
+                    if (isDeletable) {
+                        recoveryMethods.deletedExpected.push({ currentMethod, recoveryMethod });
+                    }
+
+                    if (isWetRun) {
+                        try {
+                            if (isDeletable) {
+                                await deleteRecoveryMethod(currentMethod);
+                                recoveryMethods.deleted.push(currentMethod);
+                            }
+                        } catch (error) {
+                            recoveryMethods.deletedFailures.push({ error, recoveryMethod });
+                        }
                     }
                 }
-            }
-
-            return methodGroups;
-        },
-        {
-            deleted: [],
-            deletedExpected: [],
-            deletedFailures: [],
-            ledger: [],
-        }
-    );
+            },
+            { concurrency: 10 }
+        );
+    } catch (error) {
+        console.error('Failed to look up all recovery methods', { error });
+    }
 
     let resultsPath = `${environment}_data_migration${isWetRun ? '' : '_dry'}.json`;
     let fileExists = fs.existsSync(resultsPath);
