@@ -3,4 +3,5 @@
 
 export type Features = {
     USE_DYNAMODB: boolean;
+    USE_TWILIO_VERIFY_2FA: boolean;
 };
