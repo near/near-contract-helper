@@ -1,36 +1,29 @@
 const debug = require('debug');
 const Cache = require('node-cache');
 
-const { USE_DB_SERVICES } = require('../features');
-const { EmailDomainBlacklist } = require('../models');
 const EmailDomainBlacklistService = require('../services/email_domain_blacklist');
 const { getStaleDate: getStaleDateUtil, isEntryStale } = require('./utils');
 
 class EmailDomainBlacklistDBClient {
     constructor({
         cache = new Cache({ stdTTL: 60 * 60 * 12, checkperiod: 0, useClones: false }),
+        emailDomainBlacklistService = new EmailDomainBlacklistService(),
         getStaleDate = getStaleDateUtil
     }) {
         this.cache = cache;
         this.getStaleDate = getStaleDate;
         this.debugLog = debug('EmailDomainBlacklistDBClient');
+        this.emailDomainBlacklistService = emailDomainBlacklistService;
     }
 
     async persistValidationResult(validationResult) {
         this.debugLog('persistValidationResult', validationResult);
 
         let blacklistEntry;
-        if (USE_DB_SERVICES) {
-            blacklistEntry = await EmailDomainBlacklistService.updateDomainBlacklistEntry({
-                staleAt: this.getStaleDate(Date.now()), // Allow caller to override
-                ...validationResult,
-            });
-        } else {
-            [blacklistEntry] = await EmailDomainBlacklist.upsert({
-                staleAt: this.getStaleDate(Date.now()), // Allow caller to override
-                ...validationResult
-            });
-        }
+        blacklistEntry = await this.emailDomainBlacklistService.updateDomainBlacklistEntry({
+            staleAt: this.getStaleDate(Date.now()), // Allow caller to override
+            ...validationResult,
+        });
 
         this.cache.set(validationResult.domainName, blacklistEntry);
 
@@ -45,11 +38,7 @@ class EmailDomainBlacklistDBClient {
         let domainBlacklistEntry;
 
         try {
-            if (USE_DB_SERVICES) {
-                domainBlacklistEntry = await EmailDomainBlacklistService.getDomainBlacklistEntry(normalizeDomainName);
-            } else {
-                domainBlacklistEntry = await EmailDomainBlacklist.findOne({ where: { domainName: normalizeDomainName } });
-            }
+            domainBlacklistEntry = await this.emailDomainBlacklistService.getDomainBlacklistEntry(normalizeDomainName);
 
             // Only cache in memory for un-stale entries so, calling code knows to re-fetch
             if (domainBlacklistEntry && !isEntryStale(domainBlacklistEntry)) {

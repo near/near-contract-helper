@@ -14,7 +14,9 @@ const { sendMail, get2faHtml } = emailHelper;
 const { SERVER_EVENTS, TWO_FACTOR_AUTH_KINDS } = constants;
 
 const SECURITY_CODE_DIGITS = 6;
-const twoFactorMethods = Object.values(TWO_FACTOR_AUTH_KINDS);
+
+const accountService = new AccountService();
+const recoveryMethodService = new RecoveryMethodService();
 
 const {
     getVerify2faMethodMessageContent,
@@ -105,7 +107,7 @@ const sendCode = async (ctx, method, requestId = -1, accountId = '') => {
     // integration test with e.g. SMS, e-mail.
     ctx.app.emit(SERVER_EVENTS.SECURITY_CODE, { accountId, requestId, securityCode }); // For test harness
 
-    await RecoveryMethodService.updateTwoFactorRecoveryMethod({
+    await recoveryMethodService.updateTwoFactorRecoveryMethod({
         accountId,
         requestId,
         securityCode,
@@ -200,14 +202,14 @@ const isContractDeployed = async (accountId) => {
 };
 
 const getTwoFactorRecoveryMethod = async (ctx, accountId) => {
-    const account = await AccountService.createAccount(accountId);
+    const account = await accountService.getOrCreateAccount(accountId);
     if (!account) {
         console.warn(`account: ${accountId} should already exist when sending new code`);
         ctx.throw(401);
         return;
     }
 
-    return RecoveryMethodService.getTwoFactorRecoveryMethod(accountId);
+    return recoveryMethodService.getTwoFactorRecoveryMethod(accountId);
 };
 
 /********************************
@@ -223,7 +225,7 @@ const getAccessKey = async (ctx) => {
 
 // http post http://localhost:3000/2fa/init accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
 // Call ONCE to enable 2fa on this account. Adds a twoFactorMethod (passed in body) where kind should start with '2fa-'
-// This WILL send the initial code to the method specified ['2fa-email', '2fa-phone']
+// This WILL send the initial code to the method specified ['2fa-email']
 const initCode = async (ctx) => {
     const { accountId, method, testContractDeployed = false } = ctx.request.body;
     if (!method || !method.kind || !method.detail) {
@@ -232,7 +234,7 @@ const initCode = async (ctx) => {
     }
 
     const { kind, detail } = method;
-    if (!twoFactorMethods.includes(kind)) {
+    if (kind !== TWO_FACTOR_AUTH_KINDS.EMAIL) {
         ctx.throw(401, 'invalid 2fa method ' + kind);
         return;
     }
@@ -245,7 +247,7 @@ const initCode = async (ctx) => {
             ctx.throw(401, 'account with multisig contract already has 2fa method');
         }
 
-        await RecoveryMethodService.updateTwoFactorRecoveryMethod({
+        await recoveryMethodService.updateTwoFactorRecoveryMethod({
             accountId,
             // FIXME: Should this be escaped?
             detail,
@@ -253,27 +255,12 @@ const initCode = async (ctx) => {
             requestId: -1,
         });
     } else {
-        await RecoveryMethodService.createRecoveryMethod({
+        await recoveryMethodService.createRecoveryMethod({
             accountId,
             detail,
             kind,
             requestId: -1,
         });
-    }
-
-    // check if 2fa method matches existing recovery method
-    const [recoveryMethod] = await RecoveryMethodService.listRecoveryMethods({
-        accountId,
-        detail,
-        kind: kind.split('2fa-')[1],
-    });
-
-    if (recoveryMethod) {
-        // client should deploy contract
-        ctx.body = {
-            confirmed: true, message: '2fa initialized and set up using recovery method verification'
-        };
-        return;
     }
 
     // client waits to deploy contract until code is verified
@@ -308,7 +295,7 @@ const verifyCode = async (ctx) => {
         ctx.throw(401, 'invalid 2fa code provided');
     }
 
-    const twoFactorMethod = await RecoveryMethodService.getTwoFactorRecoveryMethod(accountId);
+    const twoFactorMethod = await recoveryMethodService.getTwoFactorRecoveryMethod(accountId);
     if (!twoFactorMethod || twoFactorMethod.securityCode !== securityCode) {
         console.warn(`${accountId} has no 2fa method for the provided security code`);
         ctx.throw(401, '2fa code not valid for request id');
@@ -322,13 +309,13 @@ const verifyCode = async (ctx) => {
     }
 
     // only verify codes that are 5 minutes old (if testing make this impossible)
-    if (RecoveryMethodService.isTwoFactorRequestExpired(twoFactorMethod)) {
+    if (recoveryMethodService.isTwoFactorRequestExpired(twoFactorMethod)) {
         console.warn(`2fa code expired for: ${accountId}`);
         ctx.throw(401, '2fa code expired');
     }
 
     // security code valid
-    await RecoveryMethodService.resetTwoFactorRequest(accountId);
+    await recoveryMethodService.resetTwoFactorRequest(accountId);
     if (requestId !== -1) {
         ctx.body = await confirmRequest(ctx.near, accountId, parseInt(requestId, 10));
         return;

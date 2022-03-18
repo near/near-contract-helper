@@ -1,21 +1,31 @@
 {
-  "USE_DB_SERVICES": {
+  "USE_DYNAMODB": {
     "createdBy": "Andy Haynes",
-    "createdAt": "2021-11-30T22:51:54.860Z",
+    "createdAt": "2022-01-28T21:20:05.270Z",
     "development": {
-      "enabled": true,
+      "enabled": false,
       "lastEditedBy": "Andy Haynes",
-      "lastEditedAt": "2022-01-20T03:44:39.858Z"
+      "lastEditedAt": "2022-01-28T21:20:05.270Z"
     },
     "testnet": {
-      "enabled": true,
+      "enabled": false,
       "lastEditedBy": "Andy Haynes",
-      "lastEditedAt": "2022-01-20T03:44:39.859Z"
+      "lastEditedAt": "2022-01-28T21:20:05.270Z"
     },
     "mainnet": {
-      "enabled": true,
+      "enabled": false,
       "lastEditedBy": "Andy Haynes",
-      "lastEditedAt": "2022-01-27T04:15:37.910Z"
+      "lastEditedAt": "2022-01-28T21:20:05.270Z"
+    },
+    "testnet_STAGING": {
+      "enabled": false,
+      "lastEditedBy": "Andy Haynes",
+      "lastEditedAt": "2022-01-31T21:14:31.321Z"
+    },
+    "mainnet_STAGING": {
+      "enabled": false,
+      "lastEditedBy": "Andy Haynes",
+      "lastEditedAt": "2022-01-31T21:14:42.135Z"
     }
   }
 }
