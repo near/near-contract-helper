@@ -88,19 +88,20 @@ class TestAccountHelper {
         });
     }
 
-    async initRecoveryMethodForTempAccount({ accountId, method }) {
+    async initRecoveryMethodForTempAccount({ accountId, method, seedPhrase }) {
         this.clearSecurityCodeForAccount(accountId);
 
         const result = await this._request.post('/account/initializeRecoveryMethodForTempAccount')
             .send({
                 accountId,
                 method,
+                seedPhrase,
             });
 
         return { result, securityCode: this.getSecurityCodeForAccount(accountId) };
     }
 
-    async initRecoveryMethod({ accountId, method, testing, valid }) {
+    async initRecoveryMethod({ accountId, method, seedPhrase, testing, valid }) {
         const signature = await this.signatureForLatestBlock({ accountId, valid });
 
         this.clearSecurityCodeForAccount(accountId);
@@ -109,6 +110,7 @@ class TestAccountHelper {
             .send({
                 accountId,
                 method,
+                seedPhrase,
                 testing,
                 ...signature,
             });

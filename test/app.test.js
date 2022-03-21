@@ -103,7 +103,8 @@ describe('app routes', function () {
         it('send security code', async () => {
             ({ result, securityCode: savedSecurityCode } = await testAccountHelper.initRecoveryMethodForTempAccount({
                 accountId,
-                method
+                method,
+                seedPhrase: SEED_PHRASE,
             }));
 
             expectJSONResponse(result);
@@ -153,14 +154,19 @@ describe('app routes', function () {
         it('send security code alice', async () => {
             ({ result, securityCode: savedSecurityCode } = await testAccountHelper.initRecoveryMethodForTempAccount({
                 accountId,
-                method: alice
+                method: alice,
+                seedPhrase: 'any athlete that pudding ramp car pyramid share example day slab protect',
             }));
 
             expectJSONResponse(result);
         });
 
         it('send security code bob', async () => {
-            const { result } = await testAccountHelper.initRecoveryMethodForTempAccount(({ accountId, method: bob }));
+            const { result } = await testAccountHelper.initRecoveryMethodForTempAccount(({
+                accountId,
+                method: bob,
+                seedPhrase: 'coach early mad link yard express that crack wheel valid armor laundry',
+            }));
 
             expectJSONResponse(result);
         });
@@ -196,7 +202,8 @@ describe('app routes', function () {
             ({ result, securityCode: savedSecurityCode } = await testAccountHelper.initRecoveryMethod({
                 accountId,
                 method,
-                testing
+                seedPhrase: SEED_PHRASE,
+                testing,
             }));
 
             expectJSONResponse(result);
