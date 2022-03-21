@@ -1,4 +1,5 @@
 const Promise = require('bluebird');
+require('dotenv').config({ path: 'test/.env.test' });
 
 const Constants = require('../../constants');
 const { USE_DYNAMODB } = require('../../features');

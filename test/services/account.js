@@ -1,3 +1,5 @@
+require('dotenv').config({ path: 'test/.env.test' });
+
 const { USE_DYNAMODB } = require('../../features');
 const AccountService = require('../../services/account');
 const chai = require('../chai');
