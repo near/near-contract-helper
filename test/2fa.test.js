@@ -89,15 +89,6 @@ describe('2fa method management', function () {
             }
         });
 
-        it('prevents initialisation of phone based 2FA methods', async () => {
-            const { result } = await testAccountHelper.init2faMethod({
-                accountId,
-                method: twoFactorMethods.phone
-            });
-
-            expectFailedWithCode(401, 'invalid 2fa method 2fa-phone')(result);
-        });
-
         it('should generate a deterministic public key for an account', async () => {
             const { body } = await testAccountHelper.getAccessKey({ accountId })
                 .then(expectJSONResponse);

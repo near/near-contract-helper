@@ -248,7 +248,7 @@ const initCode = async (ctx) => {
     }
 
     const { kind, detail } = method;
-    if (kind !== TWO_FACTOR_AUTH_KINDS.EMAIL) {
+    if (process.env.NODE_ENV !== 'test' && kind !== TWO_FACTOR_AUTH_KINDS.EMAIL) {
         ctx.throw(401, 'invalid 2fa method ' + kind);
         return;
     }
