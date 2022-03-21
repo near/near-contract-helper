@@ -23,7 +23,7 @@ const recoveryMethodService = new RecoveryMethodService();
 describe('RecoveryMethodService', function () {
     beforeEach(async function () {
         if (USE_DYNAMODB) {
-            const methods = await recoveryMethodService.listRecoveryMethods({ accountId: ACCOUNT_ID });
+            const methods = await recoveryMethodService.listAllRecoveryMethods(ACCOUNT_ID);
             await Promise.all(methods.map((method) => recoveryMethodService.deleteRecoveryMethod(method)));
         } else {
             await deleteAllRows();
