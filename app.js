@@ -9,6 +9,7 @@ const { USE_DYNAMODB } = require('./features');
 const AccountService = require('./services/account');
 const IdentityVerificationMethodService = require('./services/identity_verification_method');
 const RecoveryMethodService = require('./services/recovery_method');
+const TwilioVerifyService = require('./services/twilio_verify');
 
 const {
     RECOVERY_METHOD_KINDS,
@@ -25,6 +26,10 @@ app.proxy = true;
 app.use(require('koa-logger')());
 app.use(body({ limit: '500kb', fallback: true }));
 app.use(cors({ credentials: true }));
+
+app.context.services = {
+    twilioVerify: new TwilioVerifyService({ channel: TwilioVerifyService.channels.SMS }), 
+};
 
 let reportException = () => {
 };
