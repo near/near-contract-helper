@@ -114,6 +114,9 @@ const getRequestDataFromChain = async ({ requestId, ctx, accountId }) => {
 const sendCode = async (ctx, method, requestId = -1, accountId = '') => {
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
 
+    // Safe: assumes anything other than SMS should be HTML escaped, and that args should be shortened for SMS
+    const isForSmsDelivery = method.kind === TWO_FACTOR_AUTH_KINDS.PHONE;
+
     // Emit an event so that any listening test harnesses can use the security code without needing a full
     // integration test with e.g. SMS, e-mail.
     if (!USE_TWILIO_VERIFY_2FA || !isForSmsDelivery) {
@@ -123,11 +126,9 @@ const sendCode = async (ctx, method, requestId = -1, accountId = '') => {
     await recoveryMethodService.updateTwoFactorRecoveryMethod({
         accountId,
         requestId,
-        securityCode,
+        ...((!USE_TWILIO_VERIFY_2FA || !isForSmsDelivery) && { securityCode }),
     });
 
-    // Safe: assumes anything other than SMS should be HTML escaped, and that args should be shortened for SMS
-    const isForSmsDelivery = method.kind === TWO_FACTOR_AUTH_KINDS.PHONE;
 
     const deliveryOpts = {
         kind: method.kind,
