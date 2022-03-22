@@ -309,10 +309,8 @@ const validateCodeByKind = async (twoFactorMethod, code) => {
     case TWO_FACTOR_AUTH_KINDS.EMAIL:
         return twoFactorMethod.securityCode === code;
     default:
-        break;
+        return false;
     }
-
-    return false;
 };
 
 // http post http://localhost:3000/2fa/verify accountId=mattlock securityCode=430888
