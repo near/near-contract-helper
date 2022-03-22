@@ -184,7 +184,7 @@ describe('RecoveryMethodService', function () {
         });
     });
 
-    describe('listRecoveryMethods', function () {
+    (USE_DYNAMODB ? describe.skip : describe)('listRecoveryMethods', function () {
         it('returns all recovery methods for the given detail and kind', async function () {
             const email = generateEmailAddress();
             await Promise.all([
