@@ -1,3 +1,5 @@
+require('dotenv').config({ path: 'test/.env.test' });
+
 const Constants = require('../../constants');
 const IdentityVerificationMethodService = require('../../services/identity_verification_method');
 const IdentityVerificationMethodSequelize = require('../../services/sequelize/identity_verification_method');

@@ -1,3 +1,5 @@
+require('dotenv').config({ path: 'test/.env.test' });
+
 const EmailDomainBlacklistService = require('../../services/email_domain_blacklist');
 const chai = require('../chai');
 const { deleteAllRows } = require('../db');

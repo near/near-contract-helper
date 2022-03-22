@@ -1,4 +1,5 @@
 const Promise = require('bluebird');
+require('dotenv').config({ path: 'test/.env.test' });
 
 const Constants = require('../../constants');
 const { USE_DYNAMODB } = require('../../features');
@@ -9,7 +10,7 @@ const { deleteAllRows } = require('../db');
 const initLocalDynamo = require('../local_dynamo');
 const { generateEmailAddress, generateSmsNumber } = require('../utils');
 
-const { IDENTITY_VERIFICATION_METHOD_KINDS, TWO_FACTOR_AUTH_KINDS } = Constants;
+const { IDENTITY_VERIFICATION_METHOD_KINDS, RECOVERY_METHOD_KINDS, TWO_FACTOR_AUTH_KINDS } = Constants;
 const { expect } = chai;
 
 const ACCOUNT_ID = 'near.near';
@@ -22,7 +23,7 @@ const recoveryMethodService = new RecoveryMethodService();
 describe('RecoveryMethodService', function () {
     beforeEach(async function () {
         if (USE_DYNAMODB) {
-            const methods = await recoveryMethodService.listRecoveryMethods({ accountId: ACCOUNT_ID });
+            const methods = await recoveryMethodService.listAllRecoveryMethods(ACCOUNT_ID);
             await Promise.all(methods.map((method) => recoveryMethodService.deleteRecoveryMethod(method)));
         } else {
             await deleteAllRows();
@@ -69,12 +70,14 @@ describe('RecoveryMethodService', function () {
                     accountId: ACCOUNT_ID,
                     detail: email,
                     kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
+                    publicKey: 'abc',
                     securityCode: SECURITY_CODE,
                 }),
                 recoveryMethodService.createRecoveryMethod({
                     accountId: ACCOUNT_ID,
                     detail: secondaryEmail,
                     kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
+                    publicKey: 'xyz',
                     securityCode: SECURITY_CODE,
                 })
             ]);
@@ -181,7 +184,7 @@ describe('RecoveryMethodService', function () {
         });
     });
 
-    describe('listRecoveryMethods', function () {
+    (USE_DYNAMODB ? describe.skip : describe)('listRecoveryMethods', function () {
         it('returns all recovery methods for the given detail and kind', async function () {
             const email = generateEmailAddress();
             await Promise.all([
@@ -231,6 +234,107 @@ describe('RecoveryMethodService', function () {
 
             expect(recoveryMethods).length(1);
             expect(recoveryMethods[0]).property('detail', email);
+        });
+    });
+
+    (USE_DYNAMODB ? describe : describe.skip)('validateSecurityCode', function () {
+        it('returns true when a matching recovery method is found with the correct security code', async function () {
+            const params = {
+                accountId: ACCOUNT_ID,
+                detail: generateEmailAddress(),
+                kind: RECOVERY_METHOD_KINDS.EMAIL,
+                publicKey: PUBLIC_KEY,
+                securityCode: SECURITY_CODE,
+            };
+
+            await recoveryMethodService.createRecoveryMethod(params);
+
+            const isValid = await recoveryMethodService.validateSecurityCode(params);
+            expect(isValid).true;
+        });
+
+        it('returns true when a matching recovery method is found with the correct security code without a public key', async function () {
+            const params = {
+                accountId: ACCOUNT_ID,
+                detail: generateEmailAddress(),
+                kind: RECOVERY_METHOD_KINDS.EMAIL,
+                securityCode: SECURITY_CODE,
+            };
+
+            await recoveryMethodService.createRecoveryMethod(params);
+
+            const isValid = await recoveryMethodService.validateSecurityCode(params);
+            expect(isValid).true;
+        });
+
+        it('returns false when a matching recovery method is found with the wrong security code', async function () {
+            const params = {
+                accountId: ACCOUNT_ID,
+                detail: generateEmailAddress(),
+                kind: RECOVERY_METHOD_KINDS.EMAIL,
+                publicKey: PUBLIC_KEY,
+                securityCode: SECURITY_CODE,
+            };
+
+            await recoveryMethodService.createRecoveryMethod(params);
+
+            const isValid = await recoveryMethodService.validateSecurityCode({
+                ...params,
+                securityCode: (SECURITY_CODE - 1).toString(),
+            });
+            expect(isValid).false;
+        });
+
+        it('returns false when a matching recovery method is found with the wrong security code without a public key', async function () {
+            const params = {
+                accountId: ACCOUNT_ID,
+                detail: generateEmailAddress(),
+                kind: RECOVERY_METHOD_KINDS.EMAIL,
+                securityCode: SECURITY_CODE,
+            };
+
+            await recoveryMethodService.createRecoveryMethod(params);
+
+            const isValid = await recoveryMethodService.validateSecurityCode({
+                ...params,
+                securityCode: (SECURITY_CODE - 1).toString(),
+            });
+            expect(isValid).false;
+        });
+
+        it('returns false when no matching recovery method is found', async function () {
+            const params = {
+                accountId: ACCOUNT_ID,
+                detail: generateEmailAddress(),
+                kind: RECOVERY_METHOD_KINDS.EMAIL,
+                publicKey: PUBLIC_KEY,
+                securityCode: SECURITY_CODE,
+            };
+
+            await recoveryMethodService.createRecoveryMethod(params);
+
+            const isValid = await recoveryMethodService.validateSecurityCode({
+                ...params,
+                detail: generateEmailAddress(),
+            });
+            expect(isValid).false;
+        });
+
+        it('returns false when no matching recovery method is found without a public key', async function () {
+            const params = {
+                accountId: ACCOUNT_ID,
+                detail: generateEmailAddress(),
+                kind: RECOVERY_METHOD_KINDS.EMAIL,
+                securityCode: SECURITY_CODE,
+            };
+
+            await recoveryMethodService.createRecoveryMethod(params);
+
+            const isValid = await recoveryMethodService.validateSecurityCode({
+                ...params,
+                detail: generateEmailAddress(),
+            });
+            expect(isValid).false;
         });
     });
 

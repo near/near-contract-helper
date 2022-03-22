@@ -74,7 +74,11 @@ class IdentityVerificationMethodService {
 
         // allow recovery when no record exists for the given identity or the record is unclaimed and matches the given kind
         const isRecoverable = !identityVerificationMethod
-            || (identityVerificationMethod.kind === kind && !identityVerificationMethod.claimed);
+            || (
+                identityVerificationMethod.kind === kind
+                && identityVerificationMethod.identityKey === identityKey
+                && !identityVerificationMethod.claimed
+            );
 
         if (!isRecoverable) {
             return false;

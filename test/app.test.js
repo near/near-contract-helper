@@ -97,13 +97,14 @@ describe('app routes', function () {
 
     describe('/account/initializeRecoveryMethodForTempAccount', () => {
         let savedSecurityCode = '', result;
-        const accountId = 'doesnotexistonchain' + Date.now();
+        const accountId = 'doesnotexistonchain_1' + Date.now();
         const method = recoveryMethods[RECOVERY_METHOD_KINDS.EMAIL];
 
         it('send security code', async () => {
             ({ result, securityCode: savedSecurityCode } = await testAccountHelper.initRecoveryMethodForTempAccount({
                 accountId,
-                method
+                method,
+                seedPhrase: SEED_PHRASE,
             }));
 
             expectJSONResponse(result);
@@ -141,35 +142,43 @@ describe('app routes', function () {
                 })
                 .then(expectJSONResponse);
         });
-
     });
 
     describe('Two people send recovery methods for the same account before created', () => {
         let savedSecurityCode = '', result;
-        const accountId = 'doesnotexistonchain' + Date.now();
+        const accountId = 'doesnotexistonchain_2' + Date.now();
         const alice = recoveryMethods[RECOVERY_METHOD_KINDS.EMAIL];
         const bob = recoveryMethods[RECOVERY_METHOD_KINDS.PHONE];
+        const aliceSeedPhrase = 'any athlete that pudding ramp car pyramid share example day slab protect';
+        const bobSeedPhrase = 'coach early mad link yard express that crack wheel valid armor laundry';
 
         it('send security code alice', async () => {
             ({ result, securityCode: savedSecurityCode } = await testAccountHelper.initRecoveryMethodForTempAccount({
                 accountId,
-                method: alice
+                method: alice,
+                seedPhrase: aliceSeedPhrase,
             }));
 
             expectJSONResponse(result);
         });
 
         it('send security code bob', async () => {
-            const { result } = await testAccountHelper.initRecoveryMethodForTempAccount(({ accountId, method: bob }));
+            const { result } = await testAccountHelper.initRecoveryMethodForTempAccount(({
+                accountId,
+                method: bob,
+                seedPhrase: bobSeedPhrase,
+            }));
 
             expectJSONResponse(result);
         });
 
         it('validate security code alice (new account) and other methods should be removed leaving 1 recoveryMethod', async () => {
+            const { publicKey } = parseSeedPhrase(aliceSeedPhrase);
             await request.post('/account/validateSecurityCodeForTempAccount')
                 .send({
                     accountId,
                     method: alice,
+                    publicKey,
                     securityCode: savedSecurityCode,
                 })
                 .then(expectJSONResponse);
@@ -196,7 +205,8 @@ describe('app routes', function () {
             ({ result, securityCode: savedSecurityCode } = await testAccountHelper.initRecoveryMethod({
                 accountId,
                 method,
-                testing
+                seedPhrase: SEED_PHRASE,
+                testing,
             }));
 
             expectJSONResponse(result);
