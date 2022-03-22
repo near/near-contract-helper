@@ -90,6 +90,7 @@ class RecoveryMethodService {
             }));
     }
 
+    // TODO remove this method when removing the USE_DYNAMODB feature flag
     async listRecoveryMethods({ accountId, detail, kind, publicKey, securityCode }) {
         return this.sequelize.listRecoveryMethods({
             accountId,
@@ -190,7 +191,7 @@ class RecoveryMethodService {
             publicKey,
         });
 
-        return !!recoveryMethod && recoveryMethod.securityCode === securityCode;
+        return !!recoveryMethod && recoveryMethod.detail === detail && recoveryMethod.securityCode === securityCode;
     }
 }
 
