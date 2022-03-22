@@ -525,8 +525,8 @@ const createFiatValueMiddleware = require('./middleware/fiat');
 router.get('/fiat', createFiatValueMiddleware());
 
 if (process.env.NODE_ENV === 'development') {
-    app.on(SERVER_EVENTS.SECURITY_CODE, (code) => {
-        console.log('Security code: ', code);
+    app.on(SERVER_EVENTS.SECURITY_CODE, ({ accountId, securityCode }) => {
+        console.log(`Security code for ${accountId}: ${securityCode}`);
     });
 }
 
