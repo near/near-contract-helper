@@ -302,7 +302,7 @@ const sendNewCode = async (ctx) => {
     };
 };
 
-const validateCodeByKind = async (ctx, twoFactorMethod, code) => {
+const validateCodeByKind = async (twoFactorMethod, code) => {
     switch (twoFactorMethod.kind) {
     case TWO_FACTOR_AUTH_KINDS.PHONE:
         return twilioVerifyService.verify({ to: twoFactorMethod.detail, code });
@@ -351,7 +351,7 @@ const verifyCode = async (ctx) => {
     }
 
     if (USE_TWILIO_VERIFY_2FA) {
-        const isCodeValid = await validateCodeByKind(ctx, twoFactorMethod, securityCode);
+        const isCodeValid = await validateCodeByKind(twoFactorMethod, securityCode);
         if (!isCodeValid) {
             console.warn(`${accountId} provided incorrect security code`);
             ctx.throw(401, '2fa code not valid for request id');
