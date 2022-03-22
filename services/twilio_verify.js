@@ -6,23 +6,18 @@ const AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 const VERIFY_SERVICE_SID = process.env.TWILIO_VERIFY_SERVICE_SID;
 const USE_MOCK_TWILIO = process.env.USE_MOCK_TWILIO === 'true';
 
-module.exports = class TwilioVerifyService {
-    static channels = {
-        SMS: 'sms',
-    }
+const VERIFY_DELIVERY_CHANNEL = 'sms';
 
+module.exports = class TwilioVerifyService {
     securityCodes = {};
 
-    constructor({
-        channel,
-    }) {
+    constructor() {
         if (USE_MOCK_TWILIO) {
             return;
         }
 
         const client = twilio(ACCOUNT_SID, AUTH_TOKEN);
 
-        this.channel = channel;
         this.verifyService = client
             .verify
             .services(VERIFY_SERVICE_SID);
@@ -42,7 +37,7 @@ module.exports = class TwilioVerifyService {
             return;
         }
 
-        return this.verifyService.verifications.create({ to, channel: this.channel });
+        return this.verifyService.verifications.create({ to, channel: VERIFY_DELIVERY_CHANNEL });
     }
 
     async verify({ to, code }) {

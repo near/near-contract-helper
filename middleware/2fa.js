@@ -20,7 +20,7 @@ const SECURITY_CODE_DIGITS = 6;
 
 const accountService = new AccountService();
 const recoveryMethodService = new RecoveryMethodService();
-const twilioVerifyService = new TwilioVerifyService({ channel: TwilioVerifyService.channels.SMS });
+const twilioVerifyService = new TwilioVerifyService();
 
 const {
     getVerify2faMethodMessageContent,
