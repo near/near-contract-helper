@@ -70,12 +70,14 @@ describe('RecoveryMethodService', function () {
                     accountId: ACCOUNT_ID,
                     detail: email,
                     kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
+                    publicKey: 'abc',
                     securityCode: SECURITY_CODE,
                 }),
                 recoveryMethodService.createRecoveryMethod({
                     accountId: ACCOUNT_ID,
                     detail: secondaryEmail,
                     kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
+                    publicKey: 'xyz',
                     securityCode: SECURITY_CODE,
                 })
             ]);
