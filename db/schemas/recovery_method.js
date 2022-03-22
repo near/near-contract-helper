@@ -16,7 +16,7 @@ const RecoveryMethod = dynamo.define('RecoveryMethod', {
         compositeKey: Joi.string().required(),
         detail: Joi.string(),
         kind: Joi.string().valid(...validRecoveryKinds).required(),
-        publicKey: Joi.string(),
+        publicKey: Joi.string().allow(null),
         requestId: Joi.number().integer(),
         securityCode: Joi.string(),
     },
