@@ -253,7 +253,7 @@ async function createIdentityVerifiedFundedAccount(ctx) {
     }
 
     // 15 minute expiration for codes; don't allow anything older to be used.
-    if ((Date.now().valueOf() - verificationMethod.updatedAt.valueOf()) > (60 * 1000 * 15)) {
+    if ((Date.now().valueOf() - (new Date(verificationMethod.updatedAt)).valueOf()) > (60 * 1000 * 15)) {
         setJSONErrorResponse({
             ctx,
             statusCode: IDENTITY_VERIFICATION_ERRORS.VERIFICATION_CODE_EXPIRED.statusCode,
