@@ -119,7 +119,7 @@ describe('2fa method management', function () {
         });
 
         it('sends a code when the 2FA email address is already being used with an email recovery method', async () => {
-            await accountService.createAccount(accountId);
+            await accountService.getOrCreateAccount(accountId);
             await recoveryMethodService.createRecoveryMethod({
                 ...twoFactorMethods.email,
                 accountId,
