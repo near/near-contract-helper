@@ -7,6 +7,7 @@ const constants = require('../constants');
 const messageContentUtils2fa = require('./2faMessageContent');
 const AccountService = require('../services/account');
 const RecoveryMethodService = require('../services/recovery_method');
+const TwilioVerifyService = require('../services/twilio_verify');
 const emailHelper = require('../utils/email');
 const smsHelper = require('../utils/sms');
 
@@ -19,6 +20,7 @@ const SECURITY_CODE_DIGITS = 6;
 
 const accountService = new AccountService();
 const recoveryMethodService = new RecoveryMethodService();
+const twilioVerifyService = new TwilioVerifyService({ channel: TwilioVerifyService.channels.SMS });
 
 const {
     getVerify2faMethodMessageContent,
@@ -54,7 +56,7 @@ const sendMessageTo2faDestination = async ({
 }) => {
     if (kind === TWO_FACTOR_AUTH_KINDS.PHONE) {
         if (USE_TWILIO_VERIFY_2FA) {
-            await ctx.services.twilioVerify.send(
+            await twilioVerifyService.send(
                 {
                     to: destination
                 },
@@ -306,7 +308,7 @@ const sendNewCode = async (ctx) => {
 const validateCodeByKind = async (ctx, twoFactorMethod, code) => {
     switch (twoFactorMethod.kind) {
     case TWO_FACTOR_AUTH_KINDS.PHONE:
-        var { valid } = await ctx.services.twilioVerify.verify({ to: twoFactorMethod.detail, code });
+        var { valid } = await twilioVerifyService.verify({ to: twoFactorMethod.detail, code });
         return valid;
     case TWO_FACTOR_AUTH_KINDS.EMAIL:
         return twoFactorMethod.securityCode === code;
