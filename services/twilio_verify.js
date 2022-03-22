@@ -23,13 +23,9 @@ module.exports = class TwilioVerifyService {
             .services(VERIFY_SERVICE_SID);
     }
 
-    generateMockSecurityCode() {
-        return password.randomPassword({ length: 6, characters: password.digits });
-    }
-
     send({ to }, emitServerEvent) {
         if (USE_MOCK_TWILIO) {
-            const securityCode = this.generateMockSecurityCode();
+            const securityCode = password.randomPassword({ length: 6, characters: password.digits });
 
             this.securityCodes[to] = securityCode;
             emitServerEvent(securityCode);
