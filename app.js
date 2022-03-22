@@ -524,6 +524,12 @@ router.post('/account/validateSecurityCodeForTempAccount',
 const createFiatValueMiddleware = require('./middleware/fiat');
 router.get('/fiat', createFiatValueMiddleware());
 
+if (process.env.NODE_ENV === 'development') {
+    app.on(SERVER_EVENTS.SECURITY_CODE, (code) => {
+        console.log('Security code: ', code);
+    });
+}
+
 app
     .use(router.routes())
     .use(router.allowedMethods());

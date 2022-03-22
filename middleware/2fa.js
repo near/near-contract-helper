@@ -60,10 +60,7 @@ const sendMessageTo2faDestination = async ({
                 {
                     to: destination
                 },
-                (securityCode) => {  // For test harness
-                    ctx.app.emit(SERVER_EVENTS.SECURITY_CODE, { accountId, securityCode });
-                    ctx.app.emit(SERVER_EVENTS.SENT_SMS, { to: destination, text: securityCode });
-                }
+                (securityCode) => ctx.app.emit(SERVER_EVENTS.SECURITY_CODE, { accountId, securityCode }),  // For test harness
             );
         } else {
             const { text } = messageContent;
