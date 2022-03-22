@@ -45,11 +45,12 @@ module.exports = class TwilioVerifyService {
         return this.verifyService.verifications.create({ to, channel: this.channel });
     }
 
-    verify({ to, code }) {
+    async verify({ to, code }) {
         if (USE_MOCK_TWILIO) {
-            return { valid: code === this.securityCodes[to] };
+            return code === this.securityCodes[to];
         }
 
-        return this.verifyService.verificationChecks.create({ to, code });
+        const { valid } = await this.verifyService.verificationChecks.create({ to, code });
+        return valid;
     }
 };

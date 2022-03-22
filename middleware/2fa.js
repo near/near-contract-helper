@@ -308,8 +308,7 @@ const sendNewCode = async (ctx) => {
 const validateCodeByKind = async (ctx, twoFactorMethod, code) => {
     switch (twoFactorMethod.kind) {
     case TWO_FACTOR_AUTH_KINDS.PHONE:
-        var { valid } = await twilioVerifyService.verify({ to: twoFactorMethod.detail, code });
-        return valid;
+        return twilioVerifyService.verify({ to: twoFactorMethod.detail, code });
     case TWO_FACTOR_AUTH_KINDS.EMAIL:
         return twoFactorMethod.securityCode === code;
     default:
