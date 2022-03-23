@@ -1,5 +1,7 @@
 {
   "DEVELOPMENT": "development",
   "TESTNET": "testnet",
-  "MAINNET": "mainnet"
+  "MAINNET": "mainnet",
+  "TESTNET_STAGING": "testnet_STAGING",
+  "MAINNET_STAGING": "mainnet_STAGING"
 }

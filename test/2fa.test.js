@@ -5,11 +5,15 @@ const { parseSeedPhrase } = require('near-seed-phrase');
 const sinon = require('sinon');
 
 const constants = require('../constants');
+const { USE_DYNAMODB } = require('../features');
+const AccountService = require('../services/account');
+const RecoveryMethodService = require('../services/recovery_method');
 const attachEchoMessageListeners = require('./attachEchoMessageListeners');
 const expectRequestHelpers = require('./expectRequestHelpers');
 const chai = require('./chai');
 const createTestServerInstance = require('./createTestServerInstance');
 const { initDb } = require('./db');
+const initLocalDynamo = require('./local_dynamo');
 const TestAccountHelper = require('./TestAccountHelper');
 
 const { expect } = chai;
@@ -18,7 +22,10 @@ const {
     expectFailedWithCode
 } = expectRequestHelpers;
 
-const { TWO_FACTOR_AUTH_KINDS, } = constants;
+const accountService = new AccountService();
+const recoveryMethodService = new RecoveryMethodService();
+
+const { RECOVERY_METHOD_KINDS, TWO_FACTOR_AUTH_KINDS } = constants;
 
 const REQUEST_ID_FOR_INITIALIZING_2FA = -1;
 
@@ -40,6 +47,7 @@ describe('2fa method management', function () {
     this.timeout(15000);
 
     let app, request, testAccountHelper;
+    let terminateLocalDynamo;
 
     before(async () => {
         const keyStore = new nearAPI.keyStores.InMemoryKeyStore();
@@ -56,11 +64,23 @@ describe('2fa method management', function () {
             request,
         });
 
-        await initDb();
+        if (USE_DYNAMODB) {
+            ({ terminateLocalDynamo } = await initLocalDynamo());
+        } else {
+            await initDb();
+        }
+    });
+
+    after(async () => {
+        if (USE_DYNAMODB) {
+            await terminateLocalDynamo();
+        }
     });
 
     describe('setting up 2fa method', () => {
         let accountId;
+        const expect2faCodeSentResponse = ({ body }) =>
+            expect(body).property('message', '2fa initialized and code sent to verify method');
 
         // Would prefer beforeAll, but `testContext.logs` is cleared in the global beforeEach() that would run after beforeAll here
         beforeEach(async () => {
@@ -95,8 +115,25 @@ describe('2fa method management', function () {
             });
 
             expectJSONResponse(result);
+            expect2faCodeSentResponse(result);
+        });
 
-            expect(result.body).property('message', '2fa initialized and code sent to verify method');
+        it('sends a code when the 2FA email address is already being used with an email recovery method', async () => {
+            await accountService.getOrCreateAccount(accountId);
+            await recoveryMethodService.createRecoveryMethod({
+                ...twoFactorMethods.email,
+                accountId,
+                kind: RECOVERY_METHOD_KINDS.EMAIL,
+                requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
+            });
+
+            const { result } = await testAccountHelper.init2faMethod({
+                accountId,
+                method: twoFactorMethods.email
+            });
+
+            expectJSONResponse(result);
+            expect2faCodeSentResponse(result);
         });
     });
 

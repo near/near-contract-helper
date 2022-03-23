@@ -4,11 +4,13 @@ const nearAPI = require('near-api-js');
 const { parseSeedPhrase } = require('near-seed-phrase');
 
 const constants = require('../constants');
+const { USE_DYNAMODB } = require('../features');
 const AccountService = require('../services/account');
 const RecoveryMethodService = require('../services/recovery_method');
 const attachEchoMessageListeners = require('./attachEchoMessageListeners');
 const chai = require('./chai');
 const { initDb } = require('./db');
+const initLocalDynamo = require('./local_dynamo');
 const expectRequestHelpers = require('./expectRequestHelpers');
 const createTestServerInstance = require('./createTestServerInstance');
 const TestAccountHelper = require('./TestAccountHelper');
@@ -18,6 +20,9 @@ const {
     expectJSONResponse,
     expectFailedWithCode
 } = expectRequestHelpers;
+
+const accountService = new AccountService();
+const recoveryMethodService = new RecoveryMethodService();
 
 const { RECOVERY_METHOD_KINDS } = constants;
 
@@ -49,7 +54,7 @@ const VERBOSE_OUTPUT_CONFIG = {
 
 function createAllRecoveryMethods({ accountId }) {
     return Promise.all(
-        Object.values(recoveryMethods).map((recoveryMethod) => RecoveryMethodService.createRecoveryMethod({
+        Object.values(recoveryMethods).map((recoveryMethod) => recoveryMethodService.createRecoveryMethod({
             accountId,
             ...recoveryMethod,
         })),
@@ -60,6 +65,7 @@ describe('app routes', function () {
     this.timeout(15000);
 
     let app, request, testAccountHelper;
+    let terminateLocalDynamo;
 
     before(async () => {
         const keyStore = new nearAPI.keyStores.InMemoryKeyStore();
@@ -76,18 +82,29 @@ describe('app routes', function () {
             request,
         });
 
-        await initDb();
+        if (USE_DYNAMODB) {
+            ({ terminateLocalDynamo } = await initLocalDynamo());
+        } else {
+            await initDb();
+        }
+    });
+
+    after(async function() {
+        if (USE_DYNAMODB) {
+            await terminateLocalDynamo();
+        }
     });
 
     describe('/account/initializeRecoveryMethodForTempAccount', () => {
         let savedSecurityCode = '', result;
-        const accountId = 'doesnotexistonchain' + Date.now();
+        const accountId = 'doesnotexistonchain_1' + Date.now();
         const method = recoveryMethods[RECOVERY_METHOD_KINDS.EMAIL];
 
         it('send security code', async () => {
             ({ result, securityCode: savedSecurityCode } = await testAccountHelper.initRecoveryMethodForTempAccount({
                 accountId,
-                method
+                method,
+                seedPhrase: SEED_PHRASE,
             }));
 
             expectJSONResponse(result);
@@ -125,35 +142,43 @@ describe('app routes', function () {
                 })
                 .then(expectJSONResponse);
         });
-
     });
 
     describe('Two people send recovery methods for the same account before created', () => {
         let savedSecurityCode = '', result;
-        const accountId = 'doesnotexistonchain' + Date.now();
+        const accountId = 'doesnotexistonchain_2' + Date.now();
         const alice = recoveryMethods[RECOVERY_METHOD_KINDS.EMAIL];
         const bob = recoveryMethods[RECOVERY_METHOD_KINDS.PHONE];
+        const aliceSeedPhrase = 'any athlete that pudding ramp car pyramid share example day slab protect';
+        const bobSeedPhrase = 'coach early mad link yard express that crack wheel valid armor laundry';
 
         it('send security code alice', async () => {
             ({ result, securityCode: savedSecurityCode } = await testAccountHelper.initRecoveryMethodForTempAccount({
                 accountId,
-                method: alice
+                method: alice,
+                seedPhrase: aliceSeedPhrase,
             }));
 
             expectJSONResponse(result);
         });
 
         it('send security code bob', async () => {
-            const { result } = await testAccountHelper.initRecoveryMethodForTempAccount(({ accountId, method: bob }));
+            const { result } = await testAccountHelper.initRecoveryMethodForTempAccount(({
+                accountId,
+                method: bob,
+                seedPhrase: bobSeedPhrase,
+            }));
 
             expectJSONResponse(result);
         });
 
         it('validate security code alice (new account) and other methods should be removed leaving 1 recoveryMethod', async () => {
+            const { publicKey } = parseSeedPhrase(aliceSeedPhrase);
             await request.post('/account/validateSecurityCodeForTempAccount')
                 .send({
                     accountId,
                     method: alice,
+                    publicKey,
                     securityCode: savedSecurityCode,
                 })
                 .then(expectJSONResponse);
@@ -180,7 +205,8 @@ describe('app routes', function () {
             ({ result, securityCode: savedSecurityCode } = await testAccountHelper.initRecoveryMethod({
                 accountId,
                 method,
-                testing
+                seedPhrase: SEED_PHRASE,
+                testing,
             }));
 
             expectJSONResponse(result);
@@ -220,7 +246,7 @@ describe('app routes', function () {
         it('returns 403 Forbidden (signature not from accountId owner)', async () => {
             // FIXME: This is just testing incorrect blockNumber, *not* that the signature is from a different owner
             const accountId = await testAccountHelper.createNEARAccount();
-            await AccountService.createAccount(accountId);
+            await accountService.createAccount(accountId);
 
             await testAccountHelper.getRecoveryMethods({ accountId, valid: false })
                 .then((res) => {
@@ -249,7 +275,7 @@ describe('app routes', function () {
 
         it('returns recovery methods (account found, verified ownership)', async () => {
             const accountId = await testAccountHelper.createNEARAccount();
-            await AccountService.createAccount(accountId);
+            await accountService.createAccount(accountId);
             await createAllRecoveryMethods({ accountId });
 
             const { body: methods } = await testAccountHelper.getRecoveryMethods({ accountId })
@@ -286,7 +312,7 @@ describe('app routes', function () {
                 .send({ accountId, signature: 'wut' })
                 .then(expectFailedWithCode(403, 'You must provide an accountId, blockNumber, and blockNumberSignature'));
 
-            const account = await AccountService.getAccount(accountId);
+            const account = await accountService.getAccount(accountId);
             expect(account).not.ok;
         });
 
@@ -314,7 +340,7 @@ describe('app routes', function () {
                 .then(expectJSONResponse);
 
             expect(phrase).property('kind', RECOVERY_METHOD_KINDS.PHRASE);
-            const account = await AccountService.getAccount(accountId);
+            const account = await accountService.getAccount(accountId);
             expect(account).ok;
         });
     });
@@ -329,7 +355,7 @@ describe('app routes', function () {
                 .send({ accountId, signature: 'wut' })
                 .then(expectFailedWithCode(403, 'You must provide an accountId, blockNumber, and blockNumberSignature'));
 
-            return expect(AccountService.getAccount(accountId)).eventually.not.ok;
+            return expect(accountService.getAccount(accountId)).eventually.not.ok;
         });
 
         it('requires a publicKey', async () => {
@@ -354,7 +380,7 @@ describe('app routes', function () {
 
             expect(result).property('kind', RECOVERY_METHOD_KINDS.LEDGER);
 
-            return expect(AccountService.getAccount(accountId)).eventually.ok;
+            return expect(accountService.getAccount(accountId)).eventually.ok;
         });
     });
 
@@ -362,7 +388,7 @@ describe('app routes', function () {
     describe('/account/deleteRecoveryMethod', () => {
         it('returns 400 (recoveryMethod invalid)', async () => {
             const accountId = `account-${Date.now()}`;
-            await AccountService.createAccount(accountId);
+            await accountService.createAccount(accountId);
             return request.post('/account/deleteRecoveryMethod')
                 .send({
                     accountId,
@@ -383,7 +409,7 @@ describe('app routes', function () {
         it('returns 403 Forbidden (signature not from accountId owner)', async () => {
             // FIXME: This is just testing incorrect blockNumber, *not* that the signature is from a different owner
             const accountId = await testAccountHelper.createNEARAccount();
-            await AccountService.createAccount(accountId);
+            await accountService.createAccount(accountId);
 
             return request.post('/account/deleteRecoveryMethod')
                 .send({
@@ -399,7 +425,7 @@ describe('app routes', function () {
 
         it('returns 400 (public key not specified)', async () => {
             const accountId = await testAccountHelper.createNEARAccount();
-            await AccountService.createAccount(accountId);
+            await accountService.createAccount(accountId);
             await createAllRecoveryMethods({ accountId });
 
             const signature = await testAccountHelper.signatureForLatestBlock({ accountId });
@@ -411,10 +437,10 @@ describe('app routes', function () {
 
         it('deletes specified recoveryMethod; returns recovery methods (account found, verified ownership, valid recoveryMethod)', async () => {
             const accountId = await testAccountHelper.createNEARAccount();
-            await AccountService.createAccount(accountId);
+            await accountService.createAccount(accountId);
             await createAllRecoveryMethods({ accountId });
 
-            await RecoveryMethodService.createRecoveryMethod({
+            await recoveryMethodService.createRecoveryMethod({
                 accountId,
                 kind: RECOVERY_METHOD_KINDS.EMAIL,
                 detail: 'hello@example.com',
@@ -446,8 +472,8 @@ describe('app routes', function () {
 
         it('does not return 400 for old accounts with publicKey=NULL', async () => {
             const accountId = await testAccountHelper.createNEARAccount();
-            await AccountService.createAccount(accountId);
-            await RecoveryMethodService.createRecoveryMethod({
+            await accountService.createAccount(accountId);
+            await recoveryMethodService.createRecoveryMethod({
                 accountId,
                 kind: RECOVERY_METHOD_KINDS.PHRASE,
                 publicKey: null,
