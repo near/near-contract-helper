@@ -22,7 +22,7 @@ const DEFAULT_ERROR_RESPONSE = {
 module.exports = class TwilioVerifyService {
     constructor({
         twilio = twilioClient,
-    }) {
+    } = {}) {
         const client = twilio(ACCOUNT_SID, AUTH_TOKEN);
 
         this.verifyService = client
