@@ -1,10 +1,8 @@
 const twilio = require('twilio');
-const password = require('secure-random-password');
 
 const ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 const VERIFY_SERVICE_SID = process.env.TWILIO_VERIFY_SERVICE_SID;
-const USE_MOCK_TWILIO = process.env.USE_MOCK_TWILIO === 'true';
 
 const VERIFY_DELIVERY_CHANNEL = 'sms';
 
@@ -21,7 +19,7 @@ const DEFAULT_ERROR_RESPONSE = {
     text: 'Twilio Verify Error',
 };
 
-class TwilioVerifyService {
+module.exports = class TwilioVerifyService {
     constructor() {
         const client = twilio(ACCOUNT_SID, AUTH_TOKEN);
 
@@ -30,13 +28,11 @@ class TwilioVerifyService {
             .services(VERIFY_SERVICE_SID);
     }
 
-    async handleTwilioErrors(fn) {
-        try {
-            return await fn();
-        } catch (error) {
+    handleTwilioErrors(fn) {
+        return fn().catch((error) => {
             error.response = ERROR_RESPONSES_BY_CODE[error.code] || DEFAULT_ERROR_RESPONSE;
             throw error;
-        }
+        });
     }
 
     send({ to }) {
@@ -51,22 +47,4 @@ class TwilioVerifyService {
             return valid;
         });
     }
-}
-
-class MockTwilioVerifyService {
-    securityCodes = {};
-
-    send({ to }, emitServerEvent) {
-        const securityCode = password.randomPassword({ length: 6, characters: password.digits });
-
-        this.securityCodes[to] = securityCode;
-        emitServerEvent(securityCode);
-    }
-
-    verify({ to, code }) {
-        return code === this.securityCodes[to];
-    }
-}
-
-
-module.exports = USE_MOCK_TWILIO ? MockTwilioVerifyService : TwilioVerifyService;
+};
