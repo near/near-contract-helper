@@ -1,4 +1,4 @@
-const twilio = require('twilio');
+const twilioClient = require('twilio');
 
 const ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
@@ -20,7 +20,9 @@ const DEFAULT_ERROR_RESPONSE = {
 };
 
 module.exports = class TwilioVerifyService {
-    constructor() {
+    constructor({
+        twilio = twilioClient,
+    }) {
         const client = twilio(ACCOUNT_SID, AUTH_TOKEN);
 
         this.verifyService = client
