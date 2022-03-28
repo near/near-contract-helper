@@ -9,7 +9,7 @@ const VERIFY_DELIVERY_CHANNEL = 'sms';
 // https://www.twilio.com/docs/api/errors/XXXXX
 const ERROR_RESPONSES_BY_CODE = {
     20404: { status: 429, text: '2FA request expired, please try again' },
-    20429: { status: 429, text: '2FA rate limit reached, please try again later' },
+    20429: { status: 429, text: '2FA rate limit for phone number reached, please try again later' },
     60202: { status: 429, text: '2FA verification check limit reached, please try again later' },
     60203: { status: 429, text: '2FA delivery limit reached, please try again later' },
 };
