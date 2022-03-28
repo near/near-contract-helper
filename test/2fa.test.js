@@ -5,14 +5,12 @@ const { parseSeedPhrase } = require('near-seed-phrase');
 const sinon = require('sinon');
 
 const constants = require('../constants');
-const { USE_DYNAMODB } = require('../features');
 const AccountService = require('../services/account');
 const RecoveryMethodService = require('../services/recovery_method');
 const attachEchoMessageListeners = require('./attachEchoMessageListeners');
 const expectRequestHelpers = require('./expectRequestHelpers');
 const chai = require('./chai');
 const createTestServerInstance = require('./createTestServerInstance');
-const { initDb } = require('./db');
 const initLocalDynamo = require('./local_dynamo');
 const TestAccountHelper = require('./TestAccountHelper');
 
@@ -64,17 +62,11 @@ describe('2fa method management', function () {
             request,
         });
 
-        if (USE_DYNAMODB) {
-            ({ terminateLocalDynamo } = await initLocalDynamo());
-        } else {
-            await initDb();
-        }
+        ({ terminateLocalDynamo } = await initLocalDynamo());
     });
 
     after(async () => {
-        if (USE_DYNAMODB) {
-            await terminateLocalDynamo();
-        }
+        await terminateLocalDynamo();
     });
 
     describe('setting up 2fa method', () => {
