@@ -13,9 +13,9 @@
       "lastEditedAt": "2022-03-21T19:05:20.146Z"
     },
     "mainnet": {
-      "enabled": false,
+      "enabled": true,
       "lastEditedBy": "Andy Haynes",
-      "lastEditedAt": "2022-01-28T21:20:05.270Z"
+      "lastEditedAt": "2022-03-28T19:14:21.239Z"
     },
     "testnet_STAGING": {
       "enabled": true,
@@ -23,9 +23,9 @@
       "lastEditedAt": "2022-03-21T19:05:20.146Z"
     },
     "mainnet_STAGING": {
-      "enabled": false,
+      "enabled": true,
       "lastEditedBy": "Andy Haynes",
-      "lastEditedAt": "2022-01-31T21:14:42.135Z"
+      "lastEditedAt": "2022-03-28T19:14:28.747Z"
     }
   }
 }
