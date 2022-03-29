@@ -3,17 +3,6 @@ node_js: 12
 
 jobs:
   include:
-    - name: yarn
-      services:
-        - postgresql
-      before_script:
-        - psql -c "create user helper with encrypted password 'helper';" -U postgres
-        - psql -c "create database accounts_test;" -U postgres
-        - psql -c "grant all privileges on database accounts_test to helper" -U postgres
-      script:
-        - yarn lint
-        - yarn test
-
     - name: fossa
       before_script:
           - "curl -H 'Cache-Control: no-cache' https://raw.githubusercontent.com/fossas/fossa-cli/master/install-latest.sh | sudo bash"
