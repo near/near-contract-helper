@@ -1,5 +1,6 @@
 image: gitpod/workspace-postgres
 tasks:
+  # NOTE: As of 2021-1012, the contract helper DB seems to use the indexer DB so this likely won't work anymore
   - init: yarn && ./scripts/create_dev_dbs.sh
 github:
   prebuilds:
