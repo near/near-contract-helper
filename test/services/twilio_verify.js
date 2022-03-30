@@ -67,10 +67,7 @@ describe('TwilioVerifyService', () => {
     });
 
     describe('handles twilio errors', () => {
-        const initServiceWithFailedVerification = (code) => {
-            const error = new Error();
-            error.code = code;
-
+        const initServiceWithFailedVerification = (error) => {
             const createVerificationCheck = sinon.stub().rejects(error);
             const twilio = createTwilioClientMock({ createVerificationCheck });
 
@@ -80,58 +77,78 @@ describe('TwilioVerifyService', () => {
         };
 
         it('non-existant verification', async () => {
-            const twilioVerifyService = initServiceWithFailedVerification(20404);
+            const error = new Error();
+            error.code = 20404;
 
-            twilioVerifyService.verify({}).catch((error) => {
-                expect(error.response).eq({
-                    status: 429,
-                    text: '2FA request expired, please try again',
-                });
-            });
+            const twilioVerifyService = initServiceWithFailedVerification(error);
+
+            error.response = {
+                status: 429,
+                text: '2FA request expired, please try again',
+            };
+
+            return expect(twilioVerifyService.verify({}))
+                .rejectedWith(error);
         });
 
         it('service rate limit reached', async () => {
-            const twilioVerifyService = initServiceWithFailedVerification(20429);
+            const error = new Error();
+            error.code = 20429;
 
-            twilioVerifyService.verify({}).catch((error) => {
-                expect(error.response).eq({
-                    status: 429,
-                    text: '2FA rate limit reached, please try again later',
-                });
-            });
+            const twilioVerifyService = initServiceWithFailedVerification(error);
+
+            error.response = {
+                status: 429,
+                text: '2FA rate limit for phone number reached, please try again later',
+            };
+
+            return expect(twilioVerifyService.verify({}))
+                .rejectedWith(error);
         });
 
         it('verification check limit reached', async () => {
-            const twilioVerifyService = initServiceWithFailedVerification(20429);
+            const error = new Error();
+            error.code = 60202;
 
-            twilioVerifyService.verify({}).catch((error) => {
-                expect(error.response).eq({
-                    status: 429,
-                    text: '2FA verification check limit reached, please try again later',
-                });
-            });
+            const twilioVerifyService = initServiceWithFailedVerification(error);
+
+            error.response = {
+                status: 429,
+                text: '2FA verification check limit reached, please try again later',
+            };
+
+            return expect(twilioVerifyService.verify({}))
+                .rejectedWith(error);
         });
 
         it('verification delivery limit reached', async () => {
-            const twilioVerifyService = initServiceWithFailedVerification(20429);
+            const error = new Error();
+            error.code = 60203;
 
-            twilioVerifyService.verify({}).catch((error) => {
-                expect(error.response).eq({
-                    status: 429,
-                    text: '2FA delivery limit reached, please try again later',
-                });
-            });
+            const twilioVerifyService = initServiceWithFailedVerification(error);
+
+            error.response = {
+                status: 429,
+                text: '2FA delivery limit reached, please try again later',
+            };
+
+            return expect(twilioVerifyService.verify({}))
+                .rejectedWith(error);
         });
 
         it('unknown', async () => {
-            const twilioVerifyService = initServiceWithFailedVerification(20429);
+            const error = new Error();
+            error.code = 10000;
 
-            twilioVerifyService.verify({}).catch((error) => {
-                expect(error.response).eq({
-                    status: 500,
-                    text: 'Twilio Verify Error',
-                });
-            });
+            const twilioVerifyService = initServiceWithFailedVerification(error);
+
+            error.response = {
+                status: 500,
+                text: 'Twilio Verify Error',
+            };
+
+            return expect(twilioVerifyService.verify({}))
+                .rejectedWith(error);
         });
     });
 });
