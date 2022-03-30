@@ -8,8 +8,6 @@ module.exports = class MockTwilioVerifyService {
 
         this.securityCodes[to] = securityCode;
         emitServerEvent(securityCode);
-
-        return securityCode;
     }
 
     verify({ to, code }) {

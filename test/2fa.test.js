@@ -333,7 +333,7 @@ describe('2fa method management', function () {
                     ({
                         accountId,
                         securityCode
-                    } = await testAccountHelper.create2faEnabledNEARAccount({ method: twoFactorMethods.phone }));
+                    } = await testAccountHelper.create2faEnabledNEARAccount({ method: twoFactorMethods.phone, bypassEndpointCreation: true }));
                 }
             });
 
