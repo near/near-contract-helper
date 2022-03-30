@@ -37,9 +37,9 @@
       "lastEditedAt": "2022-03-18T02:56:25.050Z"
     },
     "testnet": {
-      "enabled": false,
+      "enabled": true,
       "lastEditedBy": "Morgan McCauley",
-      "lastEditedAt": "2022-03-18T02:56:25.050Z"
+      "lastEditedAt": "2022-03-30T22:22:00.375Z"
     },
     "mainnet": {
       "enabled": false,
@@ -47,9 +47,9 @@
       "lastEditedAt": "2022-03-18T02:56:25.050Z"
     },
     "testnet_STAGING": {
-      "enabled": false,
+      "enabled": true,
       "lastEditedBy": "Morgan McCauley",
-      "lastEditedAt": "2022-03-18T02:56:25.050Z"
+      "lastEditedAt": "2022-03-30T22:22:00.375Z"
     },
     "mainnet_STAGING": {
       "enabled": false,
