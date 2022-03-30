@@ -49,16 +49,16 @@ app.use(async function (ctx, next) {
         }
 
         switch (e.status) {
-        case 400:
-        case 401:
-        case 403:
-        case 404:
-            ctx.throw(e);
-            break;
-        default:
-            // TODO: Figure out which errors should be exposed to user
-            console.error('Error: ', e, JSON.stringify(e));
-            ctx.throw(400, e.toString());
+            case 400:
+            case 401:
+            case 403:
+            case 404:
+                ctx.throw(e);
+                break;
+            default:
+                // TODO: Figure out which errors should be exposed to user
+                console.error('Error: ', e, JSON.stringify(e));
+                ctx.throw(400, e.toString());
         }
     }
 });
@@ -523,6 +523,12 @@ router.post('/account/validateSecurityCodeForTempAccount',
 
 const createFiatValueMiddleware = require('./middleware/fiat');
 router.get('/fiat', createFiatValueMiddleware());
+
+if (process.env.NODE_ENV === 'development') {
+    app.on(SERVER_EVENTS.SECURITY_CODE, ({ accountId, securityCode }) => {
+        console.log(`Security code for ${accountId}: ${securityCode}`);
+    });
+}
 
 app
     .use(router.routes())

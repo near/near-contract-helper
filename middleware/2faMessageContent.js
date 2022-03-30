@@ -43,27 +43,27 @@ const formatAction = (receiver_id, { type, method_name, args, deposit, amount, p
     let output;
 
     switch (type) {
-    case 'FunctionCall':
-        output = `Calling method: ${ method_name } in contract: ${ receiver_id } with amount ${ deposit ? fmtNear(deposit) : '0' } and with args ${formatArgs(args, isForSmsDelivery)}`;
-        break;
-    case 'Transfer':
-        output =  `Transferring ${ fmtNear(amount) } to: ${ receiver_id }`;
-        break;
-    case 'Stake':
-        output =  `Staking: ${ fmtNear(amount) } to validator: ${ receiver_id }`;
-        break;
-    case 'AddKey':
-        if (permission) {
-            const { allowance, receiver_id, method_names } = permission;
-            const methodsMessage = method_names && method_names.length > 0 ? `${method_names.join(', ')} methods` : 'any method';
-            output = `Adding key ${ public_key } limited to call ${methodsMessage} on ${receiver_id} and spend up to ${fmtNear(allowance)} on gas`;
-        } else {
-            output =  `Adding key ${ public_key } with FULL ACCESS to account`;
-        }
-        break;
-    case 'DeleteKey':
-        output = `Deleting key ${ public_key }`;
-        break;
+        case 'FunctionCall':
+            output = `Calling method: ${ method_name } in contract: ${ receiver_id } with amount ${ deposit ? fmtNear(deposit) : '0' } and with args ${formatArgs(args, isForSmsDelivery)}`;
+            break;
+        case 'Transfer':
+            output =  `Transferring ${ fmtNear(amount) } to: ${ receiver_id }`;
+            break;
+        case 'Stake':
+            output =  `Staking: ${ fmtNear(amount) } to validator: ${ receiver_id }`;
+            break;
+        case 'AddKey':
+            if (permission) {
+                const { allowance, receiver_id, method_names } = permission;
+                const methodsMessage = method_names && method_names.length > 0 ? `${method_names.join(', ')} methods` : 'any method';
+                output = `Adding key ${ public_key } limited to call ${methodsMessage} on ${receiver_id} and spend up to ${fmtNear(allowance)} on gas`;
+            } else {
+                output =  `Adding key ${ public_key } with FULL ACCESS to account`;
+            }
+            break;
+        case 'DeleteKey':
+            output = `Deleting key ${ public_key }`;
+            break;
     }
 
     return isForSmsDelivery ? output :  escapeHtml(output);

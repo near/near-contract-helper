@@ -27,5 +27,34 @@
       "lastEditedBy": "Andy Haynes",
       "lastEditedAt": "2022-03-28T19:14:28.747Z"
     }
+  },
+  "USE_TWILIO_VERIFY_2FA": {
+    "createdBy": "Morgan McCauley",
+    "createdAt": "2022-03-18T02:56:25.050Z",
+    "development": {
+      "enabled": true,
+      "lastEditedBy": "Morgan McCauley",
+      "lastEditedAt": "2022-03-18T02:56:25.050Z"
+    },
+    "testnet": {
+      "enabled": false,
+      "lastEditedBy": "Morgan McCauley",
+      "lastEditedAt": "2022-03-18T02:56:25.050Z"
+    },
+    "mainnet": {
+      "enabled": false,
+      "lastEditedBy": "Morgan McCauley",
+      "lastEditedAt": "2022-03-18T02:56:25.050Z"
+    },
+    "testnet_STAGING": {
+      "enabled": false,
+      "lastEditedBy": "Morgan McCauley",
+      "lastEditedAt": "2022-03-18T02:56:25.050Z"
+    },
+    "mainnet_STAGING": {
+      "enabled": false,
+      "lastEditedBy": "Morgan McCauley",
+      "lastEditedAt": "2022-03-18T02:56:25.050Z"
+    }
   }
 }
