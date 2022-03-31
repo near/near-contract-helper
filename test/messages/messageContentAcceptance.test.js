@@ -1,5 +1,6 @@
 'use strict';
 const path = require('path');
+const sinon = require('sinon');
 
 const recoveryMessageContentHelpers = require('../../accountRecoveryMessageContent');
 const messageContent2faHelpers = require('../../middleware/2faMessageContent');
@@ -46,6 +47,18 @@ ${(messageContent.requestDetails || []).join('\n')}
 }
 
 describe('message content acceptance tests', function () {
+    let clock;
+
+    before(() => {
+        clock = sinon.useFakeTimers(
+            (new Date()).setYear(2020)
+        );
+    });
+
+    after(() => {
+        clock.restore();
+    });
+
     describe('get security code', function () {
         let messageContent;
 
