@@ -367,7 +367,7 @@ const template = ({
       </tr>
       <tr>
         <td align="center" style="font-size: 14px;color:#A7A9AA;">
-          &copy; 2020 NEAR Inc. All Rights Reserved.
+          &copy; ${(new Date()).getFullYear()} NEAR Inc. All Rights Reserved.
         </td>
       </tr>
       <tr>
