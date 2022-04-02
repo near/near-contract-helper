@@ -32,6 +32,9 @@ pipeline {
             }
         }
         stage('backend:deploy:testnet') {
+            when {
+                branch 'master'
+            }
             steps {
                 withAWS(
                     region: env.AWS_REGION,
@@ -49,6 +52,10 @@ pipeline {
             }
         }
         stage('backend:deploy:mainnet') {
+            // TODO change to `branch 'master'` once trunk-based development is ready
+            when {
+                branch 'stable'
+            }
             steps {
                 withAWS(
                     region: env.AWS_REGION,
