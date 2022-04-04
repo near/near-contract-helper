@@ -6,7 +6,7 @@
   "scripts": {
     "start": "env $(sed 's/ # .*//' .env) supervisor app",
     "docker:start": "node app.js",
-    "test": "yarn lint && mocha",
+    "test": "mocha",
     "lint": "eslint .",
     "fix": "eslint . --fix",
     "migrate": "sequelize db:migrate"
