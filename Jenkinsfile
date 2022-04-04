@@ -21,7 +21,7 @@ pipeline {
         stage('backend:test') {
             steps {
                 milestone(1)
-                sh "yarn test"
+                sh "yarn && yarn test"
             }
         }
         stage('backend:build') {
