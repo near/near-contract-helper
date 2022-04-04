@@ -1,9 +1,7 @@
 require('dotenv').config({ path: 'test/.env.test' });
 
-const { USE_DYNAMODB } = require('../../features');
 const AccountService = require('../../services/account');
 const chai = require('../chai');
-const { deleteAllRows } = require('../db');
 const initLocalDynamo = require('../local_dynamo');
 const { generateAccountId } = require('../utils');
 
@@ -14,18 +12,12 @@ const accountService = new AccountService();
 describe('AccountService', function () {
     let terminateLocalDynamo;
     before(async function() {
-        if (USE_DYNAMODB) {
-            this.timeout(10000);
-            ({ terminateLocalDynamo } = await initLocalDynamo());
-        } else {
-            await deleteAllRows();
-        }
+        this.timeout(10000);
+        ({ terminateLocalDynamo } = await initLocalDynamo());
     });
 
     after(async function() {
-        if (USE_DYNAMODB) {
-            await terminateLocalDynamo();
-        }
+        await terminateLocalDynamo();
     });
 
     describe('createAccount', function () {
