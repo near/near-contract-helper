@@ -27,6 +27,6 @@ jobs:
 
             - name: environment tests
               env:
-                  NEAR_WALLET_ENV: ${{ inputs.near_wallet_env }}
-                  TEST_DYNAMO_PORT: ${{ inputs.test_dynamo_port }}
+                  NEAR_WALLET_ENV: ${{ matrix.near_wallet_env }}
+                  TEST_DYNAMO_PORT: ${{ matrix.test_dynamo_port }}
               run: yarn test
