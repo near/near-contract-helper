@@ -14,4 +14,4 @@ jobs:
             - run: npm install -g yarn
             - run: yarn && yarn lint
     test:
-        uses: ./github/workflows/build_node.yml
+        uses: ./.github/workflows/build_node.yml
