@@ -23,7 +23,6 @@ jobs:
               with:
                   cache: yarn
                   node-version: 12
-            - run: npm install -g yarn
             - run: yarn
 
             - name: environment tests
