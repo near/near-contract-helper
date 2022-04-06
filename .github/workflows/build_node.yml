@@ -4,7 +4,6 @@ on:
 jobs:
     test:
         strategy:
-            fail-fast: true
             matrix:
                 include:
                     - near_wallet_env: testnet_STAGING
