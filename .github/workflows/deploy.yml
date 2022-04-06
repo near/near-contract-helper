@@ -4,20 +4,7 @@ on:
         branches:
             - master
 jobs:
-    test:
-        strategy:
-            fail-fast: true
-            matrix:
-                include:
-                    - near_wallet_env: testnet_STAGING
-                      test_dynamo_port: 8005
-                    - near_wallet_env: testnet
-                      test_dynamo_port: 8006
-                    - near_wallet_env: mainnet_STAGING
-                      test_dynamo_port: 8007
-                    - near_wallet_env: mainnet
-                      test_dynamo_port: 8008
-            max-parallel: 2
+    lint:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v3
@@ -25,10 +12,6 @@ jobs:
               with:
                   node-version: 12
             - run: npm install -g yarn
-            - run: yarn
-
-            - name: environment tests
-              env:
-                  NEAR_WALLET_ENV: ${{ matrix.near_wallet_env }}
-                  TEST_DYNAMO_PORT: ${{ matrix.test_dynamo_port }}
-              run: yarn test
+            - run: yarn && yarn lint
+    test:
+        uses: ./github/workflows/build_node.yml
