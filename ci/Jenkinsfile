@@ -1,3 +1,5 @@
+def check_runs = new com.functions.buildGithubCheckScript()
+
 pipeline {
     agent any
     environment {
@@ -7,6 +9,7 @@ pipeline {
         AWS_TESTNET_ROLE_ACCOUNT = credentials('testnet-assumed-role-account')
         AWS_MAINNET_ROLE = credentials('mainnet-assumed-role')
         AWS_MAINNET_ROLE_ACCOUNT = credentials('mainnet-assumed-role-account')
+        GITHUB_APP_KEY = credentials('near-wallet-jenkins')
 
         TESTNET_ECR_REPOSITORY = 'testnet-ecr-repository'
         TESTNET_ECS_CLUSTER = 'testnet-cluster'
@@ -16,18 +19,33 @@ pipeline {
         MAINNET_ECS_CLUSTER = 'mainnet-cluster'
         MAINNET_ECS_LIVE_SERVICE = 'mainnet-live-backend-service'
         MAINNET_ECS_STAGING_SERVICE = 'mainnet-staging-backend-service'
+        REPOSITORY_NAME = 'near-contract-helper'
     }
     stages {
         stage('backend:test') {
             steps {
                 milestone(1)
                 sh "yarn && yarn test"
+                check_runs.buildGithubCheck(
+                    env.REPOSITORY_NAME,
+                    env.GIT_COMMIT,
+                    env.GITHUB_APP_KEY,
+                    'success',
+                    'test'
+                )
             }
         }
         stage('backend:build') {
             steps {
                 milestone(2)
                 sh "docker build . -t $TESTNET_ECR_REPOSITORY -t $MAINNET_ECR_REPOSITORY -t $GIT_COMMIT"
+                check_runs.buildGithubCheck(
+                    env.REPOSITORY_NAME,
+                    env.GIT_COMMIT,
+                    env.GITHUB_APP_KEY,
+                    'success',
+                    'build'
+                )
             }
         }
         stage('backend:deploy:testnet') {
