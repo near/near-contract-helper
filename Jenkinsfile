@@ -45,7 +45,7 @@ pipeline {
                     sh 'ecs-cli configure profile' // initialize ecs-cli with AWS credentials injected by outer withAWS block
                     sh "ecs-cli push $TESTNET_ECR_REPOSITORY"
                     sh "aws ecs update-service --service $TESTNET_ECS_STAGING_SERVICE --cluster $TESTNET_ECS_CLUSTER"
-                    input(message: 'Deploy to testnet?')
+//                     input(message: 'Deploy to testnet?')
                     sh "aws ecs update-service --service $TESTNET_ECS_LIVE_SERVICE --cluster $TESTNET_ECS_CLUSTER"
                 }
             }
@@ -66,7 +66,7 @@ pipeline {
                     sh 'ecs-cli configure profile' // initialize ecs-cli with AWS credentials injected by outer withAWS block
                     sh "ecs-cli push $MAINNET_ECR_REPOSITORY"
                     sh "aws ecs update-service --service $MAINNET_ECS_STAGING_SERVICE --cluster $MAINNET_ECS_CLUSTER"
-                    input(message: 'Deploy to mainnet?')
+//                     input(message: 'Deploy to mainnet?')
                     sh "aws ecs update-service --service $MAINNET_ECS_LIVE_SERVICE --cluster $MAINNET_ECS_CLUSTER"
                 }
             }
