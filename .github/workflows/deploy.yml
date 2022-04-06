@@ -9,7 +9,6 @@ jobs:
             fail-fast: true
             matrix:
                 near_wallet_env: [testnet, testnet_STAGING, mainnet, mainnet_STAGING]
-            max-parallel: 2
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v3
