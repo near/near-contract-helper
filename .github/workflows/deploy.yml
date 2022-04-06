@@ -1,10 +1,8 @@
 name: deployment
 on:
     pull_request:
-        types: [opened]
-    push:
         branches:
-            - refs/pull/*
+            - master
 jobs:
     test:
         runs-on: ubuntu-latest
