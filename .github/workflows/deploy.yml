@@ -5,6 +5,11 @@ on:
             - master
 jobs:
     test:
+        strategy:
+            fail-fast: true
+            matrix:
+                near_wallet_env: [testnet, testnet_STAGING, mainnet, mainnet_STAGING]
+            max-parallel: 2
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v3
@@ -13,4 +18,8 @@ jobs:
                   node-version: 12
             - run: npm install -g yarn
             - run: yarn
-            - run: yarn test
+
+            - name: environment tests
+              env:
+                  NEAR_WALLET_ENV: ${{ matrix.near_wallet_env }}
+              run: yarn test
