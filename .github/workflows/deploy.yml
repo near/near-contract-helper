@@ -1,6 +1,10 @@
 name: deployment
 on:
+    pull_request:
+        types: [opened]
     push:
+        branches:
+            - refs/pull/*
 jobs:
     test:
         runs-on: ubuntu-latest
@@ -9,7 +13,6 @@ jobs:
             - uses: actions/setup-node@v3
               with:
                   node-version: 12
-            - run: npm install -g eslint
             - run: npm install -g yarn
             - run: yarn
             - run: yarn test
