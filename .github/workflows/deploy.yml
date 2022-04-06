@@ -9,6 +9,7 @@ jobs:
             fail-fast: true
             matrix:
                 near_wallet_env: [testnet, testnet_STAGING, mainnet, mainnet_STAGING]
+                test_dynamo_port: [8005, 8006, 8007, 8008]
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v3
@@ -21,4 +22,5 @@ jobs:
             - name: environment tests
               env:
                   NEAR_WALLET_ENV: ${{ matrix.near_wallet_env }}
+                  TEST_DYNAMO_PORT: ${{ matrix.test_dynamo_port }}
               run: yarn test

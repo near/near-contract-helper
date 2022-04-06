@@ -8,7 +8,7 @@ const EmailDomainBlacklist = require('../db/schemas/email_domain_blacklist');
 const IdentityVerificationMethod = require('../db/schemas/identity_verification_method');
 const RecoveryMethod = require('../db/schemas/recovery_method');
 
-const LOCAL_DYNAMODB_PORT = 8000;
+const LOCAL_DYNAMODB_PORT = process.env.TEST_DYNAMO_PORT || 8000;
 
 async function initLocalDynamo() {
     dynamo.documentClient(new DocumentClient({
