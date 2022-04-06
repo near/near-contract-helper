@@ -10,6 +10,7 @@ jobs:
             matrix:
                 near_wallet_env: [testnet, testnet_STAGING, mainnet, mainnet_STAGING]
                 test_dynamo_port: [8005, 8006, 8007, 8008]
+            max-parallel: 2
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v3
