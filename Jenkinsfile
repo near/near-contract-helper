@@ -27,8 +27,7 @@ pipeline {
         stage('backend:build') {
             steps {
                 milestone(2)
-                sh "docker build . --tag $TESTNET_ECR_REPOSITORY"
-                sh "docker build . --tag $MAINNET_ECR_REPOSITORY"
+                sh "docker build . -t $TESTNET_ECR_REPOSITORY -t $MAINNET_ECR_REPOSITORY -t $GIT_COMMIT"
             }
         }
         stage('backend:deploy:testnet') {
