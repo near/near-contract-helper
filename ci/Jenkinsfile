@@ -1,4 +1,4 @@
-def check_runs = new com.functions.buildGithubCheckScript()
+def githubCheck
 
 pipeline {
     agent any
@@ -26,26 +26,22 @@ pipeline {
             steps {
                 milestone(1)
                 sh "yarn && yarn test"
-                check_runs.buildGithubCheck(
-                    env.REPOSITORY_NAME,
-                    env.GIT_COMMIT,
-                    env.GITHUB_APP_KEY,
-                    'success',
-                    'test'
-                )
+                script {
+                    githubCheck = load('buildGithubCheckScript.groovy')
+                    githubCheck.buildGithubCheck(
+                        env.REPOSITORY_NAME,
+                        env.GIT_COMMIT,
+                        env.GITHUB_APP_KEY,
+                        'success',
+                        'test'
+                    )
+                }
             }
         }
         stage('backend:build') {
             steps {
                 milestone(2)
                 sh "docker build . -t $TESTNET_ECR_REPOSITORY -t $MAINNET_ECR_REPOSITORY -t $GIT_COMMIT"
-                check_runs.buildGithubCheck(
-                    env.REPOSITORY_NAME,
-                    env.GIT_COMMIT,
-                    env.GITHUB_APP_KEY,
-                    'success',
-                    'build'
-                )
             }
         }
         stage('backend:deploy:testnet') {
