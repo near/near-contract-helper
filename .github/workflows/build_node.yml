@@ -2,15 +2,6 @@ name: build_node
 on:
     workflow_call:
 jobs:
-    lint:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v3
-            - uses: actions/setup-node@v3
-              with:
-                  node-version: 12
-            - run: npm install -g yarn
-            - run: yarn && yarn lint
     test:
         strategy:
             fail-fast: true
