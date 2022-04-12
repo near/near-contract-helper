@@ -1,3 +1,0 @@
-FROM postgres:13
-ENV POSTGRES_HOST_AUTH_METHOD trust
-COPY ./scripts/create_dev_dbs.sh /docker-entrypoint-initdb.d/init-user-db.sh

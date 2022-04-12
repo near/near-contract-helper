@@ -2,11 +2,8 @@ const Promise = require('bluebird');
 require('dotenv').config({ path: 'test/.env.test' });
 
 const Constants = require('../../constants');
-const { USE_DYNAMODB } = require('../../features');
-const AccountService = require('../../services/account');
 const RecoveryMethodService = require('../../services/recovery_method');
 const chai = require('../chai');
-const { deleteAllRows } = require('../db');
 const initLocalDynamo = require('../local_dynamo');
 const { generateEmailAddress, generateSmsNumber } = require('../utils');
 
@@ -17,32 +14,22 @@ const ACCOUNT_ID = 'near.near';
 const SECURITY_CODE = '123456';
 const PUBLIC_KEY = 'xyz';
 
-const accountService = new AccountService();
 const recoveryMethodService = new RecoveryMethodService();
 
 describe('RecoveryMethodService', function () {
     beforeEach(async function () {
-        if (USE_DYNAMODB) {
-            const methods = await recoveryMethodService.listAllRecoveryMethods(ACCOUNT_ID);
-            await Promise.all(methods.map((method) => recoveryMethodService.deleteRecoveryMethod(method)));
-        } else {
-            await deleteAllRows();
-            await accountService.createAccount(ACCOUNT_ID);
-        }
+        const methods = await recoveryMethodService.listAllRecoveryMethods(ACCOUNT_ID);
+        await Promise.all(methods.map((method) => recoveryMethodService.deleteRecoveryMethod(method)));
     });
 
     let terminateLocalDynamo;
     before(async function() {
-        if (USE_DYNAMODB) {
-            this.timeout(10000);
-            ({ terminateLocalDynamo } = await initLocalDynamo());
-        }
+        this.timeout(10000);
+        ({ terminateLocalDynamo } = await initLocalDynamo());
     });
 
     after(async function() {
-        if (USE_DYNAMODB) {
-            await terminateLocalDynamo();
-        }
+        await terminateLocalDynamo();
     });
 
     describe('createRecoveryMethod', function () {
@@ -184,60 +171,7 @@ describe('RecoveryMethodService', function () {
         });
     });
 
-    (USE_DYNAMODB ? describe.skip : describe)('listRecoveryMethods', function () {
-        it('returns all recovery methods for the given detail and kind', async function () {
-            const email = generateEmailAddress();
-            await Promise.all([
-                recoveryMethodService.createRecoveryMethod({
-                    accountId: ACCOUNT_ID,
-                    detail: email,
-                    kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
-                    securityCode: SECURITY_CODE,
-                }),
-                recoveryMethodService.createRecoveryMethod({
-                    accountId: ACCOUNT_ID,
-                    detail: generateSmsNumber(),
-                    kind: IDENTITY_VERIFICATION_METHOD_KINDS.PHONE,
-                    securityCode: '654321',
-                })
-            ]);
-
-            const recoveryMethods = await recoveryMethodService.listRecoveryMethods({
-                accountId: ACCOUNT_ID,
-                detail: email,
-                kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
-            });
-            expect(recoveryMethods).length(1);
-        });
-
-        it('returns all recovery methods for the given security code', async function () {
-            const email = generateEmailAddress();
-            await Promise.all([
-                recoveryMethodService.createRecoveryMethod({
-                    accountId: ACCOUNT_ID,
-                    detail: email,
-                    kind: IDENTITY_VERIFICATION_METHOD_KINDS.EMAIL,
-                    securityCode: SECURITY_CODE,
-                }),
-                recoveryMethodService.createRecoveryMethod({
-                    accountId: ACCOUNT_ID,
-                    detail: generateSmsNumber(),
-                    kind: IDENTITY_VERIFICATION_METHOD_KINDS.PHONE,
-                    securityCode: '654321',
-                })
-            ]);
-
-            const recoveryMethods = await recoveryMethodService.listRecoveryMethods({
-                accountId: ACCOUNT_ID,
-                securityCode: SECURITY_CODE.toString(),
-            });
-
-            expect(recoveryMethods).length(1);
-            expect(recoveryMethods[0]).property('detail', email);
-        });
-    });
-
-    (USE_DYNAMODB ? describe : describe.skip)('validateSecurityCode', function () {
+    describe('validateSecurityCode', function () {
         it('returns true when a matching recovery method is found with the correct security code', async function () {
             const params = {
                 accountId: ACCOUNT_ID,

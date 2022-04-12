@@ -5,7 +5,6 @@ const body = require('koa-json-body');
 const cors = require('@koa/cors');
 
 const constants = require('./constants');
-const { USE_DYNAMODB } = require('./features');
 const AccountService = require('./services/account');
 const IdentityVerificationMethodService = require('./services/identity_verification_method');
 const RecoveryMethodService = require('./services/recovery_method');
@@ -49,16 +48,16 @@ app.use(async function (ctx, next) {
         }
 
         switch (e.status) {
-        case 400:
-        case 401:
-        case 403:
-        case 404:
-            ctx.throw(e);
-            break;
-        default:
-            // TODO: Figure out which errors should be exposed to user
-            console.error('Error: ', e, JSON.stringify(e));
-            ctx.throw(400, e.toString());
+            case 400:
+            case 401:
+            case 403:
+            case 404:
+                ctx.throw(e);
+                break;
+            default:
+                // TODO: Figure out which errors should be exposed to user
+                console.error('Error: ', e, JSON.stringify(e));
+                ctx.throw(400, e.toString());
         }
     }
 });
@@ -306,9 +305,6 @@ const sendSecurityCode = async ({ ctx, securityCode, method, accountId, seedPhra
 };
 
 const completeRecoveryInit = async ctx => {
-    if (!USE_DYNAMODB) {
-        return completeRecoveryInit_legacy(ctx);
-    }
     const { accountId, method, seedPhrase } = ctx.request.body;
 
     await accountService.getOrCreateAccount(accountId);
@@ -324,52 +320,6 @@ const completeRecoveryInit = async ctx => {
         publicKey,
         securityCode,
     });
-
-    // For test harness
-    ctx.app.emit(SERVER_EVENTS.SECURITY_CODE, { accountId, securityCode });
-
-    await sendSecurityCode({ ctx, securityCode, method, accountId, seedPhrase });
-
-    ctx.body = await recoveryMethodService.listAllRecoveryMethods(accountId);
-};
-
-const completeRecoveryInit_legacy = async ctx => {
-    const { accountId, method, seedPhrase } = ctx.request.body;
-
-    await accountService.getOrCreateAccount(accountId);
-
-    let publicKey = null;
-    if (seedPhrase) {
-        ({ publicKey } = parseSeedPhrase(seedPhrase));
-    }
-
-    const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
-
-    const { detail, kind } = method;
-    const [recoveryMethod] = await recoveryMethodService.listRecoveryMethods({
-        accountId,
-        detail,
-        kind,
-        publicKey,
-    });
-
-    if (recoveryMethod) {
-        await recoveryMethodService.setSecurityCode({
-            accountId,
-            detail,
-            kind,
-            publicKey,
-            securityCode,
-        });
-    } else {
-        await recoveryMethodService.createRecoveryMethod({
-            accountId,
-            detail,
-            kind,
-            publicKey,
-            securityCode,
-        });
-    }
 
     // For test harness
     ctx.app.emit(SERVER_EVENTS.SECURITY_CODE, { accountId, securityCode });
@@ -434,29 +384,16 @@ const completeRecoveryValidation = ({ isNew } = {}) => async (ctx) => {
         ctx.throw(401, 'account does not exist');
     }
 
-    if (!USE_DYNAMODB) {
-        const [recoveryMethod] = await recoveryMethodService.listRecoveryMethods({
-            accountId,
-            detail: method.detail,
-            kind: method.kind,
-            securityCode,
-        });
+    const isValidRecoveryMethod = await recoveryMethodService.validateSecurityCode({
+        accountId,
+        detail: method.detail,
+        kind: method.kind,
+        publicKey,
+        securityCode,
+    });
 
-        if (!recoveryMethod) {
-            ctx.throw(401, 'recoveryMethod does not exist');
-        }
-    } else {
-        const isValidRecoveryMethod = await recoveryMethodService.validateSecurityCode({
-            accountId,
-            detail: method.detail,
-            kind: method.kind,
-            publicKey,
-            securityCode,
-        });
-
-        if (!isValidRecoveryMethod) {
-            ctx.throw(401, 'recoveryMethod does not exist');
-        }
+    if (!isValidRecoveryMethod) {
+        ctx.throw(401, 'recoveryMethod does not exist');
     }
 
     // for new accounts, clear all other recovery methods that may have been created
@@ -523,6 +460,12 @@ router.post('/account/validateSecurityCodeForTempAccount',
 
 const createFiatValueMiddleware = require('./middleware/fiat');
 router.get('/fiat', createFiatValueMiddleware());
+
+if (process.env.NODE_ENV === 'development') {
+    app.on(SERVER_EVENTS.SECURITY_CODE, ({ accountId, securityCode }) => {
+        console.log(`Security code for ${accountId}: ${securityCode}`);
+    });
+}
 
 app
     .use(router.routes())

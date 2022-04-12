@@ -1,6 +1,5 @@
-image: gitpod/workspace-postgres
 tasks:
-  - init: yarn && ./scripts/create_dev_dbs.sh
+  - init: yarn
 github:
   prebuilds:
     addCheck: true

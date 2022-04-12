@@ -2,8 +2,6 @@ const {
     getIdentityVerificationMethod,
     updateIdentityVerificationMethod,
 } = require('../db/methods/identity_verification_method');
-const { USE_DYNAMODB } = require('../features');
-const SequelizeIdentityVerificationMethods = require('./sequelize/identity_verification_method');
 
 const MATCH_GMAIL_IGNORED_CHARS = /[|&;$%@"<>()+,!#'*\-\/=?^_`.{}]/g;
 
@@ -13,16 +11,11 @@ class IdentityVerificationMethodService {
             getIdentityVerificationMethod,
             updateIdentityVerificationMethod,
         },
-        sequelize: SequelizeIdentityVerificationMethods,
     }) {
         this.db = params.db;
-        this.sequelize = params.sequelize;
     }
 
     async claimIdentityVerificationMethod({ identityKey, kind }) {
-        if (!USE_DYNAMODB) {
-            return this.sequelize.claimIdentityVerificationMethod({ identityKey, kind });
-        }
         // do not upsert documents that do not exist or exist under a different kind
         const identityVerificationMethod = await this.getIdentityVerificationMethod({ identityKey });
         if (!identityVerificationMethod || identityVerificationMethod.kind !== kind) {
@@ -37,10 +30,7 @@ class IdentityVerificationMethodService {
         });
     }
 
-    getIdentityVerificationMethod({ identityKey, kind }) {
-        if (!USE_DYNAMODB) {
-            return this.sequelize.getIdentityVerificationMethod({ identityKey, kind });
-        }
+    getIdentityVerificationMethod({ identityKey }) {
         return this.db.getIdentityVerificationMethod(this.getUniqueIdentityKey(identityKey));
     }
 
@@ -66,10 +56,6 @@ class IdentityVerificationMethodService {
     }
 
     async recoverIdentity({ identityKey, kind, securityCode }) {
-        if (!USE_DYNAMODB) {
-            return this.sequelize.recoverIdentity({ identityKey, kind, securityCode });
-        }
-
         const identityVerificationMethod = await this.getIdentityVerificationMethod({ identityKey });
 
         // allow recovery when no record exists for the given identity or the record is unclaimed and matches the given kind
