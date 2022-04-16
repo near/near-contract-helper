@@ -143,7 +143,13 @@ const findLikelyTokens = async (ctx) => {
             and (args->>'method_name' like 'ft_%' or args->>'method_name' = 'storage_deposit')
     `;
 
-    const { rows } = await pool.query([received, mintedWithBridge, calledByUser].join(' union '), [accountId, BRIDGE_TOKEN_FACTORY_ACCOUNT_ID]);
+    const ownershipChangeEvents = `
+        select distinct emitted_by_contract_account_id as receiver_account_id 
+        from assets__fungible_token_events
+        where token_new_owner_account_id = $1
+    `;
+
+    const { rows } = await pool.query([received, mintedWithBridge, calledByUser, ownershipChangeEvents].join(' union '), [accountId, BRIDGE_TOKEN_FACTORY_ACCOUNT_ID]);
     ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
 };
 
