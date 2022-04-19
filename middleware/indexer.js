@@ -80,7 +80,7 @@ const findAccountActivity = async (ctx) => {
             select *
             from predecessor_receipts
 
-            union all
+            union
 
             select *
             from receiver_receipts
