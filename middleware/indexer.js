@@ -53,38 +53,55 @@ const findStakingDeposits = async (ctx) => {
 const findAccountActivity = async (ctx) => {
     const { accountId } = ctx.params;
 
-    let { offset, limit = 10 } = ctx.request.query;
-    if (!offset) {
-        offset = '9999999999999999999';
-    }
     const { rows } = await pool.query(
         `
-        select
-            included_in_block_hash block_hash,
-            included_in_block_timestamp block_timestamp,
-            originated_from_transaction_hash hash,
-            index_in_action_receipt action_index,
-            predecessor_account_id signer_id,
-            receiver_account_id receiver_id,
-            action_kind,
-            args
-        from action_receipt_actions
-        join receipts using(receipt_id)
-        where
-            receipt_predecessor_account_id != 'system' and
-            (receipt_predecessor_account_id = $1 or receipt_receiver_account_id = $1) and
-            $2 > receipt_included_in_block_timestamp
-        order by receipt_included_in_block_timestamp desc
-        limit $3
-        ;
-    `,
-        // Using very small limits caused queries to be horribly inefficient
-        // So we fetch more data than we need to, since that made the query planner
-        // optimize the scan performance
-        [accountId, offset, limit + 100]
-    );
+        with predecessor_receipts as (
+            select  receipt_id
+                ,   index_in_action_receipt as action_index
+                ,   receipt_included_in_block_timestamp
+                ,   action_kind
+                ,   args
+            from action_receipt_actions
+            where receipt_predecessor_account_id = $1
+            order by receipt_included_in_block_timestamp desc
+            limit $2
+        ), receiver_receipts as (
+            select  receipt_id
+                ,   index_in_action_receipt
+                ,   receipt_included_in_block_timestamp
+                ,   action_kind
+                ,   args
+            from action_receipt_actions
+            where receipt_receiver_account_id = $1
+                and receipt_predecessor_account_id != 'system'
+            order by receipt_included_in_block_timestamp desc
+            limit $2
+        ), account_receipts as (
+            select *
+            from predecessor_receipts
 
-    ctx.body = rows.slice(0, limit);
+            union all
+
+            select *
+            from receiver_receipts
+        )
+        select  ar.action_index
+            ,   ar.action_kind
+            ,   ar.args
+            ,   r.included_in_block_hash as block_hash
+            ,   r.included_in_block_timestamp as block_timestamp
+            ,   r.originated_from_transaction_hash as hash
+            ,   r.predecessor_account_id as signer_id
+            ,   r.receiver_account_id as receiver_id
+        from account_receipts as ar
+        join receipts as r
+            on r.receipt_id = ar.receipt_id
+        order by ar.receipt_included_in_block_timestamp desc
+        limit $2
+        ;
+    `, [accountId, 10]);
+
+    ctx.body = rows;
 };
 
 const findAccountsByPublicKey = async (ctx) => {
