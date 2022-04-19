@@ -85,14 +85,14 @@ const findAccountActivity = async (ctx) => {
             select *
             from receiver_receipts
         )
-        select  ar.action_index
-            ,   ar.action_kind
-            ,   ar.args
-            ,   r.included_in_block_hash as block_hash
+        select  r.included_in_block_hash as block_hash
             ,   r.included_in_block_timestamp as block_timestamp
             ,   r.originated_from_transaction_hash as hash
+            ,   ar.action_index
             ,   r.predecessor_account_id as signer_id
             ,   r.receiver_account_id as receiver_id
+            ,   ar.action_kind
+            ,   ar.args
         from account_receipts as ar
         join receipts as r
             on r.receipt_id = ar.receipt_id
