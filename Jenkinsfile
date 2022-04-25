@@ -18,14 +18,23 @@ pipeline {
         MAINNET_ECS_STAGING_SERVICE = 'mainnet-staging-backend-service'
     }
     stages {
-        stage('backend:build') {
+        stage('backend:test') {
             steps {
                 milestone(1)
+                sh "yarn && yarn test"
+            }
+        }
+        stage('backend:build') {
+            steps {
+                milestone(2)
                 sh "docker build . --tag $TESTNET_ECR_REPOSITORY"
                 sh "docker build . --tag $MAINNET_ECR_REPOSITORY"
             }
         }
         stage('backend:deploy:testnet') {
+            when {
+                branch 'master'
+            }
             steps {
                 withAWS(
                     region: env.AWS_REGION,
@@ -33,7 +42,7 @@ pipeline {
                     role: env.AWS_TESTNET_ROLE,
                     roleAccount: env.AWS_TESTNET_ROLE_ACCOUNT
                 ) {
-                    milestone(2)
+                    milestone(3)
                     sh 'ecs-cli configure profile' // initialize ecs-cli with AWS credentials injected by outer withAWS block
                     sh "ecs-cli push $TESTNET_ECR_REPOSITORY"
                     sh "aws ecs update-service --service $TESTNET_ECS_STAGING_SERVICE --cluster $TESTNET_ECS_CLUSTER"
@@ -43,6 +52,10 @@ pipeline {
             }
         }
         stage('backend:deploy:mainnet') {
+            // TODO change to `branch 'master'` once trunk-based development is ready
+            when {
+                branch 'stable'
+            }
             steps {
                 withAWS(
                     region: env.AWS_REGION,
@@ -50,7 +63,7 @@ pipeline {
                     role: env.AWS_MAINNET_ROLE,
                     roleAccount: env.AWS_MAINNET_ROLE_ACCOUNT
                 ) {
-                    milestone(3)
+                    milestone(4)
                     sh 'ecs-cli configure profile' // initialize ecs-cli with AWS credentials injected by outer withAWS block
                     sh "ecs-cli push $MAINNET_ECR_REPOSITORY"
                     sh "aws ecs update-service --service $MAINNET_ECS_STAGING_SERVICE --cluster $MAINNET_ECS_CLUSTER"

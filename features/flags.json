@@ -1,31 +1,31 @@
 {
-  "USE_DYNAMODB": {
-    "createdBy": "Andy Haynes",
-    "createdAt": "2022-01-28T21:20:05.270Z",
+  "USE_TWILIO_VERIFY_2FA": {
+    "createdBy": "Morgan McCauley",
+    "createdAt": "2022-03-18T02:56:25.050Z",
     "development": {
-      "enabled": false,
-      "lastEditedBy": "Andy Haynes",
-      "lastEditedAt": "2022-01-28T21:20:05.270Z"
+      "enabled": true,
+      "lastEditedBy": "Morgan McCauley",
+      "lastEditedAt": "2022-03-18T02:56:25.050Z"
     },
     "testnet": {
-      "enabled": false,
-      "lastEditedBy": "Andy Haynes",
-      "lastEditedAt": "2022-01-28T21:20:05.270Z"
+      "enabled": true,
+      "lastEditedBy": "Morgan McCauley",
+      "lastEditedAt": "2022-03-30T22:22:00.375Z"
     },
     "mainnet": {
-      "enabled": false,
-      "lastEditedBy": "Andy Haynes",
-      "lastEditedAt": "2022-01-28T21:20:05.270Z"
+      "enabled": true,
+      "lastEditedBy": "Morgan McCauley",
+      "lastEditedAt": "2022-03-31T00:59:22.607Z"
     },
     "testnet_STAGING": {
-      "enabled": false,
-      "lastEditedBy": "Andy Haynes",
-      "lastEditedAt": "2022-01-31T21:14:31.321Z"
+      "enabled": true,
+      "lastEditedBy": "Morgan McCauley",
+      "lastEditedAt": "2022-03-30T22:22:00.375Z"
     },
     "mainnet_STAGING": {
-      "enabled": false,
-      "lastEditedBy": "Andy Haynes",
-      "lastEditedAt": "2022-01-31T21:14:42.135Z"
+      "enabled": true,
+      "lastEditedBy": "Morgan McCauley",
+      "lastEditedAt": "2022-03-31T00:59:22.607Z"
     }
   }
 }

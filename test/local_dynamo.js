@@ -1,12 +1,12 @@
 const { DocumentClient } = require('aws-sdk/clients/dynamodb');
 const Promise = require('bluebird');
-const dynamo = Promise.promisifyAll(require('dynamodb'));
+const dynamo = require('dynamodb');
 const dynamoLocal = require('dynamodb-local');
 
-require('../db/schemas/account');
-require('../db/schemas/email_domain_blacklist');
-require('../db/schemas/identity_verification_method');
-require('../db/schemas/recovery_method');
+const Account = require('../db/schemas/account');
+const EmailDomainBlacklist = require('../db/schemas/email_domain_blacklist');
+const IdentityVerificationMethod = require('../db/schemas/identity_verification_method');
+const RecoveryMethod = require('../db/schemas/recovery_method');
 
 const LOCAL_DYNAMODB_PORT = 8000;
 
@@ -18,8 +18,13 @@ async function initLocalDynamo() {
         region: 'local-env'
     }));
 
-    await dynamoLocal.launch(LOCAL_DYNAMODB_PORT, null);//, ['-shareDb']);
-    await dynamo.createTablesAsync();
+    await dynamoLocal.launch(LOCAL_DYNAMODB_PORT);
+    await Promise.all([
+        Account,
+        EmailDomainBlacklist,
+        IdentityVerificationMethod,
+        RecoveryMethod,
+    ].map((model) => model.createTableAsync()));
 
     return {
         terminateLocalDynamo: () => dynamoLocal.stop(LOCAL_DYNAMODB_PORT),

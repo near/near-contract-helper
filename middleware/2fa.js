@@ -2,10 +2,12 @@ const nearAPI = require('near-api-js');
 const escapeHtml = require('escape-html');
 const password = require('secure-random-password');
 
+const { USE_TWILIO_VERIFY_2FA } = require('../features');
 const constants = require('../constants');
 const messageContentUtils2fa = require('./2faMessageContent');
 const AccountService = require('../services/account');
 const RecoveryMethodService = require('../services/recovery_method');
+const TwilioVerifyService = require('../services/twilio_verify');
 const emailHelper = require('../utils/email');
 const smsHelper = require('../utils/sms');
 
@@ -13,10 +15,12 @@ const { sendSms } = smsHelper;
 const { sendMail, get2faHtml } = emailHelper;
 const { SERVER_EVENTS, TWO_FACTOR_AUTH_KINDS } = constants;
 
+// Changes to this will also need to be propagated to Twilio Verify
 const SECURITY_CODE_DIGITS = 6;
 
 const accountService = new AccountService();
 const recoveryMethodService = new RecoveryMethodService();
+const twilioVerifyService = new TwilioVerifyService();
 
 const {
     getVerify2faMethodMessageContent,
@@ -51,15 +55,24 @@ const sendMessageTo2faDestination = async ({
     contentData: { securityCode, publicKey, accountId, messageContent }
 }) => {
     if (kind === TWO_FACTOR_AUTH_KINDS.PHONE) {
-        const { text } = messageContent;
+        if (USE_TWILIO_VERIFY_2FA) {
+            await twilioVerifyService.send(
+                {
+                    to: destination
+                },
+                (securityCode) => ctx.app.emit(SERVER_EVENTS.SECURITY_CODE, { accountId, securityCode }),  // For test harness
+            );
+        } else {
+            const { text } = messageContent;
 
-        await sendSms(
-            {
-                to: destination,
-                text,
-            },
-            (smsContent) => ctx.app.emit(SERVER_EVENTS.SENT_SMS, smsContent) // For test harness
-        );
+            await sendSms(
+                {
+                    to: destination,
+                    text,
+                },
+                (smsContent) => ctx.app.emit(SERVER_EVENTS.SENT_SMS, smsContent) // For test harness
+            );
+        }
     } else if (kind === TWO_FACTOR_AUTH_KINDS.EMAIL) {
         const { requestDetails, subject, text } = messageContent;
 
@@ -103,18 +116,21 @@ const getRequestDataFromChain = async ({ requestId, ctx, accountId }) => {
 const sendCode = async (ctx, method, requestId = -1, accountId = '') => {
     const securityCode = password.randomPassword({ length: SECURITY_CODE_DIGITS, characters: password.digits });
 
+    // Safe: assumes anything other than SMS should be HTML escaped, and that args should be shortened for SMS
+    const isForSmsDelivery = method.kind === TWO_FACTOR_AUTH_KINDS.PHONE;
+
     // Emit an event so that any listening test harnesses can use the security code without needing a full
     // integration test with e.g. SMS, e-mail.
-    ctx.app.emit(SERVER_EVENTS.SECURITY_CODE, { accountId, requestId, securityCode }); // For test harness
+    if (!USE_TWILIO_VERIFY_2FA || !isForSmsDelivery) {
+        ctx.app.emit(SERVER_EVENTS.SECURITY_CODE, { accountId, requestId, securityCode }); // For test harness
+    }
 
     await recoveryMethodService.updateTwoFactorRecoveryMethod({
         accountId,
         requestId,
-        securityCode,
+        ...((!USE_TWILIO_VERIFY_2FA || !isForSmsDelivery) && { securityCode }),
     });
 
-    // Safe: assumes anything other than SMS should be HTML escaped, and that args should be shortened for SMS
-    const isForSmsDelivery = method.kind === TWO_FACTOR_AUTH_KINDS.PHONE;
 
     const deliveryOpts = {
         kind: method.kind,
@@ -286,19 +302,37 @@ const sendNewCode = async (ctx) => {
     };
 };
 
+const validateCodeByKind = async (twoFactorMethod, code) => {
+    switch (twoFactorMethod.kind) {
+        case TWO_FACTOR_AUTH_KINDS.PHONE:
+            return twilioVerifyService.verify({ to: twoFactorMethod.detail, code });
+        case TWO_FACTOR_AUTH_KINDS.EMAIL:
+            return twoFactorMethod.securityCode === code;
+        default:
+            return false;
+    }
+};
+
 // http post http://localhost:3000/2fa/verify accountId=mattlock securityCode=430888
 // call when you want to verify the "current" securityCode
 const verifyCode = async (ctx) => {
     const { accountId, securityCode, requestId } = ctx.request.body;
-    if (!securityCode || isNaN(parseInt(securityCode, 10)) || securityCode.length !== 6) {
+    if (!securityCode || isNaN(parseInt(securityCode, 10)) || securityCode.length !== SECURITY_CODE_DIGITS) {
         console.warn('invalid 2fa code provided');
         ctx.throw(401, 'invalid 2fa code provided');
     }
 
     const twoFactorMethod = await recoveryMethodService.getTwoFactorRecoveryMethod(accountId);
-    if (!twoFactorMethod || twoFactorMethod.securityCode !== securityCode) {
-        console.warn(`${accountId} has no 2fa method for the provided security code`);
-        ctx.throw(401, '2fa code not valid for request id');
+    if (USE_TWILIO_VERIFY_2FA) {
+        if (!twoFactorMethod) {
+            console.warn(`${accountId} has no 2fa method`);
+            ctx.throw(401, '2fa method does not exist');
+        }
+    } else {
+        if (!twoFactorMethod || twoFactorMethod.securityCode !== securityCode) {
+            console.warn(`${accountId} has no 2fa method for the provided security code`);
+            ctx.throw(401, '2fa code not valid for request id');
+        }
     }
 
     // cannot test for requestId equality with negative integer???
@@ -312,6 +346,14 @@ const verifyCode = async (ctx) => {
     if (recoveryMethodService.isTwoFactorRequestExpired(twoFactorMethod)) {
         console.warn(`2fa code expired for: ${accountId}`);
         ctx.throw(401, '2fa code expired');
+    }
+
+    if (USE_TWILIO_VERIFY_2FA) {
+        const isCodeValid = await validateCodeByKind(twoFactorMethod, securityCode);
+        if (!isCodeValid) {
+            console.warn(`${accountId} provided incorrect security code`);
+            ctx.throw(401, '2fa code not valid for request id');
+        }
     }
 
     // security code valid

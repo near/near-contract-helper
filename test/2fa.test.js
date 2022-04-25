@@ -5,14 +5,12 @@ const { parseSeedPhrase } = require('near-seed-phrase');
 const sinon = require('sinon');
 
 const constants = require('../constants');
-const { USE_DYNAMODB } = require('../features');
 const AccountService = require('../services/account');
 const RecoveryMethodService = require('../services/recovery_method');
 const attachEchoMessageListeners = require('./attachEchoMessageListeners');
 const expectRequestHelpers = require('./expectRequestHelpers');
 const chai = require('./chai');
 const createTestServerInstance = require('./createTestServerInstance');
-const { initDb } = require('./db');
 const initLocalDynamo = require('./local_dynamo');
 const TestAccountHelper = require('./TestAccountHelper');
 
@@ -64,17 +62,11 @@ describe('2fa method management', function () {
             request,
         });
 
-        if (USE_DYNAMODB) {
-            ({ terminateLocalDynamo } = await initLocalDynamo());
-        } else {
-            await initDb();
-        }
+        ({ terminateLocalDynamo } = await initLocalDynamo());
     });
 
     after(async () => {
-        if (USE_DYNAMODB) {
-            await terminateLocalDynamo();
-        }
+        await terminateLocalDynamo();
     });
 
     describe('setting up 2fa method', () => {
@@ -119,7 +111,7 @@ describe('2fa method management', function () {
         });
 
         it('sends a code when the 2FA email address is already being used with an email recovery method', async () => {
-            await accountService.createAccount(accountId);
+            await accountService.getOrCreateAccount(accountId);
             await recoveryMethodService.createRecoveryMethod({
                 ...twoFactorMethods.email,
                 accountId,
@@ -202,94 +194,163 @@ describe('2fa method management', function () {
     });
 
     describe('/verify', function () {
-        let accountId;
-        let securityCode;
+        const invertSecurityCode = (code) => [...code].map((digit) => 9 - digit).join('');
 
-        // Would prefer beforeAll, but `testContext.logs` is cleared in the global beforeEach() that would run after beforeAll here
-        beforeEach(async () => {
-            if (!accountId) {
-                ({
-                    accountId,
-                    securityCode
-                } = await testAccountHelper.create2faEnabledNEARAccount({ method: twoFactorMethods.email }));
-            }
-        });
+        describe('validation', () => {
+            let accountId;
+            let securityCode;
 
-        // FIXME: Cover service with unit tests for this case, so we don't need a mock global date
-        describe('expired codes', () => {
-            let clock;
+            // Would prefer beforeAll, but `testContext.logs` is cleared in the global beforeEach() that would run after beforeAll here
+            beforeEach(async () => {
+                if (!accountId) {
+                    ({
+                        accountId,
+                        securityCode
+                    } = await testAccountHelper.create2faEnabledNEARAccount({ method: twoFactorMethods.email }));
+                }
+            });
 
-            beforeEach(async function () {
-                clock = sinon.useFakeTimers({
-                    now: new Date(2030, 1, 1, 0, 0),
-                    shouldAdvanceTime: true,
-                    advanceTimeDelta: 20
+            // FIXME: Cover service with unit tests for this case, so we don't need a mock global date
+            describe('expired codes', () => {
+                let clock;
+
+                beforeEach(async function () {
+                    clock = sinon.useFakeTimers({
+                        now: new Date(2030, 1, 1, 0, 0),
+                        shouldAdvanceTime: true,
+                        advanceTimeDelta: 20
+                    });
+                });
+
+                afterEach(function () {
+                    clock.restore();
+                });
+
+                it('securityCode that is more than 5 minutes old should fail', async () => {
+                    return testAccountHelper.verify2faMethod({
+                        accountId,
+                        requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
+                        securityCode
+                    })
+                        .then(expectFailedWithCode(401, '2fa code expired'));
                 });
             });
 
-            afterEach(function () {
-                clock.restore();
-            });
+            describe('malformed security codes should be rejected', () => {
+                const expectInvalid2faCodeProvidedError = expectFailedWithCode(401, 'invalid 2fa code provided');
 
-            it('securityCode that is more than 5 minutes old should fail', async () => {
-                return testAccountHelper.verify2faMethod({
-                    accountId,
-                    requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
-                    securityCode
-                })
-                    .then(expectFailedWithCode(401, '2fa code expired'));
+                it('verify 2fa method should fail when given code that is too long', async () => {
+                    return testAccountHelper.verify2faMethod({
+                        accountId,
+                        requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
+                        securityCode: '1234567',
+
+                    })
+                        .then(expectInvalid2faCodeProvidedError);
+                });
+
+                it('verify 2fa method should fail when given code that is too short', async () => {
+                    return testAccountHelper.verify2faMethod({
+                        accountId,
+                        requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
+                        securityCode: '123',
+
+                    })
+                        .then(expectInvalid2faCodeProvidedError);
+                });
+
+                it('verify 2fa method should fail when given code that is not numeric', async () => {
+                    return testAccountHelper.verify2faMethod({
+                        accountId,
+                        requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
+                        securityCode: 'dsfasdsgah3y',
+                    })
+                        .then(expectInvalid2faCodeProvidedError);
+                });
+
+                it('verify 2fa method should fail when no code is provided', async () => {
+                    return testAccountHelper.verify2faMethod({
+                        accountId,
+                        requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
+                    })
+                        .then(expectInvalid2faCodeProvidedError);
+                });
             });
         });
 
-        describe('malformed security codes should be rejected', () => {
-            const expectInvalid2faCodeProvidedError = expectFailedWithCode(401, 'invalid 2fa code provided');
-            const expectInvalid2faCodeForRequestError = expectFailedWithCode(401, '2fa code not valid for request id');
+        describe('email', () => {
+            let accountId;
+            let securityCode;
 
-            it('verify 2fa method should fail when given code that is too long', async () => {
-                return testAccountHelper.verify2faMethod({
-                    accountId,
-                    requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
-                    securityCode: '1234567',
-
-                })
-                    .then(expectInvalid2faCodeProvidedError);
+            // Would prefer beforeAll, but `testContext.logs` is cleared in the global beforeEach() that would run after beforeAll here
+            beforeEach(async () => {
+                if (!accountId) {
+                    ({
+                        accountId,
+                        securityCode
+                    } = await testAccountHelper.create2faEnabledNEARAccount({ method: twoFactorMethods.email }));
+                }
             });
 
-            it('verify 2fa method should fail when given code that is too short', async () => {
+            it('fails when the provided code does not match', async () => {
                 return testAccountHelper.verify2faMethod({
                     accountId,
                     requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
-                    securityCode: '123',
-
+                    securityCode: invertSecurityCode(securityCode)
                 })
-                    .then(expectInvalid2faCodeProvidedError);
+                    .then(expectFailedWithCode(401, '2fa code not valid for request id'));
             });
 
-            it('verify 2fa method should fail when given code that is not numeric', async () => {
-                return testAccountHelper.verify2faMethod({
-                    accountId,
-                    requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
-                    securityCode: 'dsfasdsgah3y',
-                })
-                    .then(expectInvalid2faCodeProvidedError);
+            it('succeeds when code matches', async () => {
+                const { body } = await testAccountHelper
+                    .verify2faMethod({
+                        accountId,
+                        requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
+                        securityCode: securityCode
+                    })
+                    .then(expectJSONResponse);
+
+                expect(body).property('message', '2fa code verified');
+                expect(body).property('requestId', REQUEST_ID_FOR_INITIALIZING_2FA);
+            });
+        });
+
+        describe('phone', () => {
+            let accountId;
+            let securityCode;
+
+            // Would prefer beforeAll, but `testContext.logs` is cleared in the global beforeEach() that would run after beforeAll here
+            beforeEach(async () => {
+                if (!accountId) {
+                    ({
+                        accountId,
+                        securityCode
+                    } = await testAccountHelper.create2faEnabledNEARAccount({ method: twoFactorMethods.phone, bypassEndpointCreation: true }));
+                }
             });
 
-            it('verify 2fa method should fail when no code is provided', async () => {
-                return testAccountHelper.verify2faMethod({
-                    accountId,
-                    requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
-                })
-                    .then(expectInvalid2faCodeProvidedError);
+            it('fails when the provided code does not match', async () => {
+                const response = await testAccountHelper
+                    .verify2faMethod({
+                        accountId,
+                        requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
+                        securityCode: invertSecurityCode(securityCode)
+                    });
+
+                expectFailedWithCode(401, '2fa code not valid for request id')(response);
             });
 
-            it('verify 2fa method should fail when the wrong code is provided', async () => {
-                const offsetSecurityCode = securityCode > 0 ? securityCode - 1 : securityCode + 1;
-                return testAccountHelper.verify2faMethod({
-                    accountId,
-                    requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
-                    securityCode: offsetSecurityCode.toString(),
-                })
-                    .then(expectInvalid2faCodeForRequestError);
+            it('succeeds when code matches', async () => {
+                const { body } = await testAccountHelper
+                    .verify2faMethod({
+                        accountId,
+                        requestId: REQUEST_ID_FOR_INITIALIZING_2FA,
+                        securityCode
+                    })
+                    .then(expectJSONResponse);
+
+                expect(body).property('message', '2fa code verified');
+                expect(body).property('requestId', REQUEST_ID_FOR_INITIALIZING_2FA);
             });
         });
     });

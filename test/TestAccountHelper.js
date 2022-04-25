@@ -2,9 +2,13 @@ const nearAPI = require('near-api-js');
 const uuid = require('uuid');
 
 const constants = require('../constants');
+const RecoveryMethodService = require('../services/recovery_method');
+const AccountService = require('../services/account');
 
-const { SERVER_EVENTS } = constants;
+const { SERVER_EVENTS, TWO_FACTOR_AUTH_KINDS } = constants;
 
+const recoveryMethodService = new RecoveryMethodService();
+const accountService = new AccountService();
 
 class TestAccountHelper {
     constructor({
@@ -88,19 +92,20 @@ class TestAccountHelper {
         });
     }
 
-    async initRecoveryMethodForTempAccount({ accountId, method }) {
+    async initRecoveryMethodForTempAccount({ accountId, method, seedPhrase }) {
         this.clearSecurityCodeForAccount(accountId);
 
         const result = await this._request.post('/account/initializeRecoveryMethodForTempAccount')
             .send({
                 accountId,
                 method,
+                seedPhrase,
             });
 
         return { result, securityCode: this.getSecurityCodeForAccount(accountId) };
     }
 
-    async initRecoveryMethod({ accountId, method, testing, valid }) {
+    async initRecoveryMethod({ accountId, method, seedPhrase, testing, valid }) {
         const signature = await this.signatureForLatestBlock({ accountId, valid });
 
         this.clearSecurityCodeForAccount(accountId);
@@ -109,6 +114,7 @@ class TestAccountHelper {
             .send({
                 accountId,
                 method,
+                seedPhrase,
                 testing,
                 ...signature,
             });
@@ -145,10 +151,36 @@ class TestAccountHelper {
             .send({ accountId, ...signature });
     }
 
-    async init2faMethod({ accountId, method, valid, testContractDeployed }) {
+    async create2faPhoneMethod({ accountId, method }) {
+        await accountService.getOrCreateAccount(accountId);
+        return recoveryMethodService.createRecoveryMethod({
+            accountId,
+            detail: method.detail,
+            kind: method.kind,
+            requestId: -1,
+        });
+
+    }
+
+    async init2faMethod({
+        accountId,
+        method,
+        valid,
+        testContractDeployed,
+        bypassEndpointCreation = false
+    }) {
         const signature = await this.signatureForLatestBlock({ accountId, valid });
 
         this.clearSecurityCodeForAccount(accountId);
+
+        if (bypassEndpointCreation && method.kind === TWO_FACTOR_AUTH_KINDS.PHONE) {
+            const result = await this.create2faPhoneMethod({ accountId, method });
+            await this._request
+                .post('/2fa/send')
+                .send({ accountId, method, requestId: -1, ...signature });
+
+            return { result, securityCode: this.getSecurityCodeForAccount(accountId) };
+        }
 
         const result = await this._request
             .post('/2fa/init')
@@ -206,9 +238,10 @@ class TestAccountHelper {
     async create2faEnabledNEARAccount({
         requestedAccountId,
         method,
+        bypassEndpointCreation,
     }) {
         const accountId = await this.createNEARAccount(requestedAccountId);
-        const { securityCode } = await this.init2faMethod({ accountId, method });
+        const { securityCode } = await this.init2faMethod({ accountId, method, bypassEndpointCreation });
 
         return { accountId, securityCode };
     }
