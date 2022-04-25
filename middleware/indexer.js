@@ -9,7 +9,7 @@ const IS_MAINNET = WALLET_URL.includes('wallet.near.org');
 
 const pool = new Pool({ connectionString: process.env.INDEXER_DB_CONNECTION, });
 
-let poolMatch ='%.stake.guildnet';
+let poolMatch =JSON.stringify(['%.stake.guildnet', '%.stake.guildnet']).replace(/"/g, '\'');
 
 const findStakingDeposits = async (ctx) => {
     const { accountId } = ctx.params;
