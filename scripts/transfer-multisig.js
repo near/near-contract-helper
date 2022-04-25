@@ -2,7 +2,11 @@ const { program } = require('commander');
 const inquirer = require('inquirer');
 
 const { TWO_FACTOR_AUTH_KINDS } = require('../constants');
-const { listRecoveryMethodsByAccountId, updateRecoveryMethod } = require('../db/methods/recovery_method');
+const {
+    deleteRecoveryMethod,
+    listRecoveryMethodsByAccountId,
+    updateRecoveryMethod,
+} = require('../db/methods/recovery_method');
 
 function isEquivalentPhoneNumber(phone1, phone2) {
     const nonDigits = /\D/g;
@@ -50,6 +54,11 @@ async function transferMultisig() {
     }, {
         detail: email,
         securityCode: null, // clear current security code since user will need to request again
+    });
+
+    await deleteRecoveryMethod({
+        accountId,
+        kind: TWO_FACTOR_AUTH_KINDS.PHONE,
     });
 
     console.log(JSON.stringify({ oldRecoveryMethod: sms2faMethod, newRecoveryMethod: email2faMethod }, null, 2));
