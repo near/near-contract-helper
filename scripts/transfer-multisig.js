@@ -43,7 +43,7 @@ async function transferMultisig() {
         return;
     }
 
-    await updateRecoveryMethod({
+    const email2faMethod = await updateRecoveryMethod({
         accountId,
         kind: TWO_FACTOR_AUTH_KINDS.EMAIL,
         publicKey: sms2faMethod.publicKey, // empty for most 2FA recovery method documents but some may have it
@@ -51,6 +51,9 @@ async function transferMultisig() {
         detail: email,
         securityCode: null, // clear current security code since user will need to request again
     });
+
+    console.log(JSON.stringify({ oldRecoveryMethod: sms2faMethod, newRecoveryMethod: email2faMethod }, null, 2));
+    console.log('Update complete');
 }
 
 transferMultisig();
