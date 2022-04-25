@@ -53,6 +53,7 @@ async function transferMultisig() {
         publicKey: sms2faMethod.publicKey, // empty for most 2FA recovery method documents but some may have it
     }, {
         detail: email,
+        requestId: sms2faMethod.requestId,
         securityCode: null, // clear current security code since user will need to request again
     });
 
