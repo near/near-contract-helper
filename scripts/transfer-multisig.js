@@ -47,6 +47,11 @@ async function transferMultisig() {
         return;
     }
 
+    await deleteRecoveryMethod({
+        accountId,
+        kind: TWO_FACTOR_AUTH_KINDS.PHONE,
+    });
+
     const email2faMethod = await updateRecoveryMethod({
         accountId,
         kind: TWO_FACTOR_AUTH_KINDS.EMAIL,
@@ -55,11 +60,6 @@ async function transferMultisig() {
         detail: email,
         requestId: sms2faMethod.requestId,
         securityCode: null, // clear current security code since user will need to request again
-    });
-
-    await deleteRecoveryMethod({
-        accountId,
-        kind: TWO_FACTOR_AUTH_KINDS.PHONE,
     });
 
     console.log(JSON.stringify({ oldRecoveryMethod: sms2faMethod, newRecoveryMethod: email2faMethod }, null, 2));
