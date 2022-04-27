@@ -159,7 +159,6 @@ router.get('/nearpay/signParams', nearpay.signParams);
 const {
     findAccountsByPublicKey,
     findStakingDeposits,
-    findAccountActivity,
     findReceivers,
     findLikelyTokens,
     findLikelyNFTs,
