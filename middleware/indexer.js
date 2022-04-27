@@ -53,6 +53,11 @@ const findStakingDeposits = async (ctx) => {
 const findAccountActivity = async (ctx) => {
     const { accountId } = ctx.params;
 
+    let { limit = 10 } = ctx.request.query;
+    if (limit > 100) {
+        limit = 100;
+    }
+
     const { rows } = await pool.query(
         `
         with predecessor_receipts as (
@@ -99,7 +104,7 @@ const findAccountActivity = async (ctx) => {
         order by ar.receipt_included_in_block_timestamp desc
         limit $2
         ;
-    `, [accountId, 10]);
+    `, [accountId, limit]);
 
     ctx.body = rows;
 };
