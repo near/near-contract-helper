@@ -1,19 +1,17 @@
 const { Pool } = require('pg');
 const Cache = require('node-cache');
 
-const BRIDGE_TOKEN_FACTORY_ACCOUNT_ID = process.env.BRIDGE_TOKEN_FACTORY_ACCOUNT_ID || 'factory.bridge.near';
+const {
+    BRIDGE_TOKEN_FACTORY_ACCOUNT_ID = 'factory.bridge.near',
+    NEAR_WALLET_ENV,
+    INDEXER_DB_CONNECTION
+} = process.env;
 
-const IS_MAINNET = process.env.NEAR_WALLET_ENV.startsWith('mainnet');
+const pool = new Pool({ connectionString: INDEXER_DB_CONNECTION, });
 
-const pool = new Pool({ connectionString: process.env.INDEXER_DB_CONNECTION, });
-
-let poolMatch;
-
-if (IS_MAINNET) {
-    poolMatch = JSON.stringify(['%.poolv1.near', '%.pool.near']).replace(/"/g, '\'');
-} else {
-    poolMatch = JSON.stringify(['%.pool.%.m0', '%.factory01.littlefarm.testnet', '%.factory.colorpalette.testnet']).replace(/"/g, '\'');
-}
+const poolMatch = NEAR_WALLET_ENV.startsWith('mainnet')
+    ? JSON.stringify(['%.poolv1.near', '%.pool.near']).replace(/"/g, '\'')
+    : JSON.stringify(['%.pool.%.m0', '%.factory01.littlefarm.testnet', '%.factory.colorpalette.testnet']).replace(/"/g, '\'');
 
 const findStakingDeposits = async (ctx) => {
     const { accountId } = ctx.params;
