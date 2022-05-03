@@ -2,10 +2,8 @@ const { Pool } = require('pg');
 const Cache = require('node-cache');
 
 const BRIDGE_TOKEN_FACTORY_ACCOUNT_ID = process.env.BRIDGE_TOKEN_FACTORY_ACCOUNT_ID || 'factory.bridge.near';
-const WALLET_URL = process.env.WALLET_URL;
 
-// TODO: Replace with `NETWORK_ID` environment var check when we have one
-const IS_MAINNET = WALLET_URL.includes('wallet.near.org');
+const IS_MAINNET = process.env.NEAR_WALLET_ENV.startsWith('mainnet');
 
 const pool = new Pool({ connectionString: process.env.INDEXER_DB_CONNECTION, });
 
