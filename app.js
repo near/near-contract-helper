@@ -157,9 +157,9 @@ router.get('/moonpay/signURL', moonpay.signURL);
 const nearpay = require('./middleware/nearpay');
 router.get('/nearpay/signParams', nearpay.signParams);
 
-const proxy = ({ host }) => async (ctx) => {
+const proxy = ({ host, timeout = 60000 }) => async (ctx) => {
     const url = new URL(ctx.url, host);
-    const response = await superagent(ctx.method, url);
+    const response = await superagent(ctx.method, url).timeout(timeout);
 
     ctx.body = response.body;
     ctx.status = response.status;
