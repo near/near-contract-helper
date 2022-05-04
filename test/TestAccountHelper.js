@@ -1,9 +1,9 @@
 const nearAPI = require('near-api-js');
 const uuid = require('uuid');
 
-const constants = require('../constants');
-const RecoveryMethodService = require('../services/recovery_method');
-const AccountService = require('../services/account');
+const constants = require('../src/constants');
+const RecoveryMethodService = require('../src/services/recovery_method');
+const AccountService = require('../src/services/account');
 
 const { SERVER_EVENTS, TWO_FACTOR_AUTH_KINDS } = constants;
 

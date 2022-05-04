@@ -2,9 +2,9 @@
 const path = require('path');
 const sinon = require('sinon');
 
-const recoveryMessageContentHelpers = require('../../accountRecoveryMessageContent');
-const messageContent2faHelpers = require('../../middleware/2faMessageContent');
-const { get2faHtml } = require('../../utils/email');
+const recoveryMessageContentHelpers = require('../../src/accountRecoveryMessageContent');
+const messageContent2faHelpers = require('../../src/middleware/2faMessageContent');
+const { get2faHtml } = require('../../src/utils/email');
 const messageContentFixtures = require('./fixtures');
 const validateAcceptanceTestContent = require('./validateAcceptanceTest');
 

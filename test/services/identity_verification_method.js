@@ -1,7 +1,7 @@
 require('dotenv').config({ path: 'test/.env.test' });
 
-const Constants = require('../../constants');
-const IdentityVerificationMethodService = require('../../services/identity_verification_method');
+const Constants = require('../../src/constants');
+const IdentityVerificationMethodService = require('../../src/services/identity_verification_method');
 const chai = require('../chai');
 const initLocalDynamo = require('../local_dynamo');
 const { generateEmailAddress } = require('../utils');

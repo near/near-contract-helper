@@ -1,7 +1,7 @@
 const sinon = require('sinon');
 
 const chai = require('../chai');
-const TwilioVerifyService = require('../../services/twilio_verify/twilio_verify');
+const TwilioVerifyService = require('../../src/services/twilio_verify/twilio_verify');
 
 const { expect } = chai;
 

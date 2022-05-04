@@ -6,7 +6,7 @@ const {
     ERROR_MESSAGES,
     GOOGLE_RECAPTCHA_SERVICE_HOST,
     GOOGLE_RECAPTCHA_SERVICE_PATH
-} = require('../RecaptchaValidator/RecaptchaValidator');
+} = require('../src/RecaptchaValidator/RecaptchaValidator');
 
 const chai = require('./chai');
 

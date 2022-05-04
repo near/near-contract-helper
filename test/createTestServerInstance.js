@@ -1,6 +1,6 @@
 const supertest = require('supertest');
 
-const app = require('../app');
+const app = require('../src/app');
 
 // TODO: Inject services / service methods for route binding here rather than having them hard coded in `app.js`
 function createTestServerInstance() {

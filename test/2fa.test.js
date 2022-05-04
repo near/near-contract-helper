@@ -4,9 +4,9 @@ const nearAPI = require('near-api-js');
 const { parseSeedPhrase } = require('near-seed-phrase');
 const sinon = require('sinon');
 
-const constants = require('../constants');
-const AccountService = require('../services/account');
-const RecoveryMethodService = require('../services/recovery_method');
+const constants = require('../src/constants');
+const AccountService = require('../src/services/account');
+const RecoveryMethodService = require('../src/services/recovery_method');
 const attachEchoMessageListeners = require('./attachEchoMessageListeners');
 const expectRequestHelpers = require('./expectRequestHelpers');
 const chai = require('./chai');
