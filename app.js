@@ -3,6 +3,7 @@ const Koa = require('koa');
 const app = new Koa();
 const body = require('koa-json-body');
 const cors = require('@koa/cors');
+const superagent = require('superagent');
 
 const constants = require('./constants');
 const AccountService = require('./services/account');
@@ -156,21 +157,23 @@ router.get('/moonpay/signURL', moonpay.signURL);
 const nearpay = require('./middleware/nearpay');
 router.get('/nearpay/signParams', nearpay.signParams);
 
-const {
-    findAccountsByPublicKey,
-    findStakingDeposits,
-    findReceivers,
-    findLikelyTokens,
-    findLikelyNFTs,
-    findStakingPools,
-} = require('./middleware/indexer');
-router.get('/publicKey/:publicKey/accounts', findAccountsByPublicKey);
-router.get('/staking-deposits/:accountId', findStakingDeposits);
-router.get('/account/:accountId/activity', (ctx) => (ctx.body = []));
-router.get('/account/:accountId/callReceivers', findReceivers);
-router.get('/account/:accountId/likelyTokens', findLikelyTokens);
-router.get('/account/:accountId/likelyNFTs', findLikelyNFTs);
-router.get('/stakingPools', findStakingPools);
+const proxy = ({ host }) => async (ctx) => {
+    const url = new URL(ctx.url, host);
+    const response = await superagent(ctx.method, url);
+
+    ctx.body = response.body;
+    ctx.status = response.status;
+};
+
+const { INDEXER_SERVICE_URL } = process.env;
+
+router.get('/publicKey/:publicKey/accounts', proxy({ host: INDEXER_SERVICE_URL }));
+router.get('/staking-deposits/:accountId', proxy({ host: INDEXER_SERVICE_URL }));
+router.get('/account/:accountId/activity', proxy({ host: INDEXER_SERVICE_URL }));
+router.get('/account/:accountId/callReceivers', proxy({ host: INDEXER_SERVICE_URL }));
+router.get('/account/:accountId/likelyTokens', proxy({ host: INDEXER_SERVICE_URL }));
+router.get('/account/:accountId/likelyNFTs', proxy({ host: INDEXER_SERVICE_URL }));
+router.get('/stakingPools', proxy({ host: INDEXER_SERVICE_URL }));
 
 const password = require('secure-random-password');
 const SECURITY_CODE_DIGITS = 6;
