@@ -156,7 +156,7 @@ router.get('/moonpay/signURL', moonpay.signURL);
 const nearpay = require('./middleware/nearpay');
 router.get('/nearpay/signParams', nearpay.signParams);
 
-// these are indexer middlewarez
+// these are indexer middleware
 const {
     findAccountsByPublicKey,
     findStakingDeposits,
