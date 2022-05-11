@@ -92,7 +92,7 @@ class RecoveryMethodService {
         });
     }
 
-    async updateTwoFactorRecoveryMethod({ accountId, requestId, securityCode }) {
+    async updateTwoFactorRecoveryMethod({ accountId, detail, kind, requestId, securityCode }) {
         const twoFactorRecoveryMethod = await this.getTwoFactorRecoveryMethod(accountId);
         if (!twoFactorRecoveryMethod) {
             return null;
@@ -100,10 +100,10 @@ class RecoveryMethodService {
 
         return this.db.updateRecoveryMethod({
             accountId,
-            kind: twoFactorRecoveryMethod.kind,
+            kind: kind || twoFactorRecoveryMethod.kind,
             publicKey: twoFactorRecoveryMethod.publicKey,
         }, {
-            detail: twoFactorRecoveryMethod.detail,
+            detail: detail || twoFactorRecoveryMethod.detail,
             requestId,
             securityCode,
         });
