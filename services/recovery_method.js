@@ -98,6 +98,12 @@ class RecoveryMethodService {
             return null;
         }
 
+        // if the `kind` property is changing, then the previous recovery method record must
+        // be deleted since `kind` is part of the range key used to uniquely identify records
+        if (kind && twoFactorRecoveryMethod.kind !== kind) {
+            await this.deleteRecoveryMethod({ accountId, kind: twoFactorRecoveryMethod.kind });
+        }
+
         return this.db.updateRecoveryMethod({
             accountId,
             kind: kind || twoFactorRecoveryMethod.kind,
