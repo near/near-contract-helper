@@ -250,7 +250,6 @@ const initCode = async (ctx) => {
 
         await recoveryMethodService.updateTwoFactorRecoveryMethod({
             accountId,
-            // FIXME: Should this be escaped?
             detail,
             kind,
             requestId: -1,
