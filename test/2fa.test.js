@@ -127,6 +127,29 @@ describe('2fa method management', function () {
             expectJSONResponse(result);
             expect2faCodeSentResponse(result);
         });
+
+        it('replaces previous 2FA recovery method kinds', async () => {
+            await recoveryMethodService.deleteRecoveryMethod({ accountId, kind: TWO_FACTOR_AUTH_KINDS.EMAIL });
+
+            await testAccountHelper.init2faMethod({
+                accountId,
+                method: twoFactorMethods.phone,
+                bypassEndpointCreation: true,
+            });
+
+            let recoveryMethod = await recoveryMethodService.getTwoFactorRecoveryMethod(accountId);
+            expect(recoveryMethod.detail).equal(twoFactorMethods.phone.detail);
+            expect(recoveryMethod.kind).equal(TWO_FACTOR_AUTH_KINDS.PHONE);
+
+            await testAccountHelper.init2faMethod({
+                accountId,
+                method: twoFactorMethods.email,
+            });
+
+            recoveryMethod = await recoveryMethodService.getTwoFactorRecoveryMethod(accountId);
+            expect(recoveryMethod.detail).equal(twoFactorMethods.email.detail);
+            expect(recoveryMethod.kind).equal(TWO_FACTOR_AUTH_KINDS.EMAIL);
+        });
     });
 
     describe('completing an already requested 2fa method', () => {

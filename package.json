@@ -5,7 +5,9 @@
   "main": "app.js",
   "scripts": {
     "start": "env $(sed 's/ # .*//' .env) supervisor app",
+    "start:indexer": "env $(sed 's/ # .*//' .env) supervisor indexer",
     "docker:start": "node app.js",
+    "docker:start:indexer": "node indexer.js",
     "test": "yarn lint && mocha",
     "lint": "eslint .",
     "fix": "eslint . --fix"

@@ -1,21 +1,17 @@
 const { Pool } = require('pg');
 const Cache = require('node-cache');
 
-const BRIDGE_TOKEN_FACTORY_ACCOUNT_ID = process.env.BRIDGE_TOKEN_FACTORY_ACCOUNT_ID || 'factory.bridge.near';
-const WALLET_URL = process.env.WALLET_URL;
+const {
+    BRIDGE_TOKEN_FACTORY_ACCOUNT_ID = 'factory.bridge.near',
+    NEAR_WALLET_ENV,
+    INDEXER_DB_CONNECTION
+} = process.env;
 
-// TODO: Replace with `NETWORK_ID` environment var check when we have one
-const IS_MAINNET = WALLET_URL.includes('wallet.near.org');
+const pool = new Pool({ connectionString: INDEXER_DB_CONNECTION, });
 
-const pool = new Pool({ connectionString: process.env.INDEXER_DB_CONNECTION, });
-
-let poolMatch;
-
-if (IS_MAINNET) {
-    poolMatch = JSON.stringify(['%.poolv1.near', '%.pool.near']).replace(/"/g, '\'');
-} else {
-    poolMatch = JSON.stringify(['%.pool.%.m0', '%.factory01.littlefarm.testnet', '%.factory.colorpalette.testnet']).replace(/"/g, '\'');
-}
+const poolMatch = NEAR_WALLET_ENV.startsWith('mainnet')
+    ? JSON.stringify(['%.poolv1.near', '%.pool.near']).replace(/"/g, '\'')
+    : JSON.stringify(['%.pool.%.m0', '%.factory01.littlefarm.testnet', '%.factory.colorpalette.testnet']).replace(/"/g, '\'');
 
 const findStakingDeposits = async (ctx) => {
     const { accountId } = ctx.params;
@@ -53,60 +49,37 @@ const findStakingDeposits = async (ctx) => {
 const findAccountActivity = async (ctx) => {
     const { accountId } = ctx.params;
 
-    let { limit = 10 } = ctx.request.query;
+    let { limit = 10, offset } = ctx.request.query;
     if (limit > 100) {
         limit = 100;
+    }
+    if (!offset) {
+        offset = '9999999999999999999';
     }
 
     const { rows } = await pool.query(
         `
-        with predecessor_receipts as (
-            select  receipt_id
-                ,   index_in_action_receipt as action_index
-                ,   receipt_included_in_block_timestamp
-                ,   action_kind
-                ,   args
-            from action_receipt_actions
-            where receipt_predecessor_account_id = $1
-            order by receipt_included_in_block_timestamp desc
-            limit $2
-        ), receiver_receipts as (
-            select  receipt_id
-                ,   index_in_action_receipt
-                ,   receipt_included_in_block_timestamp
-                ,   action_kind
-                ,   args
-            from action_receipt_actions
-            where receipt_receiver_account_id = $1
-                and receipt_predecessor_account_id != 'system'
-            order by receipt_included_in_block_timestamp desc
-            limit $2
-        ), account_receipts as (
-            select *
-            from predecessor_receipts
-
-            union
-
-            select *
-            from receiver_receipts
-        )
-        select  r.included_in_block_hash as block_hash
-            ,   r.included_in_block_timestamp as block_timestamp
-            ,   r.originated_from_transaction_hash as hash
-            ,   ar.action_index
-            ,   r.predecessor_account_id as signer_id
-            ,   r.receiver_account_id as receiver_id
-            ,   ar.action_kind
-            ,   ar.args
-        from account_receipts as ar
-        join receipts as r
-            on r.receipt_id = ar.receipt_id
-        order by ar.receipt_included_in_block_timestamp desc
-        limit $2
+        select
+            included_in_block_hash block_hash,
+            included_in_block_timestamp block_timestamp,
+            originated_from_transaction_hash hash,
+            index_in_action_receipt action_index,
+            predecessor_account_id signer_id,
+            receiver_account_id receiver_id,
+            action_kind,
+            args
+        from action_receipt_actions
+        join receipts using(receipt_id)
+        where
+            receipt_predecessor_account_id != 'system' and
+            (receipt_predecessor_account_id = $1 or receipt_receiver_account_id = $1) and
+            $2 > receipt_included_in_block_timestamp
+        order by receipt_included_in_block_timestamp desc
+        limit $3
         ;
-    `, [accountId, limit]);
+    `, [accountId, offset, limit + 100]);
 
-    ctx.body = rows;
+    ctx.body = rows.slice(0, limit);
 };
 
 const findAccountsByPublicKey = async (ctx) => {

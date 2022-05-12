@@ -92,18 +92,24 @@ class RecoveryMethodService {
         });
     }
 
-    async updateTwoFactorRecoveryMethod({ accountId, requestId, securityCode }) {
+    async updateTwoFactorRecoveryMethod({ accountId, detail, kind, requestId, securityCode }) {
         const twoFactorRecoveryMethod = await this.getTwoFactorRecoveryMethod(accountId);
         if (!twoFactorRecoveryMethod) {
             return null;
         }
 
+        // if the `kind` property is changing, then the previous recovery method record must
+        // be deleted since `kind` is part of the range key used to uniquely identify records
+        if (kind && twoFactorRecoveryMethod.kind !== kind) {
+            await this.deleteRecoveryMethod({ accountId, kind: twoFactorRecoveryMethod.kind });
+        }
+
         return this.db.updateRecoveryMethod({
             accountId,
-            kind: twoFactorRecoveryMethod.kind,
+            kind: kind || twoFactorRecoveryMethod.kind,
             publicKey: twoFactorRecoveryMethod.publicKey,
         }, {
-            detail: twoFactorRecoveryMethod.detail,
+            detail: detail || twoFactorRecoveryMethod.detail,
             requestId,
             securityCode,
         });
