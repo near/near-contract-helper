@@ -11,7 +11,6 @@ const pool = new Pool({ connectionString: INDEXER_DB_CONNECTION, });
 
 const poolMatch =JSON.stringify(['%.stake.guildnet', '%.stake.guildnet']).replace(/"/g, '\'');
 
-
 const findStakingDeposits = async (ctx) => {
     const { accountId } = ctx.params;
 
