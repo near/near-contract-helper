@@ -2,16 +2,13 @@ const nearAPI = require('near-api-js');
 const escapeHtml = require('escape-html');
 const password = require('secure-random-password');
 
-const { USE_TWILIO_VERIFY_2FA } = require('../features');
 const constants = require('../constants');
 const messageContentUtils2fa = require('./2faMessageContent');
 const AccountService = require('../services/account');
 const RecoveryMethodService = require('../services/recovery_method');
 const TwilioVerifyService = require('../services/twilio_verify');
 const emailHelper = require('../utils/email');
-const smsHelper = require('../utils/sms');
 
-const { sendSms } = smsHelper;
 const { sendMail, get2faHtml } = emailHelper;
 const { SERVER_EVENTS, TWO_FACTOR_AUTH_KINDS } = constants;
 
@@ -55,24 +52,12 @@ const sendMessageTo2faDestination = async ({
     contentData: { securityCode, publicKey, accountId, messageContent }
 }) => {
     if (kind === TWO_FACTOR_AUTH_KINDS.PHONE) {
-        if (USE_TWILIO_VERIFY_2FA) {
-            await twilioVerifyService.send(
-                {
-                    to: destination
-                },
-                (securityCode) => ctx.app.emit(SERVER_EVENTS.SECURITY_CODE, { accountId, securityCode }),  // For test harness
-            );
-        } else {
-            const { text } = messageContent;
-
-            await sendSms(
-                {
-                    to: destination,
-                    text,
-                },
-                (smsContent) => ctx.app.emit(SERVER_EVENTS.SENT_SMS, smsContent) // For test harness
-            );
-        }
+        await twilioVerifyService.send(
+            {
+                to: destination
+            },
+            (securityCode) => ctx.app.emit(SERVER_EVENTS.SECURITY_CODE, { accountId, securityCode }),  // For test harness
+        );
     } else if (kind === TWO_FACTOR_AUTH_KINDS.EMAIL) {
         const { requestDetails, subject, text } = messageContent;
 
@@ -121,14 +106,14 @@ const sendCode = async (ctx, method, requestId = -1, accountId = '') => {
 
     // Emit an event so that any listening test harnesses can use the security code without needing a full
     // integration test with e.g. SMS, e-mail.
-    if (!USE_TWILIO_VERIFY_2FA || !isForSmsDelivery) {
+    if (!isForSmsDelivery) {
         ctx.app.emit(SERVER_EVENTS.SECURITY_CODE, { accountId, requestId, securityCode }); // For test harness
     }
 
     await recoveryMethodService.updateTwoFactorRecoveryMethod({
         accountId,
         requestId,
-        ...((!USE_TWILIO_VERIFY_2FA || !isForSmsDelivery) && { securityCode }),
+        ...(!isForSmsDelivery && { securityCode }),
     });
 
 
@@ -265,7 +250,6 @@ const initCode = async (ctx) => {
 
         await recoveryMethodService.updateTwoFactorRecoveryMethod({
             accountId,
-            // FIXME: Should this be escaped?
             detail,
             kind,
             requestId: -1,
@@ -323,16 +307,9 @@ const verifyCode = async (ctx) => {
     }
 
     const twoFactorMethod = await recoveryMethodService.getTwoFactorRecoveryMethod(accountId);
-    if (USE_TWILIO_VERIFY_2FA) {
-        if (!twoFactorMethod) {
-            console.warn(`${accountId} has no 2fa method`);
-            ctx.throw(401, '2fa method does not exist');
-        }
-    } else {
-        if (!twoFactorMethod || twoFactorMethod.securityCode !== securityCode) {
-            console.warn(`${accountId} has no 2fa method for the provided security code`);
-            ctx.throw(401, '2fa code not valid for request id');
-        }
+    if (!twoFactorMethod) {
+        console.warn(`${accountId} has no 2fa method`);
+        ctx.throw(401, '2fa method does not exist');
     }
 
     // cannot test for requestId equality with negative integer???
@@ -348,12 +325,10 @@ const verifyCode = async (ctx) => {
         ctx.throw(401, '2fa code expired');
     }
 
-    if (USE_TWILIO_VERIFY_2FA) {
-        const isCodeValid = await validateCodeByKind(twoFactorMethod, securityCode);
-        if (!isCodeValid) {
-            console.warn(`${accountId} provided incorrect security code`);
-            ctx.throw(401, '2fa code not valid for request id');
-        }
+    const isCodeValid = await validateCodeByKind(twoFactorMethod, securityCode);
+    if (!isCodeValid) {
+        console.warn(`${accountId} provided incorrect security code`);
+        ctx.throw(401, '2fa code not valid for request id');
     }
 
     // security code valid

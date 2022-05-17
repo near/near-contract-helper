@@ -159,7 +159,6 @@ router.get('/nearpay/signParams', nearpay.signParams);
 const {
     findAccountsByPublicKey,
     findStakingDeposits,
-    findAccountActivity,
     findReceivers,
     findLikelyTokens,
     findLikelyNFTs,
@@ -167,7 +166,7 @@ const {
 } = require('./middleware/indexer');
 router.get('/publicKey/:publicKey/accounts', findAccountsByPublicKey);
 router.get('/staking-deposits/:accountId', findStakingDeposits);
-router.get('/account/:accountId/activity', findAccountActivity);
+router.get('/account/:accountId/activity', (ctx) => (ctx.body = []));
 router.get('/account/:accountId/callReceivers', findReceivers);
 router.get('/account/:accountId/likelyTokens', findLikelyTokens);
 router.get('/account/:accountId/likelyNFTs', findLikelyNFTs);
