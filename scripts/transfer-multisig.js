@@ -15,9 +15,9 @@ function isEquivalentPhoneNumber(phone1, phone2) {
 
 async function transferMultisig() {
     program
-        .option('--accountId <string>', 'The account ID whose recovery methods are to be updated')
-        .option('--phone <string>', 'The phone number currently used by SMS 2FA')
-        .option('--email <string>', 'The email address to use in place of the current 2FA SMS phone number')
+        .requiredOption('--accountId <string>', 'The account ID whose recovery methods are to be updated')
+        .requiredOption('--phone <string>', 'The phone number currently used by SMS 2FA')
+        .requiredOption('--email <string>', 'The email address to use in place of the current 2FA SMS phone number')
         .parse();
 
     const {
