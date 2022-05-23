@@ -56,7 +56,7 @@ async function checkAccountOwnership(ctx, next) {
     return await next();
 }
 
-// TODO: near-api-js should have explicit accoutn existence check
+// TODO: near-api-js should have explicit account existence check
 async function getAccountExists(near, accountId) {
     try {
         await (await near.account(accountId)).state();
