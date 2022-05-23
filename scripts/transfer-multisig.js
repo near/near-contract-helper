@@ -8,23 +8,28 @@ const {
     updateRecoveryMethod,
 } = require('../db/methods/recovery_method');
 
+function isAccountValid(accountId) {
+    if (accountId.length === 64) {
+        return true;
+    }
+
+    if (process.env.NEAR_WALLET_ENV.startsWith('testnet')) {
+        return accountId.endsWith('.testnet');
+    }
+
+    return accountId.endsWith('.near');
+}
+
 function isEquivalentPhoneNumber(phone1, phone2) {
     const nonDigits = /\D/g;
     return phone1.replace(nonDigits, '') === phone2.replace(nonDigits, '');
 }
 
-async function transferMultisig() {
-    program
-        .requiredOption('--accountId <string>', 'The account ID whose recovery methods are to be updated')
-        .requiredOption('--phone <string>', 'The phone number currently used by SMS 2FA')
-        .requiredOption('--email <string>', 'The email address to use in place of the current 2FA SMS phone number')
-        .parse();
-
-    const {
-        accountId,
-        phone,
-        email,
-    } = program.opts();
+async function transferMultisig({ accountId, phone, email }) {
+    if (!isAccountValid(accountId)) {
+        console.error(`Invalid account ID ${accountId}`);
+        return;
+    }
 
     const [sms2faMethod] = await listRecoveryMethodsByAccountId(accountId)
         .filter(({ detail, kind }) => kind === TWO_FACTOR_AUTH_KINDS.PHONE && isEquivalentPhoneNumber(detail, phone));
@@ -66,4 +71,14 @@ async function transferMultisig() {
     console.log('Update complete');
 }
 
-transferMultisig();
+function multisigCommands() {
+    program
+        .command('transfer <accountId> <phone> <email>')
+        .description('Transfer SMS 2FA to email for the given account ID. The account must have a SMS 2FA method with the provided phone number.')
+        .action((accountId, phone, email) => transferMultisig({ accountId, phone, email }));
+
+    program
+        .parse();
+}
+
+multisigCommands();
