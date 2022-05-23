@@ -25,6 +25,18 @@ function isEquivalentPhoneNumber(phone1, phone2) {
     return phone1.replace(nonDigits, '') === phone2.replace(nonDigits, '');
 }
 
+async function lookupRecoveryMethods(accountId) {
+    if (!isAccountValid(accountId)) {
+        console.error(`Invalid account ID ${accountId}`);
+        return;
+    }
+
+    const recoveryMethods = await listRecoveryMethodsByAccountId(accountId)
+        .map(({ detail, kind }) => ({ detail, kind }));
+
+    console.log(JSON.stringify(recoveryMethods, null, 2));
+}
+
 async function transferMultisig({ accountId, phone, email }) {
     if (!isAccountValid(accountId)) {
         console.error(`Invalid account ID ${accountId}`);
@@ -72,6 +84,11 @@ async function transferMultisig({ accountId, phone, email }) {
 }
 
 function multisigCommands() {
+    program
+        .command('lookup <accountId>')
+        .description('Look up recovery methods for an account.')
+        .action((accountId) => lookupRecoveryMethods(accountId));
+
     program
         .command('transfer <accountId> <phone> <email>')
         .description('Transfer SMS 2FA to email for the given account ID. The account must have a SMS 2FA method with the provided phone number.')
