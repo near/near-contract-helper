@@ -70,6 +70,23 @@ async function getAccountExists(near, accountId) {
     return true;
 }
 
+async function accountAuthMiddleware(ctx, next) {
+    const { accountId } = ctx.request.body;
+
+    if (await getAccountExists(ctx.near, accountId)) {
+        return checkAccountOwnership(ctx, next);
+    }
+
+    if (!isImplicitAccount(accountId)) {
+        ctx.throw(403, `Named account ${accountId} does not exist`);
+    }
+
+    return next();
+}
+
+const isImplicitAccount = (accountId) =>
+    accountId && accountId.length === 64 && !accountId.includes('.');
+
 function createCheckAccountDoesNotExistMiddleware({ source, fieldName }) {
     if (source !== 'body' && source !== 'params') {
         throw new Error('invalid source for accountId provided');
@@ -170,4 +187,5 @@ module.exports = {
     withNear,
     checkAccountOwnership,
     createCheckAccountDoesNotExistMiddleware,
+    accountAuthMiddleware,
 };
