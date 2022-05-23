@@ -1,12 +1,16 @@
 const { program } = require('commander');
 const inquirer = require('inquirer');
 
-const { TWO_FACTOR_AUTH_KINDS } = require('../constants');
+const { RECOVERY_METHOD_KINDS, TWO_FACTOR_AUTH_KINDS } = require('../constants');
 const {
     deleteRecoveryMethod,
     listRecoveryMethodsByAccountId,
     updateRecoveryMethod,
 } = require('../db/methods/recovery_method');
+
+function is2faRecoveryMethod(kind) {
+    return Object.values(TWO_FACTOR_AUTH_KINDS).includes(kind);
+}
 
 function isAccountValid(accountId) {
     if (accountId.length === 64) {
@@ -25,6 +29,56 @@ function isEquivalentPhoneNumber(phone1, phone2) {
     return phone1.replace(nonDigits, '') === phone2.replace(nonDigits, '');
 }
 
+function printRecoveryMethods(recoveryMethods) {
+    recoveryMethods
+        .sort(({ kind: kindA }, { kind: kindB }) => {
+            if (kindA > kindB) {
+                return 1;
+            }
+            return -1;
+        })
+        .forEach(({ detail, kind }) => {
+            const is2fa = is2faRecoveryMethod(kind);
+            if (kind === RECOVERY_METHOD_KINDS.PHRASE || kind === RECOVERY_METHOD_KINDS.LEDGER) {
+                console.log(`[${kind}]`);
+            } else {
+                console.log(`${is2fa ? '*' : ''}[${kind}]: ${detail}`);
+            }
+        });
+}
+
+async function disableMultisig({ accountId,  }) {
+    if (!isAccountValid(accountId)) {
+        console.error(`Invalid account ID ${accountId}`);
+        return;
+    }
+
+    const recoveryMethods2fa = await listRecoveryMethodsByAccountId(accountId)
+        .filter(({ kind }) => is2faRecoveryMethod(kind));
+
+
+    if (!recoveryMethods2fa.length) {
+        console.log(`\n\nNo 2FA methods found for ${accountId}`);
+        return;
+    }
+
+    console.log(`\n\nFound ${recoveryMethods2fa.length} 2FA method(s) for ${accountId}:`);
+    printRecoveryMethods(recoveryMethods2fa);
+
+    const { delete2faMethods } = await inquirer.prompt({
+        name: 'delete2faMethods',
+        type: 'confirm',
+        message: `This will delete the ${recoveryMethods2fa.length} 2FA method(s) for ${accountId}. Proceed?`,
+    });
+
+    if (!delete2faMethods) {
+        console.warn('Aborting');
+        return;
+    }
+
+    recoveryMethods2fa.map(deleteRecoveryMethod);
+}
+
 async function lookupRecoveryMethods(accountId) {
     if (!isAccountValid(accountId)) {
         console.error(`Invalid account ID ${accountId}`);
@@ -34,7 +88,13 @@ async function lookupRecoveryMethods(accountId) {
     const recoveryMethods = await listRecoveryMethodsByAccountId(accountId)
         .map(({ detail, kind }) => ({ detail, kind }));
 
-    console.log(JSON.stringify(recoveryMethods, null, 2));
+    if (!recoveryMethods.length) {
+        console.log(`\n\nNo recovery methods found for ${accountId}`);
+        return;
+    }
+
+    console.log(`\n\nFound ${recoveryMethods.length} recovery method(s) for ${accountId}:`);
+    printRecoveryMethods(recoveryMethods);
 }
 
 async function transferMultisig({ accountId, phone, email }) {
@@ -88,6 +148,11 @@ function multisigCommands() {
         .command('lookup <accountId>')
         .description('Look up recovery methods for an account.')
         .action((accountId) => lookupRecoveryMethods(accountId));
+
+    program
+        .command('disable <accountId>')
+        .description('Delete the existing 2FA record(s).')
+        .action((accountId) => disableMultisig(accountId));
 
     program
         .command('transfer <accountId> <phone> <email>')
