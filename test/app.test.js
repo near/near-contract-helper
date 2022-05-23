@@ -43,6 +43,8 @@ const recoveryMethods = {
 
 const SEED_PHRASE = 'shoot island position soft burden budget tooth cruel issue economy destroy above';
 
+const NON_EXISTENT_IMPLICIT_ACCOUNT_ID = '1111111111111111111111111111111111111111111111111111111111111111';
+
 const VERBOSE_OUTPUT = process.env.VERBOSE_OUTPUT || false;
 
 const VERBOSE_OUTPUT_CONFIG = {
@@ -335,6 +337,30 @@ describe('app routes', function () {
             const account = await accountService.getAccount(accountId);
             expect(account).ok;
         });
+
+        it('returns 403 if named account does not exist', async () => {
+            const nonExistentNamedAccountId = testAccountHelper.buildTestAccountId();
+
+            await request.post('/account/seedPhraseAdded')
+                .send({
+                    publicKey: nearAPI.KeyPair.fromRandom('ED25519').publicKey.toString(),
+                    accountId: nonExistentNamedAccountId,
+                })
+                .then(expectFailedWithCode(403, `Named account ${nonExistentNamedAccountId} does not exist`));
+        });
+
+        it('allows creation of ledger access key if account is implicit and does not exist', async () => {
+            const { body: [result] } = await request.post('/account/seedPhraseAdded')
+                .send({
+                    publicKey: nearAPI.KeyPair.fromRandom('ED25519').publicKey.toString(),
+                    accountId: NON_EXISTENT_IMPLICIT_ACCOUNT_ID,
+                })
+                .then(expectJSONResponse);
+
+            expect(result).property('kind', RECOVERY_METHOD_KINDS.PHRASE);
+
+            return expect(accountService.getAccount(NON_EXISTENT_IMPLICIT_ACCOUNT_ID)).eventually.ok;
+        });
     });
 
     // TODO: Refactor recovery methods endpoints to be more generic?
@@ -373,6 +399,30 @@ describe('app routes', function () {
             expect(result).property('kind', RECOVERY_METHOD_KINDS.LEDGER);
 
             return expect(accountService.getAccount(accountId)).eventually.ok;
+        });
+
+        it('returns 403 if named account does not exist', async () => {
+            const nonExistentNamedAccountId = testAccountHelper.buildTestAccountId();
+
+            await request.post('/account/ledgerKeyAdded')
+                .send({
+                    publicKey: nearAPI.KeyPair.fromRandom('ED25519').publicKey.toString(),
+                    accountId: nonExistentNamedAccountId,
+                })
+                .then(expectFailedWithCode(403, `Named account ${nonExistentNamedAccountId} does not exist`));
+        });
+
+        it('allows creation of ledger access key if account is implicit and does not exist', async () => {
+            const { body: [result] } = await request.post('/account/ledgerKeyAdded')
+                .send({
+                    publicKey: nearAPI.KeyPair.fromRandom('ED25519').publicKey.toString(),
+                    accountId: NON_EXISTENT_IMPLICIT_ACCOUNT_ID,
+                })
+                .then(expectJSONResponse);
+
+            expect(result).property('kind', RECOVERY_METHOD_KINDS.LEDGER);
+
+            return expect(accountService.getAccount(NON_EXISTENT_IMPLICIT_ACCOUNT_ID)).eventually.ok;
         });
     });
 
