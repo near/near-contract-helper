@@ -76,7 +76,9 @@ async function disableMultisig({ accountId,  }) {
         return;
     }
 
-    recoveryMethods2fa.map(deleteRecoveryMethod);
+    await Promise.all(recoveryMethods2fa.map(deleteRecoveryMethod));
+    console.log(`Deleted ${recoveryMethods2fa.length} method(s).`);
+    console.log(JSON.stringify(recoveryMethods2fa, null, 2));
 }
 
 async function lookupRecoveryMethods(accountId) {
