@@ -73,6 +73,7 @@ const {
     withNear,
     checkAccountOwnership,
     createCheckAccountDoesNotExistMiddleware,
+    accountAuthMiddleware,
 } = require('./middleware/near');
 
 app.use(withNear);
@@ -235,7 +236,7 @@ async function withPublicKey(ctx, next) {
 
 router.post(
     '/account/seedPhraseAdded',
-    checkAccountOwnership,
+    accountAuthMiddleware,
     withPublicKey,
     async (ctx) => {
         const { publicKey, request: { body: { accountId } } } = ctx;
@@ -251,7 +252,7 @@ router.post(
 
 router.post(
     '/account/ledgerKeyAdded',
-    checkAccountOwnership,
+    accountAuthMiddleware,
     withPublicKey,
     async (ctx) => {
         const { publicKey, request: { body: { accountId } } } = ctx;
