@@ -24,6 +24,10 @@ function isAccountValid(accountId) {
     return accountId.endsWith('.near');
 }
 
+function isEmail(detail) {
+    return detail.includes('@');
+}
+
 function isEquivalentPhoneNumber(phone1, phone2) {
     const nonDigits = /\D/g;
     return phone1.replace(nonDigits, '') === phone2.replace(nonDigits, '');
@@ -99,17 +103,24 @@ async function lookupRecoveryMethods(accountId) {
     printRecoveryMethods(recoveryMethods);
 }
 
-async function transferMultisig({ accountId, phone, email }) {
+async function transferMultisig({ accountId, current, desired }) {
     if (!isAccountValid(accountId)) {
         console.error(`Invalid account ID ${accountId}`);
         return;
     }
 
+    if (!isEmail(desired)) {
+        console.error(`Invalid email: ${desired}. The 2FA method can only be set to email.`);
+        return;
+    }
+
+    const isCurrentPhone = !isEmail(current);
+    const currentMethodKind = isCurrentPhone ? TWO_FACTOR_AUTH_KINDS.PHONE : TWO_FACTOR_AUTH_KINDS.EMAIL;
     const [sms2faMethod] = await listRecoveryMethodsByAccountId(accountId)
-        .filter(({ detail, kind }) => kind === TWO_FACTOR_AUTH_KINDS.PHONE && isEquivalentPhoneNumber(detail, phone));
+        .filter(({ detail, kind }) => kind === currentMethodKind && (isCurrentPhone ? isEquivalentPhoneNumber(detail, current) : (detail === current)));
 
     if (!sms2faMethod) {
-        console.error(`No SMS 2FA recovery method found for account ${accountId} with phone number ${phone}`);
+        console.error(`No 2FA recovery method found for account ${accountId} with [${currentMethodKind}] ${current}`);
         return;
     }
 
@@ -117,7 +128,7 @@ async function transferMultisig({ accountId, phone, email }) {
         name: 'confirmUpdate',
         type: 'confirm',
         message: `
-            This will update ${accountId}'s current SMS 2FA recovery method for ${phone} to an email 2FA recovery method for ${email}. Proceed?
+            This will update ${accountId}'s current 2FA recovery method for ${current} to an email 2FA recovery method for ${desired}. Proceed?
         `,
     });
 
@@ -128,7 +139,7 @@ async function transferMultisig({ accountId, phone, email }) {
 
     await deleteRecoveryMethod({
         accountId,
-        kind: TWO_FACTOR_AUTH_KINDS.PHONE,
+        kind: currentMethodKind,
     });
 
     const email2faMethod = await updateRecoveryMethod({
@@ -136,7 +147,7 @@ async function transferMultisig({ accountId, phone, email }) {
         kind: TWO_FACTOR_AUTH_KINDS.EMAIL,
         publicKey: sms2faMethod.publicKey, // empty for most 2FA recovery method documents but some may have it
     }, {
-        detail: email,
+        detail: desired,
         requestId: sms2faMethod.requestId,
         securityCode: null, // clear current security code since user will need to request again
     });
@@ -157,9 +168,9 @@ function multisigCommands() {
         .action((accountId) => disableMultisig(accountId));
 
     program
-        .command('transfer <accountId> <phone> <email>')
-        .description('Transfer SMS 2FA to email for the given account ID. The account must have a SMS 2FA method with the provided phone number.')
-        .action((accountId, phone, email) => transferMultisig({ accountId, phone, email }));
+        .command('transfer <accountId> <current> <desired>')
+        .description('Transfer the existing 2FA method to an email address owned by the account holder.')
+        .action((accountId, current, desired) => transferMultisig({ accountId, current, desired }));
 
     program
         .parse();
