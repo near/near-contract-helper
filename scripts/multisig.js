@@ -51,40 +51,6 @@ function printRecoveryMethods(recoveryMethods) {
         });
 }
 
-async function disableMultisig({ accountId,  }) {
-    if (!isAccountValid(accountId)) {
-        console.error(`Invalid account ID ${accountId}`);
-        return;
-    }
-
-    const recoveryMethods2fa = await listRecoveryMethodsByAccountId(accountId)
-        .filter(({ kind }) => is2faRecoveryMethod(kind));
-
-
-    if (!recoveryMethods2fa.length) {
-        console.log(`\n\nNo 2FA methods found for ${accountId}`);
-        return;
-    }
-
-    console.log(`\n\nFound ${recoveryMethods2fa.length} 2FA method(s) for ${accountId}:`);
-    printRecoveryMethods(recoveryMethods2fa);
-
-    const { delete2faMethods } = await inquirer.prompt({
-        name: 'delete2faMethods',
-        type: 'confirm',
-        message: `This will delete the ${recoveryMethods2fa.length} 2FA method(s) for ${accountId}. Proceed?`,
-    });
-
-    if (!delete2faMethods) {
-        console.warn('Aborting');
-        return;
-    }
-
-    await Promise.all(recoveryMethods2fa.map(deleteRecoveryMethod));
-    console.log(`Deleted ${recoveryMethods2fa.length} method(s).`);
-    console.log(JSON.stringify(recoveryMethods2fa, null, 2));
-}
-
 async function lookupRecoveryMethods(accountId) {
     if (!isAccountValid(accountId)) {
         console.error(`Invalid account ID ${accountId}`);
@@ -161,11 +127,6 @@ function multisigCommands() {
         .command('lookup <accountId>')
         .description('Look up recovery methods for an account.')
         .action((accountId) => lookupRecoveryMethods(accountId));
-
-    program
-        .command('disable <accountId>')
-        .description('Delete the existing 2FA record(s).')
-        .action((accountId) => disableMultisig(accountId));
 
     program
         .command('transfer <accountId> <current> <desired>')
