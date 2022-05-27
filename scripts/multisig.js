@@ -83,7 +83,17 @@ async function transferMultisig({ accountId, current, desired }) {
     const isCurrentPhone = !isEmail(current);
     const currentMethodKind = isCurrentPhone ? TWO_FACTOR_AUTH_KINDS.PHONE : TWO_FACTOR_AUTH_KINDS.EMAIL;
     const [sms2faMethod] = await listRecoveryMethodsByAccountId(accountId)
-        .filter(({ detail, kind }) => kind === currentMethodKind && (isCurrentPhone ? isEquivalentPhoneNumber(detail, current) : (detail === current)));
+        .filter(({ detail, kind }) => {
+            if (kind !== currentMethodKind) {
+                return false;
+            }
+
+            if (isCurrentPhone) {
+                return isEquivalentPhoneNumber(detail, current);
+            }
+
+            return detail === current;
+        });
 
     if (!sms2faMethod) {
         console.error(`No 2FA recovery method found for account ${accountId} with [${currentMethodKind}] ${current}`);
