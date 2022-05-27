@@ -115,23 +115,35 @@ async function transferMultisig({ accountId, current, desired }) {
         return;
     }
 
-    await deleteRecoveryMethod({
-        accountId,
-        kind: currentMethodKind,
-    });
+    let email2faMethod;
+    try {
+        if (!isCurrentEmail) {
+            await deleteRecoveryMethod({
+                accountId,
+                kind: currentMethodKind,
+            });
+        }
 
-    const email2faMethod = await updateRecoveryMethod({
-        accountId,
-        kind: TWO_FACTOR_AUTH_KINDS.EMAIL,
-        publicKey: sms2faMethod.publicKey, // empty for most 2FA recovery method documents but some may have it
-    }, {
-        detail: desired,
-        requestId: sms2faMethod.requestId,
-        securityCode: null, // clear current security code since user will need to request again
-    });
+        email2faMethod = await updateRecoveryMethod({
+            accountId,
+            kind: TWO_FACTOR_AUTH_KINDS.EMAIL,
+            publicKey: sms2faMethod.publicKey, // empty for most 2FA recovery method documents but some may have it
+        }, {
+            detail: desired,
+            requestId: sms2faMethod.requestId,
+            securityCode: null, // clear current security code since user will need to request again
+        });
+        console.log('Update complete');
+    } catch (e) {
+        console.error(e);
+        console.log('Update failed');
+    } finally {
+        console.log(JSON.stringify({
+            oldRecoveryMethod: sms2faMethod,
+            newRecoveryMethod: email2faMethod,
+        }, null, 2));
+    }
 
-    console.log(JSON.stringify({ oldRecoveryMethod: sms2faMethod, newRecoveryMethod: email2faMethod }, null, 2));
-    console.log('Update complete');
 }
 
 function multisigCommands() {
