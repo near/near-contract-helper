@@ -13,7 +13,7 @@ function is2faRecoveryMethod(kind) {
 }
 
 function isAccountValid(accountId) {
-    if (accountId.length === 64) {
+    if (accountId.length === 64 && !accountId.includes('.')) {
         return true;
     }
 
