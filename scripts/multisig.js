@@ -75,20 +75,22 @@ async function transferMultisig({ accountId, current, desired }) {
         return;
     }
 
-    if (!isEmail(desired)) {
+    const isCurrentEmail = isEmail(current);
+    const isDesiredEmail = isEmail(desired);
+
+    if (!isDesiredEmail) {
         console.error(`Invalid email: ${desired}. The 2FA method can only be set to email.`);
         return;
     }
 
-    const isCurrentPhone = !isEmail(current);
-    const currentMethodKind = isCurrentPhone ? TWO_FACTOR_AUTH_KINDS.PHONE : TWO_FACTOR_AUTH_KINDS.EMAIL;
+    const currentMethodKind = isCurrentEmail ? TWO_FACTOR_AUTH_KINDS.EMAIL : TWO_FACTOR_AUTH_KINDS.PHONE;
     const [sms2faMethod] = await listRecoveryMethodsByAccountId(accountId)
         .filter(({ detail, kind }) => {
             if (kind !== currentMethodKind) {
                 return false;
             }
 
-            if (isCurrentPhone) {
+            if (!isCurrentEmail) {
                 return isEquivalentPhoneNumber(detail, current);
             }
 
