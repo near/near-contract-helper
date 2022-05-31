@@ -84,7 +84,7 @@ async function transferMultisig({ accountId, current, desired }) {
     }
 
     const currentMethodKind = isCurrentEmail ? TWO_FACTOR_AUTH_KINDS.EMAIL : TWO_FACTOR_AUTH_KINDS.PHONE;
-    const [sms2faMethod] = await listRecoveryMethodsByAccountId(accountId)
+    const [current2faMethod] = await listRecoveryMethodsByAccountId(accountId)
         .filter(({ detail, kind }) => {
             if (kind !== currentMethodKind) {
                 return false;
@@ -97,7 +97,7 @@ async function transferMultisig({ accountId, current, desired }) {
             return detail === current;
         });
 
-    if (!sms2faMethod) {
+    if (!current2faMethod) {
         console.error(`No 2FA recovery method found for account ${accountId} with [${currentMethodKind}] ${current}`);
         return;
     }
@@ -127,10 +127,10 @@ async function transferMultisig({ accountId, current, desired }) {
         email2faMethod = await updateRecoveryMethod({
             accountId,
             kind: TWO_FACTOR_AUTH_KINDS.EMAIL,
-            publicKey: sms2faMethod.publicKey, // empty for most 2FA recovery method documents but some may have it
+            publicKey: current2faMethod.publicKey, // empty for most 2FA recovery method documents but some may have it
         }, {
             detail: desired,
-            requestId: sms2faMethod.requestId,
+            requestId: current2faMethod.requestId,
             securityCode: null, // clear current security code since user will need to request again
         });
         console.log('Update complete');
@@ -139,7 +139,7 @@ async function transferMultisig({ accountId, current, desired }) {
         console.log('Update failed');
     } finally {
         console.log(JSON.stringify({
-            oldRecoveryMethod: sms2faMethod,
+            oldRecoveryMethod: current2faMethod,
             newRecoveryMethod: email2faMethod,
         }, null, 2));
     }
