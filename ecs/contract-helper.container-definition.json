@@ -1,0 +1,147 @@
+[
+  {
+    "name": "{{Name}}",
+    "image": "{{Image}}",
+    "memory": 1536,
+    "portMappings": [
+      {
+        "containerPort": 3000,
+        "hostPort": 0,
+        "protocol": "tcp"
+      }
+    ],
+    "essential": true,
+    "entryPoint": [
+      "yarn",
+      "docker:start"
+    ],
+    "environment": [
+      {
+        "name": "NEAR_WALLET_ENV",
+        "value": "{{NearWalletEnvironment}}"
+      },
+      {
+        "name": "ENABLE_PHONE_IDENTITY_VERIFICATION",
+        "value": "true"
+      },
+      {
+        "name": "AWS_REGION",
+        "value": "{{AwsRegion}}"
+      },
+      {
+        "name": "PORT",
+        "value": "3000"
+      },
+      {
+        "name": "NEW_ACCOUNT_AMOUNT",
+        "value": "10000000000000000000000000"
+      },
+      {
+        "name": "FUNDED_ACCOUNT_BALANCE",
+        "value": "350000000000000000000000"
+      },
+      {
+        "name": "DEBUG",
+        "value": "koa-ratelimit"
+      },
+      {
+        "name": "TOKEN_CONTRACTS",
+        "value": "meta.pool.testnet"
+      },
+      {
+        "name": "GAS_2FA_CONFIRM",
+        "value": "250000000000000"
+      },
+      {
+        "name": "FUNDED_NEW_ACCOUNT_CONTRACT_NAME",
+        "value": "near"
+      },
+      {
+        "name": "NODE_URL",
+        "value": "https://rpc.testnet.near.org"
+      },
+      {
+        "name": "DISABLE_PHONE_RECOVERY",
+        "value": "true"
+      },
+      {
+        "name": "WALLET_URL",
+        "value": "https://preflight.kitwallet.app"
+      },
+      {
+        "name": "ENABLE_EMAIL_IDENTITY_VERIFICATION",
+        "value": "true"
+      }
+    ],
+    "secrets": [
+      {
+        "name": "ACCOUNT_CREATOR_KEY",
+        "valueFrom": "{{SsmPrefix}}/ACCOUNT_CREATOR_KEY"
+      },
+      {
+        "name": "ACCOUNT_CREATOR_KEYS",
+        "valueFrom": "{{SsmPrefix}}/ACCOUNT_CREATOR_KEYS"
+      },
+      {
+        "name": "BLOCK_TEMP_EMAIL_API_KEY",
+        "valueFrom": "{{SsmPrefix}}/BLOCK_TEMP_EMAIL_API_KEY"
+      },
+      {
+        "name": "FUNDED_ACCOUNT_CREATOR_KEY",
+        "valueFrom": "{{SsmPrefix}}/FUNDED_ACCOUNT_CREATOR_KEY"
+      },
+      {
+        "name": "INDEXER_DB_CONNECTION",
+        "valueFrom": "{{SsmPrefix}}/INDEXER_DB_CONNECTION"
+      },
+      {
+        "name": "MAIL_HOST",
+        "valueFrom": "{{SsmPrefix}}/MAIL_HOST"
+      },
+      {
+        "name": "MAIL_PASSWORD",
+        "valueFrom": "{{SsmPrefix}}/MAIL_PASSWORD"
+      },
+      {
+        "name": "MAIL_PORT",
+        "valueFrom": "{{SsmPrefix}}/MAIL_PORT"
+      },
+      {
+        "name": "MAIL_USER",
+        "valueFrom": "{{SsmPrefix}}/MAIL_USER"
+      },
+      {
+        "name": "MOONPAY_SECRET_KEY",
+        "valueFrom": "{{SsmPrefix}}/MOONPAY_SECRET_KEY"
+      },
+      {
+        "name": "NEARPAY_SECRET_KEY",
+        "valueFrom": "{{SsmPrefix}}/NEARPAY_SECRET_KEY"
+      },
+      {
+        "name": "TWILIO_ACCOUNT_SID",
+        "valueFrom": "{{SsmPrefix}}/TWILIO_ACCOUNT_SID"
+      },
+      {
+        "name": "TWILIO_AUTH_TOKEN",
+        "valueFrom": "{{SsmPrefix}}/TWILIO_AUTH_TOKEN"
+      },
+      {
+        "name": "TWILIO_FROM_PHONE",
+        "valueFrom": "{{SsmPrefix}}/TWILIO_FROM_PHONE"
+      },
+      {
+        "name": "TWILIO_VERIFY_SERVICE_SID",
+        "valueFrom": "{{SsmPrefix}}/TWILIO_VERIFY_SERVICE_SID"
+      }
+    ],
+    "workingDirectory": "/app",
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "{{AwsLogsGroup}}",
+        "awslogs-region": "{{AwsRegion}}"
+      }
+    }
+  }
+]
