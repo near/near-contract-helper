@@ -12,7 +12,7 @@ function buildTableName(baseName) {
         return `mainnet_${baseName}`;
     }
 
-    throw new Error('Invalid environment');
+    throw new Error(`Invalid environment '${NEAR_WALLET_ENV}'`);
 }
 
 module.exports = {
