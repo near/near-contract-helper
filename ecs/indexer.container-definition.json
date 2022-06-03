@@ -72,63 +72,63 @@
     "secrets": [
       {
         "name": "ACCOUNT_CREATOR_KEY",
-        "valueFrom": "{{SsmPrefix}}/ACCOUNT_CREATOR_KEY"
+        "valueFrom": "arn:aws:ssm:{{AwsRegion}}:{{AwsAccountId}}:parameter/env/{{Environment}}/ACCOUNT_CREATOR_KEY"
       },
       {
         "name": "ACCOUNT_CREATOR_KEYS",
-        "valueFrom": "{{SsmPrefix}}/ACCOUNT_CREATOR_KEYS"
+        "valueFrom": "arn:aws:ssm:{{AwsRegion}}:{{AwsAccountId}}:parameter/env/{{Environment}}/ACCOUNT_CREATOR_KEYS"
       },
       {
         "name": "BLOCK_TEMP_EMAIL_API_KEY",
-        "valueFrom": "{{SsmPrefix}}/BLOCK_TEMP_EMAIL_API_KEY"
+        "valueFrom": "arn:aws:ssm:{{AwsRegion}}:{{AwsAccountId}}:parameter/env/{{Environment}}/BLOCK_TEMP_EMAIL_API_KEY"
       },
       {
         "name": "FUNDED_ACCOUNT_CREATOR_KEY",
-        "valueFrom": "{{SsmPrefix}}/FUNDED_ACCOUNT_CREATOR_KEY"
+        "valueFrom": "arn:aws:ssm:{{AwsRegion}}:{{AwsAccountId}}:parameter/env/{{Environment}}/FUNDED_ACCOUNT_CREATOR_KEY"
       },
       {
         "name": "INDEXER_DB_CONNECTION",
-        "valueFrom": "{{SsmPrefix}}/INDEXER_DB_CONNECTION"
+        "valueFrom": "arn:aws:ssm:{{AwsRegion}}:{{AwsAccountId}}:parameter/env/{{Environment}}/INDEXER_DB_CONNECTION"
       },
       {
         "name": "MAIL_HOST",
-        "valueFrom": "{{SsmPrefix}}/MAIL_HOST"
+        "valueFrom": "arn:aws:ssm:{{AwsRegion}}:{{AwsAccountId}}:parameter/env/{{Environment}}/MAIL_HOST"
       },
       {
         "name": "MAIL_PASSWORD",
-        "valueFrom": "{{SsmPrefix}}/MAIL_PASSWORD"
+        "valueFrom": "arn:aws:ssm:{{AwsRegion}}:{{AwsAccountId}}:parameter/env/{{Environment}}/MAIL_PASSWORD"
       },
       {
         "name": "MAIL_PORT",
-        "valueFrom": "{{SsmPrefix}}/MAIL_PORT"
+        "valueFrom": "arn:aws:ssm:{{AwsRegion}}:{{AwsAccountId}}:parameter/env/{{Environment}}/MAIL_PORT"
       },
       {
         "name": "MAIL_USER",
-        "valueFrom": "{{SsmPrefix}}/MAIL_USER"
+        "valueFrom": "arn:aws:ssm:{{AwsRegion}}:{{AwsAccountId}}:parameter/env/{{Environment}}/MAIL_USER"
       },
       {
         "name": "MOONPAY_SECRET_KEY",
-        "valueFrom": "{{SsmPrefix}}/MOONPAY_SECRET_KEY"
+        "valueFrom": "arn:aws:ssm:{{AwsRegion}}:{{AwsAccountId}}:parameter/env/{{Environment}}/MOONPAY_SECRET_KEY"
       },
       {
         "name": "NEARPAY_SECRET_KEY",
-        "valueFrom": "{{SsmPrefix}}/NEARPAY_SECRET_KEY"
+        "valueFrom": "arn:aws:ssm:{{AwsRegion}}:{{AwsAccountId}}:parameter/env/{{Environment}}/NEARPAY_SECRET_KEY"
       },
       {
         "name": "TWILIO_ACCOUNT_SID",
-        "valueFrom": "{{SsmPrefix}}/TWILIO_ACCOUNT_SID"
+        "valueFrom": "arn:aws:ssm:{{AwsRegion}}:{{AwsAccountId}}:parameter/env/{{Environment}}/TWILIO_ACCOUNT_SID"
       },
       {
         "name": "TWILIO_AUTH_TOKEN",
-        "valueFrom": "{{SsmPrefix}}/TWILIO_AUTH_TOKEN"
+        "valueFrom": "arn:aws:ssm:{{AwsRegion}}:{{AwsAccountId}}:parameter/env/{{Environment}}/TWILIO_AUTH_TOKEN"
       },
       {
         "name": "TWILIO_FROM_PHONE",
-        "valueFrom": "{{SsmPrefix}}/TWILIO_FROM_PHONE"
+        "valueFrom": "arn:aws:ssm:{{AwsRegion}}:{{AwsAccountId}}:parameter/env/{{Environment}}/TWILIO_FROM_PHONE"
       },
       {
         "name": "TWILIO_VERIFY_SERVICE_SID",
-        "valueFrom": "{{SsmPrefix}}/TWILIO_VERIFY_SERVICE_SID"
+        "valueFrom": "arn:aws:ssm:{{AwsRegion}}:{{AwsAccountId}}:parameter/env/{{Environment}}/TWILIO_VERIFY_SERVICE_SID"
       }
     ],
     "workingDirectory": "/app",
