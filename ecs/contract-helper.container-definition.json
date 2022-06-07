@@ -54,7 +54,7 @@
       },
       {
         "name": "NODE_URL",
-        "value": "https://rpc.testnet.near.org"
+        "value": "{{NodeUrl}}"
       },
       {
         "name": "DISABLE_PHONE_RECOVERY",
@@ -62,7 +62,7 @@
       },
       {
         "name": "WALLET_URL",
-        "value": "https://preflight.kitwallet.app"
+        "value": "{{WalletUrl}}"
       },
       {
         "name": "ENABLE_EMAIL_IDENTITY_VERIFICATION",
