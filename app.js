@@ -157,22 +157,6 @@ router.get('/moonpay/signURL', moonpay.signURL);
 const nearpay = require('./src/middleware/nearpay');
 router.get('/nearpay/signParams', nearpay.signParams);
 
-const {
-    findAccountsByPublicKey,
-    findStakingDeposits,
-    findReceivers,
-    findLikelyTokens,
-    findLikelyNFTs,
-    findStakingPools,
-} = require('./src/middleware/indexer');
-router.get('/publicKey/:publicKey/accounts', findAccountsByPublicKey);
-router.get('/staking-deposits/:accountId', findStakingDeposits);
-router.get('/account/:accountId/activity', (ctx) => (ctx.body = []));
-router.get('/account/:accountId/callReceivers', findReceivers);
-router.get('/account/:accountId/likelyTokens', findLikelyTokens);
-router.get('/account/:accountId/likelyNFTs', findLikelyNFTs);
-router.get('/stakingPools', findStakingPools);
-
 const password = require('secure-random-password');
 const SECURITY_CODE_DIGITS = 6;
 
