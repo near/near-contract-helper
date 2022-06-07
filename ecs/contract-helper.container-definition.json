@@ -45,10 +45,6 @@
         "value": "koa-ratelimit"
       },
       {
-        "name": "TOKEN_CONTRACTS",
-        "value": "meta.pool.testnet"
-      },
-      {
         "name": "GAS_2FA_CONFIRM",
         "value": "250000000000000"
       },
