@@ -71,6 +71,10 @@
     ],
     "secrets": [
       {
+        "name": "DETERM_KEY_SEED",
+        "valueFrom": "/env/{{Environment}}/DETERM_KEY_SEED"
+      },
+      {
         "name": "ACCOUNT_CREATOR_KEY",
         "valueFrom": "/env/{{Environment}}/ACCOUNT_CREATOR_KEY"
       },
