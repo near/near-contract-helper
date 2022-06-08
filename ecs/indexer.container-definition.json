@@ -36,7 +36,7 @@
     "secrets": [
       {
         "name": "INDEXER_DB_CONNECTION",
-        "valueFrom": "arn:aws:ssm:{{AwsRegion}}:{{AwsAccountId}}:parameter/env/{{Environment}}/INDEXER_DB_CONNECTION"
+        "valueFrom": "/env/{{Environment}}/INDEXER_DB_CONNECTION"
       }
     ],
     "workingDirectory": "/app",
