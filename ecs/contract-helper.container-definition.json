@@ -50,7 +50,7 @@
       },
       {
         "name": "FUNDED_NEW_ACCOUNT_CONTRACT_NAME",
-        "value": "near"
+        "value": "{{FundedNewAccountContractName}}"
       },
       {
         "name": "NODE_URL",
