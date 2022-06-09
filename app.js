@@ -4,10 +4,10 @@ const app = new Koa();
 const body = require('koa-json-body');
 const cors = require('@koa/cors');
 
-const constants = require('./constants');
-const AccountService = require('./services/account');
-const IdentityVerificationMethodService = require('./services/identity_verification_method');
-const RecoveryMethodService = require('./services/recovery_method');
+const constants = require('./src/constants');
+const AccountService = require('./src/services/account');
+const IdentityVerificationMethodService = require('./src/services/identity_verification_method');
+const RecoveryMethodService = require('./src/services/recovery_method');
 
 const {
     RECOVERY_METHOD_KINDS,
@@ -30,7 +30,7 @@ let reportException = () => {
 
 const SENTRY_DSN = process.env.SENTRY_DSN;
 if (SENTRY_DSN && !module.parent) {
-    const { requestHandler, tracingMiddleware: tracingMiddleWare, captureException } = require('./middleware/sentry');
+    const { requestHandler, tracingMiddleware: tracingMiddleWare, captureException } = require('./src/middleware/sentry');
     app.use(requestHandler);
     app.use(tracingMiddleWare);
     reportException = captureException;
@@ -74,7 +74,7 @@ const {
     checkAccountOwnership,
     createCheckAccountDoesNotExistMiddleware,
     accountAuthMiddleware,
-} = require('./middleware/near');
+} = require('./src/middleware/near');
 
 app.use(withNear);
 
@@ -86,7 +86,7 @@ const {
     initCode,
     sendNewCode,
     verifyCode,
-} = require('./middleware/2fa');
+} = require('./src/middleware/2fa');
 router.post('/2fa/getAccessKey', checkAccountOwnership, getAccessKey);
 router.post('/2fa/init', checkAccountOwnership, initCode);
 router.post('/2fa/send', checkAccountOwnership, sendNewCode);
@@ -101,7 +101,7 @@ const accountCreateRatelimitMiddleware = ratelimit({
     whitelist: () => process.env.NODE_ENV === 'test'
 });
 
-const { createAccount } = require('./middleware/createAccount');
+const { createAccount } = require('./src/middleware/createAccount');
 router.post('/account', accountCreateRatelimitMiddleware, createAccount);
 
 const fundedAccountCreateRatelimitMiddleware = ratelimit({
@@ -117,7 +117,7 @@ const {
     clearFundedAccountNeedsDeposit,
     createFundedAccount,
     createIdentityVerifiedFundedAccount,
-} = require('./middleware/fundedAccount');
+} = require('./src/middleware/fundedAccount');
 router.post(
     '/fundedAccount',
     fundedAccountCreateRatelimitMiddleware,
@@ -142,7 +142,7 @@ router.post(
 const {
     createIdentityVerificationMethod,
     validateEmail,
-} = require('./middleware/identityVerificationMethod');
+} = require('./src/middleware/identityVerificationMethod');
 router.post(
     '/identityVerificationMethod',
     createIdentityVerificationMethod
@@ -151,10 +151,10 @@ router.post(
 /********************************
  Top up integration helpers
  ********************************/
-const moonpay = require('./middleware/moonpay');
+const moonpay = require('./src/middleware/moonpay');
 router.get('/moonpay/signURL', moonpay.signURL);
 
-const nearpay = require('./middleware/nearpay');
+const nearpay = require('./src/middleware/nearpay');
 router.get('/nearpay/signParams', nearpay.signParams);
 
 const {
@@ -164,7 +164,7 @@ const {
     findLikelyTokens,
     findLikelyNFTs,
     findStakingPools,
-} = require('./middleware/indexer');
+} = require('./src/middleware/indexer');
 router.get('/publicKey/:publicKey/accounts', findAccountsByPublicKey);
 router.get('/staking-deposits/:accountId', findStakingDeposits);
 router.get('/account/:accountId/activity', (ctx) => (ctx.body = []));
@@ -176,7 +176,7 @@ router.get('/stakingPools', findStakingPools);
 const password = require('secure-random-password');
 const SECURITY_CODE_DIGITS = 6;
 
-const { sendSms } = require('./utils/sms');
+const { sendSms } = require('./src/utils/sms');
 
 router.post('/account/recoveryMethods', checkAccountOwnership, async ctx => {
     const { accountId } = ctx.request.body;
@@ -217,8 +217,8 @@ router.post(
     },
 );
 
-const { sendMail } = require('./utils/email');
-const { getNewAccountMessageContent, getSecurityCodeMessageContent } = require('./accountRecoveryMessageContent');
+const { sendMail } = require('./src/utils/email');
+const { getNewAccountMessageContent, getSecurityCodeMessageContent } = require('./src/accountRecoveryMessageContent');
 
 const WALLET_URL = process.env.WALLET_URL;
 const getRecoveryUrl = (accountId, seedPhrase) => `${WALLET_URL}/recover-with-link/${encodeURIComponent(accountId)}/${encodeURIComponent(seedPhrase)}`;
@@ -268,7 +268,7 @@ router.post(
 
 const {
     BN_UNLOCK_FUNDED_ACCOUNT_BALANCE
-} = require('./middleware/fundedAccount');
+} = require('./src/middleware/fundedAccount');
 router.get(
     '/account/walletState/:accountId',
     (ctx, next) => verifyAccountExists(ctx, next, ctx.params),
@@ -368,7 +368,7 @@ router.post('/account/initializeRecoveryMethod',
     completeRecoveryInit
 );
 
-const recaptchaValidator = require('./RecaptchaValidator');
+const recaptchaValidator = require('./src/RecaptchaValidator');
 
 const completeRecoveryValidation = ({ isNew } = {}) => async (ctx) => {
     const {
@@ -464,7 +464,7 @@ router.post('/account/validateSecurityCodeForTempAccount',
     completeRecoveryValidation({ isNew: true })
 );
 
-const createFiatValueMiddleware = require('./middleware/fiat');
+const createFiatValueMiddleware = require('./src/middleware/fiat');
 router.get('/fiat', createFiatValueMiddleware());
 
 if (process.env.NODE_ENV === 'development') {
@@ -479,7 +479,7 @@ app
 
 if (!module.parent) {
     if (SENTRY_DSN) {
-        const { setupErrorHandler } = require('./middleware/sentry');
+        const { setupErrorHandler } = require('./src/middleware/sentry');
         setupErrorHandler(app, SENTRY_DSN);
     }
 
