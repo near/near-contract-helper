@@ -1,0 +1,51 @@
+[
+  {
+    "name": "{{Name}}",
+    "image": "{{Image}}",
+    "memory": 1536,
+    "portMappings": [
+      {
+        "containerPort": 3000,
+        "hostPort": 0,
+        "protocol": "tcp"
+      }
+    ],
+    "essential": true,
+    "entryPoint": [
+      "yarn",
+      "docker:start:indexer"
+    ],
+    "environment": [
+      {
+        "name": "NEAR_WALLET_ENV",
+        "value": "{{NearWalletEnvironment}}"
+      },
+      {
+        "name": "AWS_REGION",
+        "value": "{{AwsRegion}}"
+      },
+      {
+        "name": "PORT",
+        "value": "3000"
+      },
+      {
+        "name": "DEBUG",
+        "value": "koa-ratelimit"
+      }
+    ],
+    "secrets": [
+      {
+        "name": "INDEXER_DB_CONNECTION",
+        "valueFrom": "/env/{{Environment}}/INDEXER_DB_CONNECTION"
+      }
+    ],
+    "workingDirectory": "/app",
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "{{AwsLogsGroup}}",
+        "awslogs-region": "{{AwsRegion}}"
+      }
+    }
+  }
+]
