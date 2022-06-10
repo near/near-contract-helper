@@ -1,0 +1,487 @@
+pipeline {
+    agent any
+    environment {
+        AWS_CREDENTIALS = 'aws-credentials-password'
+        AWS_REGION = 'us-west-2'
+        AWS_TESTNET_ACCOUNT_ID = credentials('aws-testnet-account-id')
+        AWS_TESTNET_ROLE = credentials('testnet-assumed-role')
+        AWS_MAINNET_ACCOUNT_ID = credentials('aws-mainnet-account-id')
+        AWS_MAINNET_ROLE = credentials('mainnet-assumed-role')
+
+        /* testnet */
+        TESTNET_ECR_REPOSITORY = 'testnet-ecr-repository'
+        TESTNET_ECS_TASK_EXECUTION_ROLE = 'testnet-ecs-task-execution-role'
+
+        TESTNET_ECS_STAGING_CLUSTER = 'testnet-staging-cluster'
+        TESTNET_ECS_STAGING_SERVICE = 'testnet-staging-backend-service'
+        TESTNET_ECS_STAGING_TASK_FAMILY = 'testnet-staging-service-task-definition'
+        TESTNET_ECS_STAGING_INDEXER_SERVICE = 'testnet-staging-indexer-service'
+        TESTNET_ECS_STAGING_INDEXER_TASK_FAMILY = 'testnet-staging-indexer-service-task-definition'
+
+        TESTNET_ECS_LIVE_CLUSTER = 'testnet-live-cluster'
+        TESTNET_ECS_LIVE_SERVICE = 'testnet-live-backend-service'
+        TESTNET_ECS_LIVE_TASK_FAMILY = 'testnet-live-service-task-definition'
+        TESTNET_ECS_LIVE_INDEXER_SERVICE = 'testnet-live-indexer-service'
+        TESTNET_ECS_LIVE_INDEXER_TASK_FAMILY = 'testnet-live-indexer-service-task-definition'
+
+        /* mainnet */
+        MAINNET_ECR_REPOSITORY = 'mainnet-ecr-repository'
+        MAINNET_ECS_TASK_EXECUTION_ROLE = 'mainnet-ecs-task-execution-role'
+
+        MAINNET_ECS_STAGING_CLUSTER = 'mainnet-staging-cluster'
+        MAINNET_ECS_STAGING_SERVICE = 'mainnet-staging-backend-service'
+        MAINNET_ECS_STAGING_TASK_FAMILY = 'mainnet-staging-service-task-definition'
+        MAINNET_ECS_STAGING_INDEXER_SERVICE = 'mainnet-staging-indexer-service'
+        MAINNET_ECS_STAGING_INDEXER_TASK_FAMILY = 'mainnet-staging-indexer-service-task-definition'
+
+        MAINNET_ECS_LIVE_CLUSTER = 'mainnet-live-cluster'
+        MAINNET_ECS_LIVE_SERVICE = 'mainnet-live-backend-service'
+        MAINNET_ECS_LIVE_TASK_FAMILY = 'mainnet-live-service-task-definition'
+        MAINNET_ECS_LIVE_INDEXER_SERVICE = 'mainnet-live-indexer-service'
+        MAINNET_ECS_LIVE_INDEXER_TASK_FAMILY = 'mainnet-live-indexer-service-task-definition'
+    }
+    stages {
+        stage('test') {
+            steps {
+                milestone(1)
+                sh "yarn && yarn test"
+            }
+        }
+        stage('build') {
+            steps {
+                milestone(2)
+                sh 'docker build . --tag $TESTNET_ECR_REPOSITORY:$GIT_COMMIT --tag $MAINNET_ECR_REPOSITORY:$GIT_COMMIT'
+            }
+        }
+        stage('push:testnet') {
+            when {
+                branch 'master'
+            }
+            steps {
+                withAWS(
+                    region: env.AWS_REGION,
+                    credentials: env.AWS_CREDENTIALS,
+                    role: env.AWS_TESTNET_ROLE,
+                    roleAccount: env.AWS_TESTNET_ACCOUNT_ID
+                ) {
+                    milestone(3)
+                    sh 'ecs-cli configure profile'
+                    sh 'ecs-cli push $TESTNET_ECR_REPOSITORY:$GIT_COMMIT'
+                }
+            }
+        }
+        stage('deploy:testnet:staging') {
+            when {
+                branch 'master'
+            }
+            parallel {
+                stage('contract-helper') {
+                    steps {
+                        withAWS(
+                            region: env.AWS_REGION,
+                            credentials: env.AWS_CREDENTIALS,
+                            role: env.AWS_TESTNET_ROLE,
+                            roleAccount: env.AWS_TESTNET_ACCOUNT_ID
+                        ) {
+                            sh 'mkdir -p ecs/testnet-staging-outputs/'
+                            
+                            replace(
+                                inputFilePath: 'ecs/contract-helper.container-definition.json',
+                                outputFilePath: 'ecs/testnet-staging-outputs/contract-helper.container-definition.json',
+                                values: [
+                                    Name: 'testnet-staging-backend-container',
+                                    Image: '$AWS_TESTNET_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$TESTNET_ECR_REPOSITORY:$GIT_COMMIT',
+                                    Environment: 'testnet',
+                                    NearWalletEnvironment: 'testnet_STAGING',
+                                    FundedNewAccountContractName: 'testnet',
+                                    AwsRegion: '$AWS_REGION',
+                                    AwsLogsGroup: 'testnet-staging-service-log-group',
+                                    NodeUrl: 'https://rpc.testnet.near.org',
+                                    WalletUrl: 'https://preflight.kitwallet.app'
+                                ]
+                            )
+
+                            sh  '''
+                                aws ecs register-task-definition \
+                                    --family $TESTNET_ECS_STAGING_TASK_FAMILY \
+                                    --execution-role-arn $TESTNET_ECS_TASK_EXECUTION_ROLE \
+                                    --network-mode bridge \
+                                    --container-definition file://ecs/testnet-staging-outputs/contract-helper.container-definition.json
+                            '''
+
+                            sh '''
+                                aws ecs update-service \
+                                    --service $TESTNET_ECS_STAGING_SERVICE \
+                                    --cluster $TESTNET_ECS_STAGING_CLUSTER \
+                                    --task-definition $TESTNET_ECS_STAGING_TASK_FAMILY \
+                                    --force-new-deployment
+                            '''
+                        }
+                    }
+                }
+                stage('indexer') {
+                    steps {
+                        withAWS(
+                            region: env.AWS_REGION,
+                            credentials: env.AWS_CREDENTIALS,
+                            role: env.AWS_TESTNET_ROLE,
+                            roleAccount: env.AWS_TESTNET_ACCOUNT_ID
+                        ) {
+                            sh 'mkdir -p ecs/testnet-staging-outputs/'
+                            
+                            replace(
+                                inputFilePath: 'ecs/indexer.container-definition.json',
+                                outputFilePath: 'ecs/testnet-staging-outputs/indexer.container-definition.json',
+                                values: [
+                                    Name: 'testnet-staging-indexer-container',
+                                    Image: '$AWS_TESTNET_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$TESTNET_ECR_REPOSITORY:$GIT_COMMIT',
+                                    Environment: 'testnet',
+                                    NearWalletEnvironment: 'testnet_STAGING',
+                                    AwsRegion: '$AWS_REGION',
+                                    AwsLogsGroup: 'testnet-staging-indexer-service'
+                                ]
+                            )
+
+                            sh '''
+                                aws ecs register-task-definition \
+                                    --family $TESTNET_ECS_STAGING_INDEXER_TASK_FAMILY \
+                                    --execution-role-arn $TESTNET_ECS_TASK_EXECUTION_ROLE \
+                                    --network-mode bridge \
+                                    --container-definition file://ecs/testnet-staging-outputs/indexer.container-definition.json
+                            '''
+
+                            sh '''
+                                aws ecs update-service \
+                                    --service $TESTNET_ECS_STAGING_INDEXER_SERVICE \
+                                    --cluster $TESTNET_ECS_STAGING_CLUSTER \
+                                    --task-definition $TESTNET_ECS_STAGING_INDEXER_TASK_FAMILY \
+                                    --force-new-deployment
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+        /* stage('guard:testnet') {
+            steps {
+                input('Deploy to testnet?')
+            }
+        } */
+        stage('deploy:testnet') {
+            when {
+                branch 'master'
+            }
+            parallel {
+                stage('contract-helper') {
+                    steps {
+                        withAWS(
+                            region: env.AWS_REGION,
+                            credentials: env.AWS_CREDENTIALS,
+                            role: env.AWS_TESTNET_ROLE,
+                            roleAccount: env.AWS_TESTNET_ACCOUNT_ID
+                        ) {
+                            sh 'mkdir -p ecs/testnet-outputs/'
+                            
+                            replace(
+                                inputFilePath: 'ecs/contract-helper.container-definition.json',
+                                outputFilePath: 'ecs/testnet-outputs/contract-helper.container-definition.json',
+                                values: [
+                                    Name: 'testnet-live-backend-container',
+                                    Image: '$AWS_TESTNET_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$TESTNET_ECR_REPOSITORY:$GIT_COMMIT',
+                                    Environment: 'testnet',
+                                    NearWalletEnvironment: 'testnet',
+                                    FundedNewAccountContractName: 'testnet',
+                                    AwsRegion: '$AWS_REGION',
+                                    AwsLogsGroup: 'testnet-live-service-log-group',
+                                    NodeUrl: 'https://rpc.testnet.near.org',
+                                    WalletUrl: 'https://testnet.kitwallet.app'
+                                ]
+                            )
+
+                            sh '''
+                                aws ecs register-task-definition \
+                                    --family $TESTNET_ECS_LIVE_TASK_FAMILY \
+                                    --execution-role-arn $TESTNET_ECS_TASK_EXECUTION_ROLE \
+                                    --network-mode bridge \
+                                    --container-definition file://ecs/testnet-outputs/contract-helper.container-definition.json
+                            '''
+
+                            sh '''
+                                aws ecs update-service \
+                                    --service $TESTNET_ECS_LIVE_SERVICE \
+                                    --cluster $TESTNET_ECS_LIVE_CLUSTER \
+                                    --task-definition $TESTNET_ECS_LIVE_TASK_FAMILY \
+                                    --force-new-deployment
+                            '''
+                        }
+                    }
+                }
+                stage('indexer') {
+                    steps {
+                        withAWS(
+                            region: env.AWS_REGION,
+                            credentials: env.AWS_CREDENTIALS,
+                            role: env.AWS_TESTNET_ROLE,
+                            roleAccount: env.AWS_TESTNET_ACCOUNT_ID
+                        ) {
+                            sh 'mkdir -p ecs/testnet-outputs/'
+                            
+                            replace(
+                                inputFilePath: 'ecs/indexer.container-definition.json',
+                                outputFilePath: 'ecs/testnet-outputs/indexer.container-definition.json',
+                                values: [
+                                    Name: 'testnet-live-indexer-container',
+                                    Image: '$AWS_TESTNET_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$TESTNET_ECR_REPOSITORY:$GIT_COMMIT',
+                                    Environment: 'testnet',
+                                    NearWalletEnvironment: 'testnet',
+                                    AwsRegion: '$AWS_REGION',
+                                    AwsLogsGroup: 'testnet-live-indexer-service'
+                                ]
+                            )
+
+                            sh '''
+                                aws ecs register-task-definition \
+                                    --family $TESTNET_ECS_LIVE_INDEXER_TASK_FAMILY \
+                                    --execution-role-arn $TESTNET_ECS_TASK_EXECUTION_ROLE \
+                                    --network-mode bridge \
+                                    --container-definition file://ecs/testnet-outputs/indexer.container-definition.json
+                            '''
+
+                            sh '''
+                                aws ecs update-service \
+                                    --service $TESTNET_ECS_LIVE_INDEXER_SERVICE \
+                                    --cluster $TESTNET_ECS_LIVE_CLUSTER \
+                                    --task-definition $TESTNET_ECS_LIVE_INDEXER_TASK_FAMILY \
+                                    --force-new-deployment
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+        stage('push:mainnet') {
+            when {
+                anyOf {
+                    branch 'master';
+                    branch 'stable'
+                }
+            }
+            steps {
+                withAWS(
+                    region: env.AWS_REGION,
+                    credentials: env.AWS_CREDENTIALS,
+                    role: env.AWS_MAINNET_ROLE,
+                    roleAccount: env.AWS_MAINNET_ACCOUNT_ID
+                ) {
+                    milestone(4)
+                    sh 'ecs-cli configure profile'
+                    sh 'ecs-cli push $MAINNET_ECR_REPOSITORY:$GIT_COMMIT'
+                }
+            }
+        }
+        stage('deploy:mainnet:staging') {
+            when {
+                branch 'master'
+            }
+            parallel {
+                stage('contract-helper') {
+                    steps {
+                        withAWS(
+                            region: env.AWS_REGION,
+                            credentials: env.AWS_CREDENTIALS,
+                            role: env.AWS_MAINNET_ROLE,
+                            roleAccount: env.AWS_MAINNET_ACCOUNT_ID
+                        ) {
+                            sh 'mkdir -p ecs/mainnet-staging-outputs/'
+                            
+                            replace(
+                                inputFilePath: 'ecs/contract-helper.container-definition.json',
+                                outputFilePath: 'ecs/mainnet-staging-outputs/contract-helper.container-definition.json',
+                                values: [
+                                    Name: 'mainnet-staging-backend-container',
+                                    Image: '$AWS_MAINNET_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$MAINNET_ECR_REPOSITORY:$GIT_COMMIT',
+                                    Environment: 'mainnet',
+                                    NearWalletEnvironment: 'mainnet_STAGING',
+                                    FundedNewAccountContractName: 'near',
+                                    AwsRegion: '$AWS_REGION',
+                                    AwsLogsGroup: 'mainnet-staging-service-log-group',
+                                    NodeUrl: 'https://rpc.mainnet.near.org',
+                                    WalletUrl: 'https://staging.kitwallet.app'
+                                ]
+                            )
+
+                            sh '''
+                                aws ecs register-task-definition \
+                                    --family $MAINNET_ECS_STAGING_TASK_FAMILY \
+                                    --execution-role-arn $MAINNET_ECS_TASK_EXECUTION_ROLE \
+                                    --network-mode bridge \
+                                    --container-definition file://ecs/mainnet-staging-outputs/contract-helper.container-definition.json
+                            '''
+
+                            sh '''
+                                aws ecs update-service \
+                                    --service $MAINNET_ECS_STAGING_SERVICE \
+                                    --cluster $MAINNET_ECS_STAGING_CLUSTER \
+                                    --task-definition $MAINNET_ECS_STAGING_TASK_FAMILY \
+                                    --force-new-deployment
+                            '''
+                        }
+                    }
+                }
+                stage('indexer') {
+                    steps {
+                        withAWS(
+                            region: env.AWS_REGION,
+                            credentials: env.AWS_CREDENTIALS,
+                            role: env.AWS_MAINNET_ROLE,
+                            roleAccount: env.AWS_MAINNET_ACCOUNT_ID
+                        ) {
+                            sh 'mkdir -p ecs/mainnet-staging-outputs/'
+                            
+                            replace(
+                                inputFilePath: 'ecs/indexer.container-definition.json',
+                                outputFilePath: 'ecs/mainnet-staging-outputs/indexer.container-definition.json',
+                                values: [
+                                    Name: 'mainnet-staging-indexer-container',
+                                    Image: '$AWS_MAINNET_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$MAINNET_ECR_REPOSITORY:$GIT_COMMIT',
+                                    Environment: 'mainnet',
+                                    NearWalletEnvironment: 'mainnet_STAGING',
+                                    AwsRegion: '$AWS_REGION',
+                                    AwsLogsGroup: 'mainnet-staging-indexer-service'
+                                ]
+                            )
+
+                            sh '''
+                                aws ecs register-task-definition \
+                                    --family $MAINNET_ECS_STAGING_INDEXER_TASK_FAMILY \
+                                    --execution-role-arn $MAINNET_ECS_TASK_EXECUTION_ROLE \
+                                    --network-mode bridge \
+                                    --container-definition file://ecs/mainnet-staging-outputs/indexer.container-definition.json
+                            '''
+
+                            sh '''
+                                aws ecs update-service \
+                                    --service $MAINNET_ECS_STAGING_INDEXER_SERVICE \
+                                    --cluster $MAINNET_ECS_STAGING_CLUSTER \
+                                    --task-definition $MAINNET_ECS_STAGING_INDEXER_TASK_FAMILY \
+                                    --force-new-deployment
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+        /* stage('guard:mainnet') {
+            steps {
+                input('Deploy to mainnet?')
+            }
+        } */
+        stage('deploy:mainnet') {
+            when {
+                branch 'stable'
+            }
+            parallel {
+                stage('contract-helper') {
+                    steps {
+                        withAWS(
+                            region: env.AWS_REGION,
+                            credentials: env.AWS_CREDENTIALS,
+                            role: env.AWS_MAINNET_ROLE,
+                            roleAccount: env.AWS_MAINNET_ACCOUNT_ID
+                        ) {
+                            sh 'mkdir -p ecs/mainnet-outputs/'
+                            
+                            replace(
+                                inputFilePath: 'ecs/contract-helper.container-definition.json',
+                                outputFilePath: 'ecs/mainnet-outputs/contract-helper.container-definition.json',
+                                values: [
+                                    Name: 'mainnet-live-backend-container',
+                                    Image: '$AWS_MAINNET_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$MAINNET_ECR_REPOSITORY:$GIT_COMMIT',
+                                    Environment: 'mainnet',
+                                    NearWalletEnvironment: 'mainnet',
+                                    FundedNewAccountContractName: 'near',
+                                    AwsRegion: '$AWS_REGION',
+                                    AwsLogsGroup: 'mainnet-live-service-log-group',
+                                    NodeUrl: 'https://rpc.mainnet.near.org',
+                                    WalletUrl: 'https://kitwallet.app'
+                                ]
+                            )
+
+                            sh '''
+                                aws ecs register-task-definition \
+                                    --family $MAINNET_ECS_LIVE_TASK_FAMILY \
+                                    --execution-role-arn $MAINNET_ECS_TASK_EXECUTION_ROLE \
+                                    --network-mode bridge \
+                                    --container-definition file://ecs/mainnet-outputs/contract-helper.container-definition.json
+                            '''
+
+                            sh '''
+                                aws ecs update-service \
+                                    --service $MAINNET_ECS_LIVE_SERVICE \
+                                    --cluster $MAINNET_ECS_LIVE_CLUSTER \
+                                    --task-definition $MAINNET_ECS_LIVE_TASK_FAMILY \
+                                    --force-new-deployment
+                            '''
+                        }
+                    }
+                }
+                stage('indexer') {
+                    steps {
+                        withAWS(
+                            region: env.AWS_REGION,
+                            credentials: env.AWS_CREDENTIALS,
+                            role: env.AWS_MAINNET_ROLE,
+                            roleAccount: env.AWS_MAINNET_ACCOUNT_ID
+                        ) {
+                            sh 'mkdir -p ecs/mainnet-outputs/'
+                            
+                            replace(
+                                inputFilePath: 'ecs/indexer.container-definition.json',
+                                outputFilePath: 'ecs/mainnet-outputs/indexer.container-definition.json',
+                                values: [
+                                    Name: 'mainnet-live-indexer-container',
+                                    Image: '$AWS_MAINNET_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$MAINNET_ECR_REPOSITORY:$GIT_COMMIT',
+                                    Environment: 'mainnet',
+                                    NearWalletEnvironment: 'mainnet',
+                                    AwsRegion: '$AWS_REGION',
+                                    AwsLogsGroup: 'mainnet-live-indexer-service'
+                                ]
+                            )
+
+                            sh '''
+                                aws ecs register-task-definition \
+                                    --family $MAINNET_ECS_LIVE_INDEXER_TASK_FAMILY \
+                                    --execution-role-arn $MAINNET_ECS_TASK_EXECUTION_ROLE \
+                                    --network-mode bridge \
+                                    --container-definition file://ecs/mainnet-outputs/indexer.container-definition.json
+                            '''
+
+                            sh '''
+                                aws ecs update-service \
+                                    --service $MAINNET_ECS_LIVE_INDEXER_SERVICE \
+                                    --cluster $MAINNET_ECS_LIVE_CLUSTER \
+                                    --task-definition $MAINNET_ECS_LIVE_INDEXER_TASK_FAMILY \
+                                    --force-new-deployment
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            cleanWs(
+                disableDeferredWipeout: true,
+                deleteDirs: true
+            )
+        }
+    }
+}
+
+def replace(Map args) {
+    sh "cp $args.inputFilePath $args.outputFilePath"
+    args.values.each { key, value ->
+        sh "sed -i -e \"s#{{$key}}#$value#\" $args.outputFilePath"
+    }
+}
