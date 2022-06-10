@@ -1,4 +1,4 @@
-const constants = require('../constants');
+const constants = require('../src/constants');
 
 const { SERVER_EVENTS } = constants;
 

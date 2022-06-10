@@ -12,7 +12,7 @@ const {
     findLikelyNFTs,
     findStakingPools,
     findAccountActivity,
-} = require('./middleware/indexer');
+} = require('./src/middleware/indexer');
 
 const app = new Koa();
 const router = new Router();

@@ -1,8 +1,8 @@
 const Promise = require('bluebird');
 require('dotenv').config({ path: 'test/.env.test' });
 
-const Constants = require('../../constants');
-const RecoveryMethodService = require('../../services/recovery_method');
+const Constants = require('../../src/constants');
+const RecoveryMethodService = require('../../src/services/recovery_method');
 const chai = require('../chai');
 const initLocalDynamo = require('../local_dynamo');
 const { generateEmailAddress, generateSmsNumber } = require('../utils');
