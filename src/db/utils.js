@@ -15,6 +15,7 @@ function buildTableName(baseName) {
     throw new Error('Invalid environment');
 }
 
+// a comment
 module.exports = {
     buildRecoveryMethodRangeKey,
     buildTableName,
