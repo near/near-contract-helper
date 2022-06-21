@@ -162,11 +162,6 @@ pipeline {
                 }
             }
         }
-        /* stage('guard:testnet') {
-            steps {
-                input('Deploy to testnet?')
-            }
-        } */
         stage('deploy:testnet') {
             when {
                 branch 'master'
@@ -261,10 +256,7 @@ pipeline {
         }
         stage('push:mainnet') {
             when {
-                anyOf {
-                    branch 'master';
-                    branch 'stable'
-                }
+                branch 'master'
             }
             steps {
                 withAWS(
@@ -371,14 +363,14 @@ pipeline {
                 }
             }
         }
-        /* stage('guard:mainnet') {
+        stage('guard:mainnet') {
             steps {
                 input('Deploy to mainnet?')
             }
-        } */
+        }
         stage('deploy:mainnet') {
             when {
-                branch 'stable'
+                branch 'master'
             }
             parallel {
                 stage('contract-helper') {
