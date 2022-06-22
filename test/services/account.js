@@ -1,6 +1,6 @@
 require('dotenv').config({ path: 'test/.env.test' });
 
-const AccountService = require('../../services/account');
+const AccountService = require('../../src/services/account');
 const chai = require('../chai');
 const initLocalDynamo = require('../local_dynamo');
 const { generateAccountId } = require('../utils');

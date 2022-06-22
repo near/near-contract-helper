@@ -10,7 +10,8 @@
     "docker:start:indexer": "node indexer.js",
     "test": "yarn lint && mocha",
     "lint": "eslint .",
-    "fix": "eslint . --fix"
+    "fix": "eslint . --fix",
+    "start-no-env": "supervisor app"
   },
   "repository": {
     "type": "git",
@@ -64,9 +65,11 @@
     "babel-eslint": "^10.1.0",
     "chai": "^4.3.4",
     "chai-as-promised": "^7.1.1",
+    "commander": "^9.2.0",
     "dotenv": "^8.2.0",
     "dynamodb-local": "^0.0.31",
     "eslint": "^7.27.0",
+    "inquirer": "^8.2.2",
     "mocha": "^9.0.0",
     "nock": "^13.0.11",
     "nyc": "^15.1.0",

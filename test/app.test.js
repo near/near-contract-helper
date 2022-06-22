@@ -3,9 +3,9 @@ require('dotenv').config({ path: 'test/.env.test' });
 const nearAPI = require('near-api-js');
 const { parseSeedPhrase } = require('near-seed-phrase');
 
-const constants = require('../constants');
-const AccountService = require('../services/account');
-const RecoveryMethodService = require('../services/recovery_method');
+const constants = require('../src/constants');
+const AccountService = require('../src/services/account');
+const RecoveryMethodService = require('../src/services/recovery_method');
 const attachEchoMessageListeners = require('./attachEchoMessageListeners');
 const chai = require('./chai');
 const initLocalDynamo = require('./local_dynamo');

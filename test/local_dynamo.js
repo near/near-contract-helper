@@ -3,10 +3,10 @@ const Promise = require('bluebird');
 const dynamo = require('dynamodb');
 const dynamoLocal = require('dynamodb-local');
 
-const Account = require('../db/schemas/account');
-const EmailDomainBlacklist = require('../db/schemas/email_domain_blacklist');
-const IdentityVerificationMethod = require('../db/schemas/identity_verification_method');
-const RecoveryMethod = require('../db/schemas/recovery_method');
+const Account = require('../src/db/schemas/account');
+const EmailDomainBlacklist = require('../src/db/schemas/email_domain_blacklist');
+const IdentityVerificationMethod = require('../src/db/schemas/identity_verification_method');
+const RecoveryMethod = require('../src/db/schemas/recovery_method');
 
 const LOCAL_DYNAMODB_PORT = 8000;
 

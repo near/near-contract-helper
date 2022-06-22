@@ -1,6 +1,6 @@
 require('dotenv').config({ path: 'test/.env.test' });
 
-const EmailDomainBlacklistService = require('../../services/email_domain_blacklist');
+const EmailDomainBlacklistService = require('../../src/services/email_domain_blacklist');
 const chai = require('../chai');
 const initLocalDynamo = require('../local_dynamo');
 

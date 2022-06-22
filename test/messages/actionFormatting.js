@@ -1,6 +1,6 @@
 'use strict';
 
-const twoFactorMessageContentHelpers = require('../../middleware/2faMessageContent');
+const twoFactorMessageContentHelpers = require('../../src/middleware/2faMessageContent');
 const chai = require('../chai');
 const messageContentFixtures = require('./fixtures');
 
