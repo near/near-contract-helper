@@ -320,6 +320,7 @@ const completeRecoveryInit = async ctx => {
 };
 
 const DISABLE_PHONE_RECOVERY = process.env.DISABLE_PHONE_RECOVERY === 'true';
+const ENABLE_EAGER_IDENTITY_VERIFY = process.env.ENABLE_EAGER_IDENTITY_VERIFY === 'true';
 
 const createableRecoveryMethods = Object.values(RECOVERY_METHOD_KINDS)
     .filter((method) => {
@@ -399,7 +400,7 @@ const completeRecoveryValidation = ({ isNew } = {}) => async (ctx) => {
         securityCode: null,
     });
 
-    if (isNew && enterpriseRecaptchaToken) {
+    if (isNew && enterpriseRecaptchaToken && ENABLE_EAGER_IDENTITY_VERIFY) {
         // Implicitly reserve a funded account for the same identity to allow the user to get a funded account without receiving 2 e-mails
         const { valid, score } = await recaptchaValidator.createEnterpriseAssessment({
             token: enterpriseRecaptchaToken,
