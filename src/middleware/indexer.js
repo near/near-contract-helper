@@ -4,7 +4,7 @@ const Cache = require('node-cache');
 const {
     BRIDGE_TOKEN_FACTORY_ACCOUNT_ID = 'factory.bridge.near',
     NEAR_WALLET_ENV,
-    INDEXER_DB_CONNECTION,
+    // INDEXER_DB_CONNECTION,
     INDEXER_DB_REPLICAS,
 } = process.env;
 
