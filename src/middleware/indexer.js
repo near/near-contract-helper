@@ -4,10 +4,13 @@ const Cache = require('node-cache');
 const {
     BRIDGE_TOKEN_FACTORY_ACCOUNT_ID = 'factory.bridge.near',
     NEAR_WALLET_ENV,
-    INDEXER_DB_CONNECTION
+    INDEXER_DB_CONNECTION,
+    INDEXER_DB_REPLICAS,
 } = process.env;
 
-const pool = new Pool({ connectionString: INDEXER_DB_CONNECTION, });
+const replicaConnections = JSON.parse(INDEXER_DB_REPLICAS);
+const indexerConnection = replicaConnections[(new Date()).valueOf() % replicaConnections.length];
+const pool = new Pool({ connectionString: indexerConnection, });
 
 const poolMatch = NEAR_WALLET_ENV.startsWith('mainnet')
     ? JSON.stringify(['%.poolv1.near', '%.pool.near']).replace(/"/g, '\'')
