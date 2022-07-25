@@ -3,6 +3,9 @@ name: Deploy
 on:
   push:
 
+env:
+  AWS_REGION: us-west-2
+
 jobs:
   testnet-staging:
     runs-on: ubuntu-latest
@@ -29,7 +32,7 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           role-to-assume: ${{ secrets.AWS_ASSUMED_ROLE }}
-          aws-region: us-west-2
+          aws-region: ${{ env.AWS_REGION }}
           # need to add sts:TagSession to role
           role-skip-session-tagging: true
           role-duration-seconds: 1200
