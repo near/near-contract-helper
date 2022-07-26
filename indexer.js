@@ -1,8 +1,8 @@
 const Koa = require('koa');
 const Router = require('koa-router');
-const logger = require('koa-logger');
 const body = require('koa-json-body');
 const cors = require('@koa/cors');
+const koaBunyanLogger = require('koa-bunyan-logger');
 
 const {
     findAccountsByPublicKey,
@@ -20,7 +20,10 @@ const router = new Router();
 // render.com passes requests through a proxy server; we need the source IPs to be accurate for `koa-ratelimit`
 app.proxy = true;
 
-app.use(logger());
+app.use(koaBunyanLogger());
+app.use(koaBunyanLogger.requestIdContext());
+app.use(koaBunyanLogger.requestLogger());
+
 app.use(body({ limit: '500kb', fallback: true }));
 app.use(cors({ credentials: true }));
 

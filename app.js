@@ -3,6 +3,7 @@ const Koa = require('koa');
 const app = new Koa();
 const body = require('koa-json-body');
 const cors = require('@koa/cors');
+const koaBunyanLogger = require('koa-bunyan-logger');
 
 const constants = require('./src/constants');
 const AccountService = require('./src/services/account');
@@ -21,7 +22,10 @@ const recoveryMethodService = new RecoveryMethodService();
 // render.com passes requests through a proxy server; we need the source IPs to be accurate for `koa-ratelimit`
 app.proxy = true;
 
-app.use(require('koa-logger')());
+app.use(koaBunyanLogger());
+app.use(koaBunyanLogger.requestIdContext());
+app.use(koaBunyanLogger.requestLogger());
+
 app.use(body({ limit: '500kb', fallback: true }));
 app.use(cors({ credentials: true }));
 
