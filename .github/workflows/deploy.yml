@@ -9,19 +9,19 @@ env:
   AWS_REGION: us-west-2
 
 jobs:
-  analysis:
-    uses: ./.github/workflows/analysis.yml
+  checks:
+    uses: ./.github/workflows/checks.yml
+
+  build:
+    needs: checks
+    uses: ./.github/workflows/build-and-upload-image.yml
 
   testnet-staging:
+    needs: build
     runs-on: ubuntu-latest
-
+    environment: testnet-staging
     steps:
       - uses: actions/checkout@v3
-
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 16.x
-          cache: 'yarn'
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -39,18 +39,21 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v1
 
       - name: Set docker image name
-        id: image-name
+        id: image
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          echo "::set-output name=image::$REGISTRY/$REPOSITORY:$IMAGE_TAG"
+          echo "::set-output name=name::$REGISTRY/$REPOSITORY:$IMAGE_TAG"
 
-      - name: Build and push docker image
-        run: |
-          docker build -t ${{ steps.image-name.outputs.image }} .
-          docker push ${{ steps.image-name.outputs.image }}
+      - uses: actions/download-artifact@v3
+        with:
+          name: docker-image
+          path: /tmp
+
+      - run: docker load -i /tmp/image.tar
+      - run: docker tag placeholder ${{ steps.image.outputs.name }}
 
       - name: Render ECS task definition
         id: render-task-def
@@ -62,7 +65,7 @@ jobs:
           TaskDefinitionFamily: testnet-staging-indexer-service-task-definition
           TaskExecutionRole: testnet-ecs-task-execution-role
           ContainerName: testnet-staging-indexer-container
-          ContainerImage: ${{ steps.image-name.outputs.image }}
+          ContainerImage: ${{ steps.image.outputs.name }}
           Environment: testnet
           NearWalletEnvironment: testnet_STAGING
           AwsRegion: ${{ env.AWS_REGION }}
