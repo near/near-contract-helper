@@ -9,7 +9,9 @@ const {
     findStakingDeposits,
     findReceivers,
     findLikelyTokens,
+    findLikelyTokensFromBlock,
     findLikelyNFTs,
+    findLikelyNFTsFromBlock,
     findStakingPools,
     findAccountActivity,
 } = require('./src/middleware/indexer');
@@ -37,6 +39,8 @@ router.get('/account/:accountId/activity', findAccountActivity);
 router.get('/account/:accountId/callReceivers', findReceivers);
 router.get('/account/:accountId/likelyTokens', findLikelyTokens);
 router.get('/account/:accountId/likelyNFTs', findLikelyNFTs);
+router.get('/account/:accountId/likelyTokensFromBlock', findLikelyTokensFromBlock);
+router.get('/account/:accountId/likelyNFTsFromBlock', findLikelyNFTsFromBlock);
 router.get('/stakingPools', findStakingPools);
 
 app

@@ -110,12 +110,9 @@ const findReceivers = async (ctx) => {
     ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
 };
 
-const findLikelyTokens = async (ctx) => {
-    const { accountId } = ctx.params;
-    const { fromBlockTimestamp = 0 } = ctx.query;
-
+const likelyTokensFromBlock = async (fromBlockTimestamp = 0, accountId) => {
     const latestBlockTimeStampQuery = 'select block_timestamp FROM blocks ORDER BY block_timestamp DESC LIMIT 1';
-    const { rows: [ { block_timestamp: latestBlockTimestamp } ] } = await pool.query(latestBlockTimeStampQuery);
+    const { rows: [ { block_timestamp: lastBlockTimestamp } ] } = await pool.query(latestBlockTimeStampQuery);
 
     const received = `
         select distinct receipt_receiver_account_id as receiver_account_id
@@ -159,17 +156,13 @@ const findLikelyTokens = async (ctx) => {
             and emitted_at_block_timestamp > $4
     `;
 
-    const { rows } = await pool.query([received, mintedWithBridge, calledByUser, ownershipChangeEvents].join(' union '), [accountId, BRIDGE_TOKEN_FACTORY_ACCOUNT_ID, latestBlockTimestamp, fromBlockTimestamp]);
-    ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
+    const { rows } = await pool.query([received, mintedWithBridge, calledByUser, ownershipChangeEvents].join(' union '), [accountId, BRIDGE_TOKEN_FACTORY_ACCOUNT_ID, lastBlockTimestamp, fromBlockTimestamp]);
+    return { rows, lastBlockTimestamp };
 };
 
-
-const findLikelyNFTs = async (ctx) => {
-    const { accountId } = ctx.params;
-    const { fromBlockTimestamp = 0 } = ctx.query;
-
+const likelyNFTsFromBlock = async (fromBlockTimestamp = 0, accountId) => {
     const latestBlockTimeStampQuery = 'select block_timestamp FROM blocks ORDER BY block_timestamp DESC LIMIT 1';
-    const { rows: [ { block_timestamp: latestBlockTimestamp } ] } = await pool.query(latestBlockTimeStampQuery);
+    const { rows: [ { block_timestamp: lastBlockTimestamp } ] } = await pool.query(latestBlockTimeStampQuery);
 
     const ownershipChangeFunctionCalls = `
         select distinct receipt_receiver_account_id as receiver_account_id
@@ -190,8 +183,52 @@ const findLikelyNFTs = async (ctx) => {
             and emitted_at_block_timestamp > $3
     `;
 
-    const { rows } = await pool.query([ownershipChangeFunctionCalls, ownershipChangeEvents].join(' union '), [accountId, latestBlockTimestamp, fromBlockTimestamp]);
+    const { rows } = await pool.query([ownershipChangeFunctionCalls, ownershipChangeEvents].join(' union '), [accountId, lastBlockTimestamp, fromBlockTimestamp]);
+    return { rows, lastBlockTimestamp };
+};
+
+const findLikelyTokens = async (ctx) => {
+    const { accountId } = ctx.params;
+
+    const { rows } = await likelyTokensFromBlock(0, accountId);
     ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
+};
+
+const findLikelyTokensFromBlock = async (ctx) => {
+    const { accountId } = ctx.params;
+    const { fromBlockTimestamp = 0 } = ctx.query;
+
+    const { rows, lastBlockTimestamp } = await likelyTokensFromBlock(
+        fromBlockTimestamp,
+        accountId
+    );
+    
+    ctx.body = {
+        version: '1.0.0',
+        lastBlockTimestamp,
+        list: rows.map(({ receiver_account_id }) => receiver_account_id),
+    };
+};
+
+
+const findLikelyNFTs = async (ctx) => {
+    const { accountId } = ctx.params;
+
+    const { rows } = await likelyNFTsFromBlock(0, accountId);
+    ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
+};
+
+const findLikelyNFTsFromBlock = async (ctx) => {
+    const { accountId } = ctx.params;
+    const { fromBlockTimestamp = 0 } = ctx.query;
+
+    const { rows, lastBlockTimestamp } = await likelyNFTsFromBlock(fromBlockTimestamp, accountId);
+
+    ctx.body = {
+        version: '1.0.0',
+        lastBlockTimestamp,
+        list: rows.map(({ receiver_account_id }) => receiver_account_id),
+    };
 };
 
 
@@ -217,6 +254,8 @@ module.exports = {
     findAccountsByPublicKey,
     findReceivers,
     findLikelyTokens,
+    findLikelyTokensFromBlock,
     findLikelyNFTs,
+    findLikelyNFTsFromBlock,
     findStakingPools
 };
