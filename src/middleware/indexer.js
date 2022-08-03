@@ -16,6 +16,11 @@ const poolMatch = NEAR_WALLET_ENV.startsWith('mainnet')
     ? JSON.stringify(['%.poolv1.near', '%.pool.near']).replace(/"/g, '\'')
     : JSON.stringify(['%.pool.%.m0', '%.factory01.littlefarm.testnet', '%.factory.colorpalette.testnet']).replace(/"/g, '\'');
 
+const findLastBlockByTimestamp = async () => {
+    const { rows: [ lastBlock ] } = await pool.query('select block_timestamp FROM blocks ORDER BY block_timestamp DESC LIMIT 1');
+    return lastBlock;
+};
+
 const findStakingDeposits = async (ctx) => {
     const { accountId } = ctx.params;
 
@@ -111,8 +116,7 @@ const findReceivers = async (ctx) => {
 };
 
 const likelyTokensFromBlock = async (fromBlockTimestamp = 0, accountId) => {
-    const latestBlockTimeStampQuery = 'select block_timestamp FROM blocks ORDER BY block_timestamp DESC LIMIT 1';
-    const { rows: [ { block_timestamp: lastBlockTimestamp } ] } = await pool.query(latestBlockTimeStampQuery);
+    const  { block_timestamp: lastBlockTimestamp } = await findLastBlockByTimestamp();
 
     const received = `
         select distinct receipt_receiver_account_id as receiver_account_id
@@ -161,8 +165,7 @@ const likelyTokensFromBlock = async (fromBlockTimestamp = 0, accountId) => {
 };
 
 const likelyNFTsFromBlock = async (fromBlockTimestamp = 0, accountId) => {
-    const latestBlockTimeStampQuery = 'select block_timestamp FROM blocks ORDER BY block_timestamp DESC LIMIT 1';
-    const { rows: [ { block_timestamp: lastBlockTimestamp } ] } = await pool.query(latestBlockTimeStampQuery);
+    const  { block_timestamp: lastBlockTimestamp } = await findLastBlockByTimestamp();
 
     const ownershipChangeFunctionCalls = `
         select distinct receipt_receiver_account_id as receiver_account_id
@@ -197,6 +200,7 @@ const findLikelyTokens = async (ctx) => {
 const findLikelyTokensFromBlock = async (ctx) => {
     const { accountId } = ctx.params;
     const { fromBlockTimestamp = 0 } = ctx.query;
+    console.log(pool.options);
 
     const { rows, lastBlockTimestamp } = await likelyTokensFromBlock(
         fromBlockTimestamp,
