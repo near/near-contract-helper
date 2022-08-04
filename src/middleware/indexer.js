@@ -115,7 +115,7 @@ const findReceivers = async (ctx) => {
     ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
 };
 
-const likelyTokensFromBlock = async (fromBlockTimestamp = 0, accountId) => {
+const likelyTokensFromBlock = async ({ fromBlockTimestamp, accountId }) => {
     const  { block_timestamp: lastBlockTimestamp } = await findLastBlockByTimestamp();
 
     const received = `
@@ -164,7 +164,7 @@ const likelyTokensFromBlock = async (fromBlockTimestamp = 0, accountId) => {
     return { rows, lastBlockTimestamp };
 };
 
-const likelyNFTsFromBlock = async (fromBlockTimestamp = 0, accountId) => {
+const likelyNFTsFromBlock = async ({ fromBlockTimestamp, accountId }) => {
     const  { block_timestamp: lastBlockTimestamp } = await findLastBlockByTimestamp();
 
     const ownershipChangeFunctionCalls = `
@@ -193,19 +193,18 @@ const likelyNFTsFromBlock = async (fromBlockTimestamp = 0, accountId) => {
 const findLikelyTokens = async (ctx) => {
     const { accountId } = ctx.params;
 
-    const { rows } = await likelyTokensFromBlock(0, accountId);
+    const { rows } = await likelyTokensFromBlock({ fromBlockTimestamp: 0, accountId });
     ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
 };
 
 const findLikelyTokensFromBlock = async (ctx) => {
     const { accountId } = ctx.params;
     const { fromBlockTimestamp = 0 } = ctx.query;
-    console.log(pool.options);
 
-    const { rows, lastBlockTimestamp } = await likelyTokensFromBlock(
+    const { rows, lastBlockTimestamp } = await likelyTokensFromBlock({
         fromBlockTimestamp,
         accountId
-    );
+    });
     
     ctx.body = {
         version: '1.0.0',
@@ -218,7 +217,7 @@ const findLikelyTokensFromBlock = async (ctx) => {
 const findLikelyNFTs = async (ctx) => {
     const { accountId } = ctx.params;
 
-    const { rows } = await likelyNFTsFromBlock(0, accountId);
+    const { rows } = await likelyNFTsFromBlock({ fromBlockTimestamp: 0, accountId });
     ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
 };
 
@@ -226,7 +225,7 @@ const findLikelyNFTsFromBlock = async (ctx) => {
     const { accountId } = ctx.params;
     const { fromBlockTimestamp = 0 } = ctx.query;
 
-    const { rows, lastBlockTimestamp } = await likelyNFTsFromBlock(fromBlockTimestamp, accountId);
+    const { rows, lastBlockTimestamp } = await likelyNFTsFromBlock({ fromBlockTimestamp, accountId });
 
     ctx.body = {
         version: '1.0.0',
