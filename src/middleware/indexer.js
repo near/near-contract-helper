@@ -16,6 +16,11 @@ const poolMatch = NEAR_WALLET_ENV.startsWith('mainnet')
     ? JSON.stringify(['%.poolv1.near', '%.pool.near']).replace(/"/g, '\'')
     : JSON.stringify(['%.pool.%.m0', '%.factory01.littlefarm.testnet', '%.factory.colorpalette.testnet']).replace(/"/g, '\'');
 
+const findLastBlockByTimestamp = async () => {
+    const { rows: [ lastBlock ] } = await pool.query('select block_timestamp FROM blocks ORDER BY block_timestamp DESC LIMIT 1');
+    return lastBlock;
+};
+
 const findStakingDeposits = async (ctx) => {
     const { accountId } = ctx.params;
 
@@ -110,8 +115,8 @@ const findReceivers = async (ctx) => {
     ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
 };
 
-const findLikelyTokens = async (ctx) => {
-    const { accountId } = ctx.params;
+const likelyTokensFromBlock = async ({ fromBlockTimestamp, accountId }) => {
+    const  { block_timestamp: lastBlockTimestamp } = await findLastBlockByTimestamp();
 
     const received = `
         select distinct receipt_receiver_account_id as receiver_account_id
@@ -120,6 +125,8 @@ const findLikelyTokens = async (ctx) => {
             and action_kind = 'FUNCTION_CALL'
             and args->>'args_json' is not null
             and args->>'method_name' in ('ft_transfer', 'ft_transfer_call','ft_mint')
+            and receipt_included_in_block_timestamp <= $3
+            and receipt_included_in_block_timestamp > $4
     `;
 
     const mintedWithBridge = `
@@ -129,6 +136,8 @@ const findLikelyTokens = async (ctx) => {
             where action_kind = 'FUNCTION_CALL' and
                 receipt_predecessor_account_id = $2 and
                 args->>'method_name' = 'mint'
+                and receipt_included_in_block_timestamp <= $3
+                and receipt_included_in_block_timestamp > $4
         ) minted_with_bridge
         where account_id = $1
     `;
@@ -139,21 +148,24 @@ const findLikelyTokens = async (ctx) => {
         where receipt_predecessor_account_id = $1
             and action_kind = 'FUNCTION_CALL'
             and (args->>'method_name' like 'ft_%' or args->>'method_name' = 'storage_deposit')
+            and receipt_included_in_block_timestamp <= $3
+            and receipt_included_in_block_timestamp > $4
     `;
 
     const ownershipChangeEvents = `
         select distinct emitted_by_contract_account_id as receiver_account_id 
         from assets__fungible_token_events
         where token_new_owner_account_id = $1
+            and emitted_at_block_timestamp <= $3
+            and emitted_at_block_timestamp > $4
     `;
 
-    const { rows } = await pool.query([received, mintedWithBridge, calledByUser, ownershipChangeEvents].join(' union '), [accountId, BRIDGE_TOKEN_FACTORY_ACCOUNT_ID]);
-    ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
+    const { rows } = await pool.query([received, mintedWithBridge, calledByUser, ownershipChangeEvents].join(' union '), [accountId, BRIDGE_TOKEN_FACTORY_ACCOUNT_ID, lastBlockTimestamp, fromBlockTimestamp]);
+    return { rows, lastBlockTimestamp };
 };
 
-
-const findLikelyNFTs = async (ctx) => {
-    const { accountId } = ctx.params;
+const likelyNFTsFromBlock = async ({ fromBlockTimestamp, accountId }) => {
+    const  { block_timestamp: lastBlockTimestamp } = await findLastBlockByTimestamp();
 
     const ownershipChangeFunctionCalls = `
         select distinct receipt_receiver_account_id as receiver_account_id
@@ -162,16 +174,64 @@ const findLikelyNFTs = async (ctx) => {
             and action_kind = 'FUNCTION_CALL'
             and args->>'args_json' is not null
             and args->>'method_name' like 'nft_%'
+            and receipt_included_in_block_timestamp <= $2
+            and receipt_included_in_block_timestamp > $3
     `;
 
     const ownershipChangeEvents = `
         select distinct emitted_by_contract_account_id as receiver_account_id 
         from assets__non_fungible_token_events
         where token_new_owner_account_id = $1
+            and emitted_at_block_timestamp <= $2
+            and emitted_at_block_timestamp > $3
     `;
 
-    const { rows } = await pool.query([ownershipChangeFunctionCalls, ownershipChangeEvents].join(' union '), [accountId]);
+    const { rows } = await pool.query([ownershipChangeFunctionCalls, ownershipChangeEvents].join(' union '), [accountId, lastBlockTimestamp, fromBlockTimestamp]);
+    return { rows, lastBlockTimestamp };
+};
+
+const findLikelyTokens = async (ctx) => {
+    const { accountId } = ctx.params;
+
+    const { rows } = await likelyTokensFromBlock({ fromBlockTimestamp: 0, accountId });
     ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
+};
+
+const findLikelyTokensFromBlock = async (ctx) => {
+    const { accountId } = ctx.params;
+    const { fromBlockTimestamp = 0 } = ctx.query;
+
+    const { rows, lastBlockTimestamp } = await likelyTokensFromBlock({
+        fromBlockTimestamp,
+        accountId
+    });
+    
+    ctx.body = {
+        version: '1.0.0',
+        lastBlockTimestamp,
+        list: rows.map(({ receiver_account_id }) => receiver_account_id),
+    };
+};
+
+
+const findLikelyNFTs = async (ctx) => {
+    const { accountId } = ctx.params;
+
+    const { rows } = await likelyNFTsFromBlock({ fromBlockTimestamp: 0, accountId });
+    ctx.body = rows.map(({ receiver_account_id }) => receiver_account_id);
+};
+
+const findLikelyNFTsFromBlock = async (ctx) => {
+    const { accountId } = ctx.params;
+    const { fromBlockTimestamp = 0 } = ctx.query;
+
+    const { rows, lastBlockTimestamp } = await likelyNFTsFromBlock({ fromBlockTimestamp, accountId });
+
+    ctx.body = {
+        version: '1.0.0',
+        lastBlockTimestamp,
+        list: rows.map(({ receiver_account_id }) => receiver_account_id),
+    };
 };
 
 
@@ -197,6 +257,8 @@ module.exports = {
     findAccountsByPublicKey,
     findReceivers,
     findLikelyTokens,
+    findLikelyTokensFromBlock,
     findLikelyNFTs,
+    findLikelyNFTsFromBlock,
     findStakingPools
 };
