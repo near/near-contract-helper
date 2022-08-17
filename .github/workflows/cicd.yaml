@@ -12,13 +12,14 @@ env:
   ECS_CLUSTER: testnet-staging-cluster
   ECS_TASK_DEFINITION: ./ecs/indexer.container-definition.json
   CONTAINER_NAME: testnet-staging-indexer-container
-                                               
+                                                                                           
 
 jobs:
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
     environment: production
+
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -38,43 +39,19 @@ jobs:
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
- 
-      - name: AWS ECR
-      # You may pin to the exact commit or the version.
-      # uses: kciter/aws-ecr-action@79255b7c5aa03dbf6d7c46cff2bfd049874cd98d
-        uses: kciter/aws-ecr-action@v4
-        with:
-        # The AWS access key id
-          access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        # The AWS secret access key
-          secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        # AWS Account ID
-          account_id: 465147140601
-        # A role to assume under the account_id account.
-          assume_role: ${{ secrets.AWS_ASSUMED_ROLE }}
-        # Name of your ECR repository
-          repo: ${{ env.ECR_REPOSITORY }}
-        # The AWS region
-          region: ${{ env.AWS_REGION }}
-        # Set this to true to create the repository if it does not already exist
-        # create_repo: # optional
-        # Set this to true to set a policy on the repository
-        # set_repo_policy: # optional
-        # Set this to repository policy statement json file. only used if the set_repo_policy is set to true
-        # repo_policy_file: # optional, default is repo-policy.json
-        # Comma-separated string of ECR image tags
-          tags: ${{ github.sha }}
-        # Name of Dockerfile to use
-        # dockerfile: # optional, default is Dockerfile
-        # Extra flags to pass to docker build (see docs.docker.com/engine/reference/commandline/build)
-        # extra_build_args: # optional, default is 
-        # Images to use as cache for the docker build (see `--cache-from` argument docs.docker.com/engine/reference/commandline/build)
-        # cache_from: # optional, default is 
-        # Path to Dockerfile, defaults to the working directory
-        # path: # optional, default is .
-        # Relative path from top-level to script to run before Docker build
-        # prebuild_script: # optional
- 
+
+      - name: Set docker image name
+        id: image-name
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          echo "::set-output name=image::$REGISTRY/$REPOSITORY:$IMAGE_TAG"
+      - name: Build and push docker image
+        run: |
+          docker build -t ${{ steps.image-name.outputs.image }} .
+          docker push ${{ steps.image-name.outputs.image }}
 
 
 #       - name: Fill in the new image ID in the Amazon ECS task definition
