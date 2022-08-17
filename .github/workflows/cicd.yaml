@@ -51,8 +51,8 @@ jobs:
 
       - name: Build and push docker image
         run: |
-          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
-          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+          docker build -t $REGISTRY/testnet-ecr-repository:$IMAGE_TAG .
+          docker push $REGISTRY/testnet-ecr-repository:$IMAGE_TAG
 
 
 #       - name: Fill in the new image ID in the Amazon ECS task definition
