@@ -40,19 +40,31 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Set docker image name
-        id: image-name
-        env:
-          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
-          IMAGE_TAG: ${{ github.sha }}
+      - name: Declare some variables
+        id: vars
+        shell: bash
         run: |
-          echo "::set-output name=image::$REGISTRY/$REPOSITORY:$IMAGE_TAG"
-      
-      - name: Build and push docker image
-        run: |
-          docker build -t ${{ steps.image-name.outputs.image }} .
-          docker push ${{ steps.image-name.outputs.image }}
+          echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+          echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v3
+        with:
+          images: ${{ steps.login-ecr.outputs.registry }}
+          tags: |
+            ${{ steps.vars.outputs.sha_short }}
+            type=ref,event=branch
+            
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          file: Dockerfile
+
+
 #       - name: Set docker image name
 #         id: image-name
 #         env:
