@@ -54,7 +54,7 @@ jobs:
         id: render-task-def
         uses: bluwy/substitute-string-action@v1
         with:
-          _input-file: ./ecs/indexer.task-definition.json
+          _input-file: ./ecs/indexer.container-definition.json
           _output-file: task-definition.json
           _format-key: '{{key}}'
           TaskDefinitionFamily: testnet-staging-indexer-service-task-definition
