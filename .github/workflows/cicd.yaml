@@ -39,36 +39,21 @@ jobs:
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
-
-
-      - name: Get current date # get the date of the build
-        id: date
-        run: echo "::set-output name=date::$(date +'%Y-%m-%d--%M-%S')"
-
-      - name: Build the Docker image # push the image to the ecr
-        env: 
+ 
+      - name: Set docker image name
+        id: image-name
+        env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        run: docker build --file Dockerfile --tag $REGISTRY/$ECR_REPOSITORY:${{ steps.date.outputs.date }} .      
-      
-      - name: Docker Push
-        env: 
-          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        run: docker push $REGISTRY/$ECR_REPOSITORY:${{ steps.date.outputs.date }}
+          REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          echo "::set-output name=image::$REGISTRY/$REPOSITORY:$IMAGE_TAG"
 
+      - name: Build and push docker image
+        run: |
+          docker build -t ${{ steps.image-name.outputs.image }} .
+          docker push ${{ steps.image-name.outputs.image }}
 
-#       - name: Set docker image name
-#         id: image-name
-#         env:
-#           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-#           REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
-#           IMAGE_TAG: ${{ github.sha }}
-#         run: |
-#           echo "::set-output name=image::$REGISTRY/$REPOSITORY:$IMAGE_TAG"
-
-#       - name: Build and push docker image
-#         run: |
-#           docker build -t ${{ steps.image-name.outputs.image }} .
-#           docker push ${{ steps.image-name.outputs.image }}
 
 #       - name: Fill in the new image ID in the Amazon ECS task definition
 #         id: task-def
