@@ -10,7 +10,7 @@ env:
   ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
   ECS_SERVICE: testnet-staging-indexer-service
   ECS_CLUSTER: testnet-staging-cluster
-  ECS_TASK_DEFINITION: ./ecs/indexer.task-definition.json
+  ECS_TASK_DEFINITION: ./ecs/indexer.container-definition.json
   CONTAINER_NAME: testnet-staging-indexer-container
                                                
 
