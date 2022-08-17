@@ -18,8 +18,7 @@ jobs:
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
-    environment: staging
-
+    environment: production
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -51,8 +50,8 @@ jobs:
 
       - name: Build and push docker image
         run: |
-          docker build -t 465147140601.dkr.ecr.us-west-2.amazonaws.com/testnet-ecr-repository:$IMAGE_TAG .
-          docker push 465147140601.dkr.ecr.us-west-2.amazonaws.com/testnet-ecr-repository:$IMAGE_TAG
+          docker build -t ${{ steps.image-name.outputs.image }} .
+          docker push ${{ steps.image-name.outputs.image }}
 
 
 #       - name: Fill in the new image ID in the Amazon ECS task definition
