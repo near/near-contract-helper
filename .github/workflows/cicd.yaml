@@ -48,7 +48,7 @@ jobs:
       - name: Build the Docker image # push the image to the ecr
         env: 
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        run: docker build . --file Dockerfile --tag $REGISTRY/$ECR_REPOSITORY:${{ steps.date.outputs.date }}   
+        run: docker build --file Dockerfile --tag $REGISTRY/$ECR_REPOSITORY:${{ steps.date.outputs.date }} .      
       
       - name: Docker Push
         env: 
