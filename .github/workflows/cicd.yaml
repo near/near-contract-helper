@@ -48,6 +48,7 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           echo "::set-output name=image::$REGISTRY/$REPOSITORY:$IMAGE_TAG"
+      
       - name: Build and push docker image
         run: |
           docker build -t ${{ steps.image-name.outputs.image }} .
