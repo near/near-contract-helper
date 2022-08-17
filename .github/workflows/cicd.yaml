@@ -60,7 +60,7 @@ jobs:
         with:
           task-definition: ${{ env.ECS_TASK_DEFINITION }}
           container-name: ${{ env.CONTAINER_NAME }}
-          image: ${{ teps.image-name.outputs.image }}
+          image: ${{ steps.image-name.outputs.image }}
 
 
 #       - name: Deploy Amazon ECS task definition
