@@ -51,7 +51,7 @@ jobs:
         # AWS Account ID
           account_id: 465147140601
         # A role to assume under the account_id account.
-        # assume_role: # optional, default is 
+          assume_role: ${{ secrets.AWS_ASSUMED_ROLE }}
         # Name of your ECR repository
           repo: ${{ env.ECR_REPOSITORY }}
         # The AWS region
