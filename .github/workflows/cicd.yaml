@@ -44,10 +44,11 @@ jobs:
         id: image-name
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
+          REPOSITORY: testnet-ecr-repository
           IMAGE_TAG: ${{ github.sha }}
         run: |
           echo "::set-output name=image::$REGISTRY/$REPOSITORY:$IMAGE_TAG"
+          
       - name: Build and push docker image
         run: |
           docker build -t ${{ steps.image-name.outputs.image }} .
