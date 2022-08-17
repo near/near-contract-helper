@@ -7,13 +7,18 @@ on:
 
 env:
   AWS_REGION: us-west-2                   # set this to your preferred AWS region, e.g. us-west-1
+  ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
+  ECS_SERVICE: testnet-staging-indexer-service
+  ECS_CLUSTER: testnet-staging-cluster
+  ECS_TASK_DEFINITION: ./ecs/indexer.task-definition.json
+  CONTAINER_NAME: testnet-staging-indexer-container
                                                
 
 jobs:
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
-    environment: production
+    environment: staging
 
     steps:
       - name: Checkout
@@ -50,27 +55,19 @@ jobs:
           docker push ${{ steps.image-name.outputs.image }}
 
 
-      - name: Render ECS task definition
-        id: render-task-def
-        uses: bluwy/substitute-string-action@v1
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          _input-file: ./ecs/indexer.container-definition.json
-          _output-file: task-definition.json
-          _format-key: '{{key}}'
-          TaskDefinitionFamily: testnet-staging-indexer-service-task-definition
-          TaskExecutionRole: testnet-ecs-task-execution-role
-          ContainerName: testnet-staging-indexer-container
-          ContainerImage: ${{ steps.image-name.outputs.image }}
-          Environment: testnet
-          NearWalletEnvironment: testnet_STAGING
-          AwsRegion: ${{ env.AWS_REGION }}
-          AwsLogsGroup: testnet-staging-indexer-service
+          task-definition: ${{ env.ECS_TASK_DEFINITION }}
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ steps.image-name.outputs.image }}
+
 
 #       - name: Deploy Amazon ECS task definition
 #         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
 #         with:
-#           task-definition: task-definition.json
-#           service: testnet-staging-indexer-service
-#           cluster: testnet-staging-cluster
+#           task-definition: ${{ steps.task-def.outputs.task-definition }}
+#           service: ${{ env.ECS_SERVICE }}
+#           cluster: ${{ env.ECS_CLUSTER }}
 #           wait-for-service-stability: true
-
