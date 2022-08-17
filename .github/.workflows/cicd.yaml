@@ -1,0 +1,76 @@
+name: Deploy to Amazon ECS
+
+on:
+  push:
+    branches:
+      - cicd
+
+env:
+  AWS_REGION: us-west-2                   # set this to your preferred AWS region, e.g. us-west-1
+                                               
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_ASSUMED_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+          #need to add sts:TagSession to role
+          role-skip-session-tagging: true
+          role-duration-seconds: 1200
+
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Set docker image name
+        id: image-name
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          echo "::set-output name=image::$REGISTRY/$REPOSITORY:$IMAGE_TAG"
+
+      - name: Build and push docker image
+        run: |
+          docker build -t ${{ steps.image-name.outputs.image }} .
+          docker push ${{ steps.image-name.outputs.image }}
+
+
+      - name: Render ECS task definition
+        id: render-task-def
+        uses: bluwy/substitute-string-action@v1
+        with:
+          _input-file: ./ecs/indexer.task-definition.json
+          _output-file: task-definition.json
+          _format-key: '{{key}}'
+          TaskDefinitionFamily: testnet-staging-indexer-service-task-definition
+          TaskExecutionRole: testnet-ecs-task-execution-role
+          ContainerName: testnet-staging-indexer-container
+          ContainerImage: ${{ steps.image-name.outputs.image }}
+          Environment: testnet
+          NearWalletEnvironment: testnet_STAGING
+          AwsRegion: ${{ env.AWS_REGION }}
+          AwsLogsGroup: testnet-staging-indexer-service
+
+
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          service: testnet-staging-indexer-service
+          cluster: testnet-staging-cluster
+          wait-for-service-stability: true

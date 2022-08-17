@@ -1,5 +1,5 @@
 FROM nearprotocol/bridge as bridge
-FROM node:12
+FROM node:16
 WORKDIR /usr/app
 COPY ./package.json .
 COPY ./yarn.lock .
