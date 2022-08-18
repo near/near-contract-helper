@@ -35,19 +35,12 @@ jobs:
           role-skip-session-tagging: true
           role-duration-seconds: 1200
       
-      - name: Configure .env
-        uses: deptno/action-aws-ssm-to-dotenv@v1.3.1
+      - name: Configure env
+        uses: "marvinpinto/action-inject-ssm-secrets@latest"
         with:
-          ssm-path: NEAR_WALLET_ENV/NEAR_WALLET_ENV # required
-          format: shell
-          output: .env.development
-          #prefix: SSM_
-          decryption: true
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }} # required
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }} # required
-          AWS_DEFAULT_REGION: ${{ env.AWS_REGION }} # required
-      - run: cat .env.development
+          ssm_parameter: "NEAR_WALLET_ENV/NEAR_WALLET_ENV"
+          env_variable_name: "TEST_NEAR_WALLET_ENV"
+      - run: env
       
 
       - name: Login to Amazon ECR
