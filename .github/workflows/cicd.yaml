@@ -12,7 +12,7 @@ env:
   ECS_CLUSTER: testnet-staging-cluster
   ECS_TASK_DEFINITION: ./ecs/indexer.container-definition.json
   CONTAINER_NAME: testnet-staging-indexer-container
-                                                                                           
+
 
 jobs:
   deploy:
@@ -34,7 +34,21 @@ jobs:
           #need to add sts:TagSession to role
           role-skip-session-tagging: true
           role-duration-seconds: 1200
-
+      
+      - name: Configure .env
+      - uses: deptno/action-aws-ssm-to-dotenv@v1.3.1
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }} # required
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }} # required
+          AWS_DEFAULT_REGION: ${{ env.AWS_REGION }} # required
+        with:
+          ssm-path: NEAR_WALLET_ENV/NEAR_WALLET_ENV # required
+          format: shell
+          output: .env.development
+          #prefix: SSM_
+          decryption: true
+      - run: cat .env.development
+      
 
       - name: Login to Amazon ECR
         id: login-ecr
