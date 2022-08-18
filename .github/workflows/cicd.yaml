@@ -36,7 +36,7 @@ jobs:
           role-duration-seconds: 1200
       
       - name: Configure .env
-      - uses: deptno/action-aws-ssm-to-dotenv@v1.3.1
+        uses: deptno/action-aws-ssm-to-dotenv@v1.3.1
         with:
           ssm-path: NEAR_WALLET_ENV/NEAR_WALLET_ENV # required
           format: shell
