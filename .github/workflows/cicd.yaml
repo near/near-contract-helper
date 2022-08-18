@@ -36,11 +36,11 @@ jobs:
           role-duration-seconds: 1200
       
       - name: Configure env
-        uses: bomb-on/aws-ssm-to-env@master
+        uses: "marvinpinto/action-inject-ssm-secrets@latest"
         with:
-          ssm_parameter_list: 'test'
+          ssm_parameter: "test"
+          env_variable_name: "testenv"
       - run: env
-      
 
       - name: Login to Amazon ECR
         id: login-ecr
