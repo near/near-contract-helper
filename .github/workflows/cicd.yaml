@@ -36,10 +36,9 @@ jobs:
           role-duration-seconds: 1200
       
       - name: Configure env
-        uses: "marvinpinto/action-inject-ssm-secrets@latest"
+        uses: bomb-on/aws-ssm-to-env@master
         with:
-          ssm_parameter: "NEAR_WALLET_ENV/NEAR_WALLET_ENV"
-          env_variable_name: "TEST_NEAR_WALLET_ENV"
+          ssm_parameter_list: 'test'
       - run: env
       
 
