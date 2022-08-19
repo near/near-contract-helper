@@ -76,13 +76,21 @@ jobs:
 
       - name: Download task definition
         run: |
-         aws ecs describe-task-definition --task-definition test-task-def --region us-west-2 --query taskDefinition > task-definition.json
+         aws ecs describe-task-definition --task-definition test-task-def --region us-west-2 --query taskDefinition | jq -r 'del(
+           .taskDefinitionArn,
+           .requiresAttributes,
+           .compatibilities,
+           .revision,
+           .status,
+           .registeredAt,
+           .registeredBy
+         )' > test-task-definition.json
 
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: task-definition.json
+          task-definition: test-task-definition.json
           container-name: ${{ env.CONTAINER_NAME }}
           image: ${{ steps.image-name.outputs.image }}
 
