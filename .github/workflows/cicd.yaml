@@ -40,7 +40,7 @@ jobs:
         id: ssm
         uses: deptno/action-aws-ssm-to-dotenv@v1.3.1
         with:
-         ssm-path: test 
+         ssm-path: /mynearwallet/indexer_db_urls 
          format: shell
          output: .env
          #prefix: SSM_
