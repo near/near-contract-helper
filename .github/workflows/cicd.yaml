@@ -8,10 +8,10 @@ on:
 env:
   AWS_REGION: us-west-2                   # set this to your preferred AWS region, e.g. us-west-1
   ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
-  ECS_SERVICE: testnet-staging-indexer-service
-  ECS_CLUSTER: testnet-staging-cluster
-  ECS_TASK_DEFINITION: ./ecs/indexer.container-definition.json
-  CONTAINER_NAME: testnet-staging-indexer-container
+  ECS_SERVICE: testnet-svc
+  ECS_CLUSTER: testnet
+  #ECS_TASK_DEFINITION: task-definition.json
+  CONTAINER_NAME: test-container
 
 
 jobs:
@@ -35,6 +35,8 @@ jobs:
           #need to add sts:TagSession to role
           role-skip-session-tagging: true
           role-duration-seconds: 1200
+      
+
       
       - name: Configure env INDEXER_DB_REPLICAS
         uses: 'marvinpinto/action-inject-ssm-secrets@v1.2.1'
@@ -74,19 +76,24 @@ jobs:
           docker build -t ${{ steps.image-name.outputs.image }} .
           docker push ${{ steps.image-name.outputs.image }}
 
-#       - name: Fill in the new image ID in the Amazon ECS task definition
-#         id: task-def
-#         uses: aws-actions/amazon-ecs-render-task-definition@v1
-#         with:
-#           task-definition: ${{ env.ECS_TASK_DEFINITION }}
-#           container-name: ${{ env.CONTAINER_NAME }}
-#           image: ${{ steps.image-name.outputs.image }}
+      - name: Download task definition
+        run: |
+         aws ecs describe-task-definition --task-definition test-task-def --region us-west-2 \
+         --query taskDefinition > task-definition.json
+
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+           task-definition: task-definition.json
+           container-name: ${{ env.CONTAINER_NAME }}
+           image: ${{ steps.image-name.outputs.image }}
 
 
-#       - name: Deploy Amazon ECS task definition
-#         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-#         with:
-#           task-definition: ${{ steps.task-def.outputs.task-definition }}
-#           service: ${{ env.ECS_SERVICE }}
-#           cluster: ${{ env.ECS_CLUSTER }}
-#           wait-for-service-stability: true
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+           task-definition: ${{ steps.task-def.outputs.task-definition }}
+           service: ${{ env.ECS_SERVICE }}
+           cluster: ${{ env.ECS_CLUSTER }}
+           wait-for-service-stability: true
