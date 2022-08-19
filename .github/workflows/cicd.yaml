@@ -36,25 +36,25 @@ jobs:
           role-skip-session-tagging: true
           role-duration-seconds: 1200
       
-      - name: Configure env
+      - name: Configure env INDEXER_DB_REPLICAS
         id: ssm
         uses: 'marvinpinto/action-inject-ssm-secrets@v1.2.1'
         with:
           ssm_parameter: '/mynearwallet/indexer_db_urls'
-          env_variable_name: 'INDEXER'
+          env_variable_name: 'INDEXER_DB_REPLICAS'
+
+      - name: Configure env INDEXER_DB_CONNECTION
+        id: ssm
+        uses: 'marvinpinto/action-inject-ssm-secrets@v1.2.1'
+        with:
+          ssm_parameter: '/mynearwallet/indexer_db_connection'
+          env_variable_name: 'INDEXER_DB_CONNECTION'
+
+      - name: prepare env
+        run: cp .env.sample .env 
 
       - name: Show .env file
-        run: env | grep -i indexer >> .env && cat .env
-         #prefix: SSM_
-#         uses: "marvinpinto/action-inject-ssm-secrets@latest"
-#         with:
-#           ssm_parameter: "test"
-#           env_variable_name: "testenv"
-#           output: .env
-# #     - run: |
-#           echo "::set-output name=testenv::$env_variable_name"
-#       - run: cp .env.sample .env
-#       - run: echo  ${{ steps.ssm.outputs.testenv }}  >> .env
+        run: env | grep -i indexer >> .env 
 
 
       - name: Login to Amazon ECR
