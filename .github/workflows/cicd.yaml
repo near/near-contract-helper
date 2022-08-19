@@ -8,7 +8,7 @@ on:
 env:
   AWS_REGION: us-west-2                   # set this to your preferred AWS region, e.g. us-west-1
   ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
-  ECS_SERVICE: testnet-svc
+  ECS_SERVICE: testnet-nlb-svc
   ECS_CLUSTER: testnet
   CONTAINER_NAME: test-container
 
@@ -76,8 +76,7 @@ jobs:
 
       - name: Download task definition
         run: |
-         aws ecs describe-task-definition --task-definition test-task-def --region us-west-2 \
-         --query taskDefinition > task-definition.json
+         aws ecs describe-task-definition --task-definition test-task-def --region us-west-2 --query taskDefinition > task-definition.json
 
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
