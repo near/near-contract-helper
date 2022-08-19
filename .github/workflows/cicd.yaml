@@ -38,15 +38,13 @@ jobs:
       
       - name: Configure env
         id: ssm
-        uses: deptno/action-aws-ssm-to-dotenv@v1.3.1
+        uses: 'marvinpinto/action-inject-ssm-secrets@v1.2.1'
         with:
-         ssm-path: /mynearwallet/indexer_db_urls
-         prefix: INDEXER_
-         output: .env
-         decryption: true
+          ssm_parameter: '/mynearwallet/indexer_db_urls'
+          env_variable_name: 'INDEXER'
 
       - name: Show .env file
-        run: cat .env
+        run: env | grep -i indexer >> .env && cat .env
          #prefix: SSM_
 #         uses: "marvinpinto/action-inject-ssm-secrets@latest"
 #         with:
