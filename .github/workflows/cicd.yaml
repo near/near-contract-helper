@@ -42,10 +42,11 @@ jobs:
         with:
           ssm_parameter: "test"
           env_variable_name: "testenv"
-      - run: |
-          echo "::set-output name=testenv::$env_variable_name"
-      - run: cp .env.sample .env
-      - run: echo  ${{ steps.ssm.outputs.testenv }}  >> .env
+          output: .env
+#     - run: |
+#           echo "::set-output name=testenv::$env_variable_name"
+#       - run: cp .env.sample .env
+#       - run: echo  ${{ steps.ssm.outputs.testenv }}  >> .env
       - run: cat .env
 
       - name: Login to Amazon ECR
