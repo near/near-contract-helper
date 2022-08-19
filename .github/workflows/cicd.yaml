@@ -36,7 +36,6 @@ jobs:
           role-skip-session-tagging: true
           role-duration-seconds: 1200
       
-
       
       - name: Configure env INDEXER_DB_REPLICAS
         uses: 'marvinpinto/action-inject-ssm-secrets@v1.2.1'
