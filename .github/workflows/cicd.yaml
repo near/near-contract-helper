@@ -48,10 +48,6 @@ jobs:
       - run: echo  ${{ steps.ssm.outputs.testenv }}  >> .env
       - run: cat .env
 
-      - name: Checkout
-        uses: actions/checkout@v2
-
-
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
