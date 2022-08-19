@@ -41,7 +41,7 @@ jobs:
         uses: deptno/action-aws-ssm-to-dotenv@v1.3.1
         with:
          ssm-path: /mynearwallet/indexer_db_urls 
-         format: shell
+         format: dotenv
          output: .env
          #prefix: SSM_
 #         uses: "marvinpinto/action-inject-ssm-secrets@latest"
