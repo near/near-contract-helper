@@ -38,12 +38,18 @@ jobs:
       
       - name: Configure env
         id: ssm
-        uses: "marvinpinto/action-inject-ssm-secrets@latest"
+        uses: deptno/action-aws-ssm-to-dotenv@v1.3.1
         with:
-          ssm_parameter: "test"
-          env_variable_name: "testenv"
-          output: .env
-#     - run: |
+         ssm-path: test 
+         format: shell
+         output: .env
+         #prefix: SSM_
+#         uses: "marvinpinto/action-inject-ssm-secrets@latest"
+#         with:
+#           ssm_parameter: "test"
+#           env_variable_name: "testenv"
+#           output: .env
+# #     - run: |
 #           echo "::set-output name=testenv::$env_variable_name"
 #       - run: cp .env.sample .env
 #       - run: echo  ${{ steps.ssm.outputs.testenv }}  >> .env
