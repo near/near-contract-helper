@@ -8,7 +8,7 @@ on:
 env:
   AWS_REGION: us-west-2                   # set this to your preferred AWS region, e.g. us-west-1
   ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
-  ECS_SERVICE: testnet-nlb-svc
+  ECS_SERVICE: testnet-service
   ECS_CLUSTER: testnet
   CONTAINER_NAME: test-container
 
@@ -49,16 +49,11 @@ jobs:
           env_variable_name: 'INDEXER_DB_CONNECTION'
 
       - name: prepare env
-        run: cp .env.sample .env 
-
-      - name: Show .env file
-        run: env | grep -i indexer >> .env 
-
-
+        run: cp .env.sample .env  && env | grep -i indexer >> .env 
+  
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
-
 
       - name: Set docker image name
         id: image-name
