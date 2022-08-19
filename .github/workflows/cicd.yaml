@@ -40,9 +40,13 @@ jobs:
         id: ssm
         uses: deptno/action-aws-ssm-to-dotenv@v1.3.1
         with:
-         ssm-path: /mynearwallet/indexer_db_urls 
-         format: dotenv
+         ssm-path: /mynearwallet/indexer_db_urls
+         prefix: INDEXER_
          output: .env
+         decryption: true
+
+      - name: Show .env file
+        run: cat .env
          #prefix: SSM_
 #         uses: "marvinpinto/action-inject-ssm-secrets@latest"
 #         with:
@@ -53,7 +57,7 @@ jobs:
 #           echo "::set-output name=testenv::$env_variable_name"
 #       - run: cp .env.sample .env
 #       - run: echo  ${{ steps.ssm.outputs.testenv }}  >> .env
-      - run: cat .env
+
 
       - name: Login to Amazon ECR
         id: login-ecr
