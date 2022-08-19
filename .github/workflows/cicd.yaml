@@ -37,14 +37,12 @@ jobs:
           role-duration-seconds: 1200
       
       - name: Configure env INDEXER_DB_REPLICAS
-        id: ssm
         uses: 'marvinpinto/action-inject-ssm-secrets@v1.2.1'
         with:
           ssm_parameter: '/mynearwallet/indexer_db_urls'
           env_variable_name: 'INDEXER_DB_REPLICAS'
 
       - name: Configure env INDEXER_DB_CONNECTION
-        id: ssm
         uses: 'marvinpinto/action-inject-ssm-secrets@v1.2.1'
         with:
           ssm_parameter: '/mynearwallet/indexer_db_connection'
