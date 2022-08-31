@@ -73,7 +73,7 @@ jobs:
           docker push ${{ steps.image-name.outputs.image }}
 
       - name: Download task definition
-        if: github.event.pull_request.merged == true
+        if: ${{ github.event.pull_request.merged }}       
         run: |
          aws ecs describe-task-definition --task-definition test-task-def --region us-west-2 --query taskDefinition | jq -r 'del(
            .taskDefinitionArn,
@@ -86,7 +86,7 @@ jobs:
          )' > task-definition.json
 
       - name: Fill in the new image ID in the Amazon ECS task definition
-        if: github.event.pull_request.merged == true
+        if: ${{ github.event.pull_request.merged }}
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
@@ -96,7 +96,7 @@ jobs:
 
 
       - name: Deploy Amazon ECS task definition
-        if: github.event.pull_request.merged == true
+        if: ${{ github.event.pull_request.merged }}       
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.task-def.outputs.task-definition }}
