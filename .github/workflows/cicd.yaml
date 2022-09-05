@@ -1,6 +1,9 @@
 name: Deploy to Amazon ECS
 
 on:
+  push:
+    branches:
+      - mainnet
   pull_request:
     branches:
       - mainnet
