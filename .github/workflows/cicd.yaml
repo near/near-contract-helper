@@ -10,7 +10,7 @@ env:
   AWS_REGION: ${{ secrets.AWS_REGION }}     # set this to your preferred AWS region, e.g. us-west-1
   ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
   ECS_SERVICE: ${{ secrets.ECS_SERVICE_M }}  
-  ECS_CLUSTER: ${{ secrets.ECS_CLUSTER }} 
+  ECS_CLUSTER: ${{ secrets.ECS_CLUSTER_M }} 
   CONTAINER_NAME: ${{ secrets.CONTAINER_NAME_M }}
 
 
@@ -30,7 +30,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          role-to-assume: ${{ secrets.AWS_ASSUMED_ROLE }}
+          role-to-assume: ${{ secrets.AWS_ASSUMED_ROLE_M }}
           aws-region: ${{ env.AWS_REGION }}
           #need to add sts:TagSession to role
           role-skip-session-tagging: true
