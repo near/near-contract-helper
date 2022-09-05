@@ -9,3 +9,4 @@ RUN grep -v ACCOUNT_CREATOR_KEY .env.sample | grep -v NODE_URL | grep -v INDEXER
 COPY --from=bridge /root/.near/localnet/node0/validator_key.json . 
 RUN ACCOUNT_CREATOR_KEY=$(cat validator_key.json | tr -d " \t\n\r") && echo "ACCOUNT_CREATOR_KEY=$ACCOUNT_CREATOR_KEY" >> .env
 CMD ["sh", "-c",  "sleep 10 && yarn start"]
+#
