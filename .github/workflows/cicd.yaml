@@ -12,7 +12,7 @@ on:
 
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}     # set this to your preferred AWS region, e.g. us-west-1
-  ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
+  ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY_M }}
   ECS_SERVICE: ${{ secrets.ECS_SERVICE_M }}  
   ECS_CLUSTER: ${{ secrets.ECS_CLUSTER_M }} 
   CONTAINER_NAME: ${{ secrets.CONTAINER_NAME_M }}
