@@ -4,7 +4,7 @@ on:
   pull_request:
     branches:
       - mainnet
-    types: [opened]
+    types: [closed]
 
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}     # set this to your preferred AWS region, e.g. us-west-1
