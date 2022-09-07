@@ -1,0 +1,26 @@
+name: Deployment Pipeline
+
+on:
+  pull_request:
+
+concurrency:
+  group: ${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    if: false
+    uses: ./.github/workflows/checks.yml
+
+  image:
+    uses: ./.github/workflows/build-and-upload-image.yml
+
+  testnet-image:
+    needs: image
+    uses: ./.github/workflows/download-and-push-image.yml
+    secrets: inherit
+
+  testnet-staging:
+    needs: testnet-image
+    uses: ./.github/workflows/deploy-testnet-staging.yml
+    secrets: inherit

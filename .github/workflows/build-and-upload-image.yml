@@ -7,13 +7,17 @@ jobs:
   build-and-upload:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      - run: docker build . --tag placeholder
+      - name: Build image
+        run: docker build . --tag placeholder
 
-      - run: docker save placeholder -o /tmp/image.tar
+      - name: Save image to disk
+        run: docker save placeholder -o /tmp/image.tar
 
-      - uses: actions/upload-artifact@v3
+      - name: Upload image as artifact 
+        uses: actions/upload-artifact@v3
         with:
           name: docker-image
           path: /tmp/image.tar
