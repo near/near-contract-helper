@@ -1,7 +1,9 @@
 name: Deployment Pipeline
 
 on:
-  pull_request:
+  push:
+    branches:
+      - master
 
 concurrency:
   group: ${{ github.event.pull_request.number }}
@@ -9,10 +11,10 @@ concurrency:
 
 jobs:
   checks:
-    if: false
     uses: ./.github/workflows/checks.yml
 
   image:
+    needs: checks
     uses: ./.github/workflows/build-and-upload-image.yml
 
   testnet-image:
