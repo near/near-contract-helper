@@ -38,3 +38,8 @@ jobs:
     with:
       gh-environment: mainnet
     secrets: inherit
+
+  mainnet-staging:
+    needs: mainnet-image
+    uses: ./.github/workflows/deploy-mainnet-staging.yml
+    secrets: inherit
