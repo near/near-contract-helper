@@ -18,6 +18,8 @@ jobs:
   testnet-image:
     needs: image
     uses: ./.github/workflows/download-and-push-image.yml
+    with:
+      gh-environment: testnet
     secrets: inherit
 
   testnet-staging:
@@ -28,4 +30,11 @@ jobs:
   testnet:
     needs: testnet-staging
     uses: ./.github/workflows/deploy-testnet.yml
+    secrets: inherit
+
+  mainnet-image:
+    needs: testnet
+    uses: ./.github/workflows/download-and-push-image.yml
+    with:
+      gh-environment: mainnet
     secrets: inherit

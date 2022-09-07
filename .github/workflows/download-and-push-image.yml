@@ -2,11 +2,15 @@ name: Download and Push Image
 
 on:
   workflow_call:
+    inputs:
+      gh-environment:
+        required: true
+        type: string
 
 jobs:
   download-and-push:
     runs-on: ubuntu-latest
-    environment: testnet-staging
+    environment: ${{ inputs.gh-environment }}
     steps:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
