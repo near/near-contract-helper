@@ -24,3 +24,8 @@ jobs:
     needs: testnet-image
     uses: ./.github/workflows/deploy-testnet-staging.yml
     secrets: inherit
+
+  testnet:
+    needs: testnet-staging
+    uses: ./.github/workflows/deploy-testnet.yml
+    secrets: inherit
