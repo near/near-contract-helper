@@ -43,3 +43,8 @@ jobs:
     needs: mainnet-image
     uses: ./.github/workflows/deploy-mainnet-staging.yml
     secrets: inherit
+
+  mainnet:
+    needs: mainnet-staging
+    uses: ./.github/workflows/deploy-mainnet.yml
+    secrets: inherit
