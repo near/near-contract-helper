@@ -7,7 +7,7 @@ jobs:
   indexer:
     uses: ./.github/workflows/deploy-service.yml
     with:
-      gh-environment: testnet-staging
+      gh-environment: testnet
       task-definition: ./ecs/indexer.task-definition.json
       task-definition-family: testnet-staging-indexer-service-task-definition
       task-execution-role: testnet-ecs-task-execution-role
@@ -23,7 +23,7 @@ jobs:
   contract-helper:
     uses: ./.github/workflows/deploy-service.yml
     with:
-      gh-environment: testnet-staging
+      gh-environment: testnet
       task-definition: ./ecs/contract-helper.task-definition.json
       task-definition-family: testnet-staging-service-task-definition
       task-execution-role: testnet-ecs-task-execution-role
