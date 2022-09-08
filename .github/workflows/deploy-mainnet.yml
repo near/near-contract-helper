@@ -13,7 +13,7 @@ jobs:
       task-execution-role: mainnet-ecs-task-execution-role
       ecs-service: mainnet-live-indexer-service
       ecs-cluster: mainnet-live-cluster
-      container-name: testnet-live-indexer-container
+      container-name: mainnet-live-indexer-container
       aws-environment: mainnet
       near-wallet-environment: mainnet
       aws-logs-group: mainnet-live-indexer-service
