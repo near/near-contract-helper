@@ -1,34 +1,13 @@
 const { Pool } = require('pg');
 const Cache = require('node-cache');
-const { modulo } = require('../../src/utils/math');
 
 const {
     BRIDGE_TOKEN_FACTORY_ACCOUNT_ID = 'factory.bridge.near',
     NEAR_WALLET_ENV,
-    // INDEXER_DB_CONNECTION,
-    INDEXER_DB_REPLICAS,
-    APP_REPLICA_ID,
+    INDEXER_DB_CONNECTION,
 } = process.env;
 
-// Modulo replica mapping
-// Explaining:
-// app with id 0 => db replica with id 0
-// app with id 1 => db replica with id 1
-// app with id 2 => db replica with id 2
-// app with id 3 => db replica with id 0
-// app with id 4 => db replica with id 1
-// app with id 5 => db replica with id 2
-// etc...
-const getReplicaDbConnection = () => {
-    const replicaConnections = JSON.parse(INDEXER_DB_REPLICAS);
-    const currentReplicaId = parseInt(APP_REPLICA_ID || '', 10) || 0;
-    const replicasCount = replicaConnections.length;
-    const databaseReplicaNum = modulo(currentReplicaId, replicasCount);
-
-    return replicaConnections[databaseReplicaNum];
-};
-
-const pool = new Pool({ connectionString: getReplicaDbConnection() });
+const pool = new Pool({ connectionString: INDEXER_DB_CONNECTION });
 
 const poolMatch = NEAR_WALLET_ENV.startsWith('mainnet')
     ? JSON.stringify(['%.poolv1.near', '%.pool.near']).replace(/"/g, '\'')

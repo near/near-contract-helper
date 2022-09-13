@@ -37,10 +37,6 @@
       {
         "name": "INDEXER_DB_CONNECTION",
         "valueFrom": "/env/{{Environment}}/INDEXER_DB_CONNECTION"
-      },
-      {
-        "name": "INDEXER_DB_REPLICAS",
-        "valueFrom": "/env/{{Environment}}/INDEXER_DB_REPLICAS"
       }
     ],
     "workingDirectory": "/app",
