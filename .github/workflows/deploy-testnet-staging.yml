@@ -1,0 +1,40 @@
+name: Deploy Testnet Staging
+
+on:
+  workflow_call:
+
+jobs:
+  indexer:
+    uses: ./.github/workflows/deploy-service.yml
+    with:
+      gh-environment: testnet
+      task-definition: ./ecs/indexer.task-definition.json
+      task-definition-family: testnet-staging-indexer-service-task-definition
+      task-execution-role: testnet-ecs-task-execution-role
+      ecs-service: testnet-staging-indexer-service
+      ecs-cluster: testnet-staging-cluster
+      container-name: testnet-staging-indexer-container
+      aws-environment: testnet
+      near-wallet-environment: testnet_STAGING
+      aws-logs-group: testnet-staging-indexer-service
+      aws-region: us-west-2
+    secrets: inherit
+
+  contract-helper:
+    uses: ./.github/workflows/deploy-service.yml
+    with:
+      gh-environment: testnet
+      task-definition: ./ecs/contract-helper.task-definition.json
+      task-definition-family: testnet-staging-service-task-definition
+      task-execution-role: testnet-ecs-task-execution-role
+      ecs-service: testnet-staging-backend-service
+      ecs-cluster: testnet-staging-cluster
+      container-name: testnet-staging-backend-container
+      aws-environment: testnet
+      near-wallet-environment: testnet_STAGING
+      funded-new-account-contract-name: testnet
+      node-url: https://rpc.testnet.near.org
+      wallet-url: https://preflight.kitwallet.app
+      aws-logs-group: testnet-staging-service-log-group
+      aws-region: us-west-2
+    secrets: inherit

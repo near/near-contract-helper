@@ -1,0 +1,40 @@
+name: Deploy Mainnet Staging
+
+on:
+  workflow_call:
+
+jobs:
+  indexer:
+    uses: ./.github/workflows/deploy-service.yml
+    with:
+      gh-environment: mainnet
+      task-definition: ./ecs/indexer.task-definition.json
+      task-definition-family: mainnet-staging-indexer-service-task-definition
+      task-execution-role: mainnet-ecs-task-execution-role
+      ecs-service: mainnet-staging-indexer-service
+      ecs-cluster: mainnet-staging-cluster
+      container-name: mainnet-staging-indexer-container
+      aws-environment: mainnet
+      near-wallet-environment: mainnet_STAGING
+      aws-logs-group: mainnet-staging-indexer-service
+      aws-region: us-west-2
+    secrets: inherit
+
+  contract-helper:
+    uses: ./.github/workflows/deploy-service.yml
+    with:
+      gh-environment: mainnet
+      task-definition: ./ecs/contract-helper.task-definition.json
+      task-definition-family: mainnet-staging-service-task-definition
+      task-execution-role: mainnet-ecs-task-execution-role
+      ecs-service: mainnet-staging-backend-service
+      ecs-cluster: mainnet-staging-cluster
+      container-name: mainnet-staging-backend-container
+      aws-environment: mainnet
+      near-wallet-environment: mainnet_STAGING
+      funded-new-account-contract-name: near
+      node-url: https://rpc.mainnet.near.org
+      wallet-url: https://staging.kitwallet.app
+      aws-logs-group: mainnet-staging-service-log-group
+      aws-region: us-west-2
+    secrets: inherit

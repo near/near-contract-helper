@@ -1,0 +1,51 @@
+name: Download and Push Image
+
+on:
+  workflow_call:
+    inputs:
+      gh-environment:
+        required: true
+        type: string
+
+jobs:
+  download-and-push:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.gh-environment }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_ASSUMED_ROLE }}
+          aws-region: us-west-2
+          role-skip-session-tagging: true
+          role-duration-seconds: 1200
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Set docker image name
+        id: image
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          echo "::set-output name=name::$REGISTRY/$REPOSITORY:$IMAGE_TAG"
+
+      - name: Download
+        uses: actions/download-artifact@v3
+        with:
+          name: docker-image
+          path: /tmp
+
+      - name: Load
+        run: docker load -i /tmp/image.tar
+
+      - name: Tag
+        run: docker tag placeholder ${{ steps.image.outputs.name }}
+
+      - name: Push
+        run: docker push ${{ steps.image.outputs.name }}

@@ -1,0 +1,106 @@
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      gh-environment:
+        required: true
+        type: string
+      task-definition:
+        required: true
+        type: string
+      task-definition-family:
+        required: true
+        type: string
+      task-execution-role:
+        required: true
+        type: string
+      ecs-service:
+        required: true
+        type: string
+      ecs-cluster:
+        required: true
+        type: string
+      container-name:
+        required: true
+        type: string
+      near-wallet-environment:
+        required: true
+        type: string
+      aws-environment:
+        required: true
+        type: string
+      aws-logs-group:
+        required: true
+        type: string
+      aws-region:
+        required: true
+        type: string
+      node-url:
+        required: false
+        type: string
+      wallet-url:
+        required: false
+        type: string
+      funded-new-account-contract-name:
+        required: false
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.gh-environment }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_ASSUMED_ROLE }}
+          aws-region: ${{ inputs.aws-region }}
+          # need to add sts:TagSession to role
+          role-skip-session-tagging: true
+          role-duration-seconds: 1200
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Set docker image name
+        id: image
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          echo "::set-output name=name::$REGISTRY/$REPOSITORY:$IMAGE_TAG"
+
+      - name: Render ECS task definition
+        uses: bluwy/substitute-string-action@v1
+        with:
+          _input-file: ${{ inputs.task-definition }}
+          _output-file: task-definition.json
+          _format-key: '{{key}}'
+          ContainerName: ${{ inputs.container-name }}
+          ContainerImage: ${{ steps.image.outputs.name }}
+          Environment: ${{ inputs.aws-environment }}
+          NearWalletEnvironment: ${{ inputs.near-wallet-environment }}
+          FundedNewAccountContractName: ${{ inputs.funded-new-account-contract-name }}
+          AwsRegion: ${{ inputs.aws-region }}
+          AwsLogsGroup: ${{ inputs.aws-logs-group }}
+          NodeUrl: ${{ inputs.node-url }}
+          WalletUrl: ${{ inputs.wallet-url }}
+          TaskDefinitionFamily: ${{ inputs.task-definition-family }}
+          TaskExecutionRole: ${{ inputs.task-execution-role }}
+
+      - name: Deploy to Amazon ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          service: ${{ inputs.ecs-service }}
+          cluster: ${{ inputs.ecs-cluster }}
+          force-new-deployment: true
+          wait-for-service-stability: true

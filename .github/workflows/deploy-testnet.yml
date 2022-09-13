@@ -1,0 +1,40 @@
+name: Deploy Testnet
+
+on:
+  workflow_call:
+
+jobs:
+  indexer:
+    uses: ./.github/workflows/deploy-service.yml
+    with:
+      gh-environment: testnet
+      task-definition: ./ecs/indexer.task-definition.json
+      task-definition-family: testnet-live-indexer-service-task-definition
+      task-execution-role: testnet-ecs-task-execution-role
+      ecs-service: testnet-live-indexer-service
+      ecs-cluster: testnet-live-cluster
+      container-name: testnet-live-indexer-container
+      aws-environment: testnet
+      near-wallet-environment: testnet
+      aws-logs-group: testnet-live-indexer-service
+      aws-region: us-west-2
+    secrets: inherit
+
+  contract-helper:
+    uses: ./.github/workflows/deploy-service.yml
+    with:
+      gh-environment: testnet
+      task-definition: ./ecs/contract-helper.task-definition.json
+      task-definition-family: testnet-live-service-task-definition
+      task-execution-role: testnet-ecs-task-execution-role
+      ecs-service: testnet-live-backend-service
+      ecs-cluster: testnet-live-cluster
+      container-name: testnet-live-backend-container
+      aws-environment: testnet
+      near-wallet-environment: testnet
+      funded-new-account-contract-name: testnet
+      node-url: https://rpc.testnet.near.org
+      wallet-url: https://testnet.kitwallet.app
+      aws-logs-group: testnet-live-service-log-group
+      aws-region: us-west-2
+    secrets: inherit

@@ -1,0 +1,53 @@
+name: Deployment Pipeline
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+concurrency:
+  group: 'deployments'
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
+
+  image:
+    needs: checks
+    uses: ./.github/workflows/build-and-upload-image.yml
+
+  testnet-image:
+    needs: image
+    uses: ./.github/workflows/download-and-push-image.yml
+    with:
+      gh-environment: testnet
+    secrets: inherit
+
+  testnet-staging:
+    needs: testnet-image
+    uses: ./.github/workflows/deploy-testnet-staging.yml
+    secrets: inherit
+
+  testnet:
+    needs: testnet-staging
+    uses: ./.github/workflows/deploy-testnet.yml
+    secrets: inherit
+
+  mainnet-image:
+    needs: testnet
+    uses: ./.github/workflows/download-and-push-image.yml
+    with:
+      gh-environment: mainnet
+    secrets: inherit
+
+  mainnet-staging:
+    needs: mainnet-image
+    uses: ./.github/workflows/deploy-mainnet-staging.yml
+    secrets: inherit
+
+  mainnet:
+    needs: mainnet-staging
+    uses: ./.github/workflows/deploy-mainnet.yml
+    secrets: inherit

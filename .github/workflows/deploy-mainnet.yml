@@ -1,0 +1,40 @@
+name: Deploy Mainnet
+
+on:
+  workflow_call:
+
+jobs:
+  indexer:
+    uses: ./.github/workflows/deploy-service.yml
+    with:
+      gh-environment: mainnet
+      task-definition: ./ecs/indexer.task-definition.json
+      task-definition-family: mainnet-live-indexer-service-task-definition
+      task-execution-role: mainnet-ecs-task-execution-role
+      ecs-service: mainnet-live-indexer-service
+      ecs-cluster: mainnet-live-cluster
+      container-name: mainnet-live-indexer-container
+      aws-environment: mainnet
+      near-wallet-environment: mainnet
+      aws-logs-group: mainnet-live-indexer-service
+      aws-region: us-west-2
+    secrets: inherit
+
+  contract-helper:
+    uses: ./.github/workflows/deploy-service.yml
+    with:
+      gh-environment: mainnet
+      task-definition: ./ecs/contract-helper.task-definition.json
+      task-definition-family: mainnet-live-service-task-definition
+      task-execution-role: mainnet-ecs-task-execution-role
+      ecs-service: mainnet-live-backend-service
+      ecs-cluster: mainnet-live-cluster
+      container-name: mainnet-live-backend-container
+      aws-environment: mainnet
+      near-wallet-environment: mainnet
+      funded-new-account-contract-name: near
+      node-url: https://rpc.mainnet.near.org
+      wallet-url: https://kitwallet.app
+      aws-logs-group: mainnet-live-service-log-group
+      aws-region: us-west-2
+    secrets: inherit
