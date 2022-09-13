@@ -236,7 +236,7 @@ const findLikelyNFTsFromBlock = async (ctx) => {
 
 
 // One hour cache window since validators do not change often
-const validatorCache = new Cache({ stdTTL: 60, checkperiod: 0, useClones: false });
+const validatorCache = new Cache({ stdTTL: 3600, checkperiod: 0, useClones: false });
 
 async function fetchAndCacheValidators(cache) {
     const { rows: validatorDetails } = await pool.query(`SELECT account_id FROM accounts WHERE account_id LIKE ANY(ARRAY${poolMatch})`);
