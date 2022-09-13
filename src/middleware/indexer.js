@@ -12,6 +12,10 @@ const replicaConnections = JSON.parse(INDEXER_DB_REPLICAS);
 const indexerConnection = replicaConnections[(new Date()).valueOf() % replicaConnections.length];
 const pool = new Pool({ connectionString: indexerConnection, });
 
+pool.on('error', (err) => {
+    console.error('Postgres pool error: ', err);
+});
+
 const poolMatch = NEAR_WALLET_ENV.startsWith('mainnet')
     ? JSON.stringify(['%.poolv1.near', '%.pool.near']).replace(/"/g, '\'')
     : JSON.stringify(['%.pool.%.m0', '%.factory01.littlefarm.testnet', '%.factory.colorpalette.testnet']).replace(/"/g, '\'');
