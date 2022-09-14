@@ -7,6 +7,7 @@ const {
     INDEXER_DB_CONNECTION,
 } = process.env;
 
+
 const pool = new Pool({ connectionString: INDEXER_DB_CONNECTION });
 
 const poolMatch = NEAR_WALLET_ENV.startsWith('mainnet')
