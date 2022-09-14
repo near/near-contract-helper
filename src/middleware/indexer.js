@@ -4,13 +4,10 @@ const Cache = require('node-cache');
 const {
     BRIDGE_TOKEN_FACTORY_ACCOUNT_ID = 'factory.bridge.near',
     NEAR_WALLET_ENV,
-    // INDEXER_DB_CONNECTION,
-    INDEXER_DB_REPLICAS,
+    INDEXER_DB_CONNECTION,
 } = process.env;
 
-const replicaConnections = JSON.parse(INDEXER_DB_REPLICAS);
-const indexerConnection = replicaConnections[(new Date()).valueOf() % replicaConnections.length];
-const pool = new Pool({ connectionString: indexerConnection, });
+const pool = new Pool({ connectionString: INDEXER_DB_CONNECTION });
 
 const poolMatch = NEAR_WALLET_ENV.startsWith('mainnet')
     ? JSON.stringify(['%.poolv1.near', '%.pool.near']).replace(/"/g, '\'')
@@ -205,7 +202,7 @@ const findLikelyTokensFromBlock = async (ctx) => {
         fromBlockTimestamp,
         accountId
     });
-    
+
     ctx.body = {
         version: '1.0.0',
         lastBlockTimestamp,
