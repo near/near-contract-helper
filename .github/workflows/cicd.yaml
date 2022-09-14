@@ -7,7 +7,7 @@ on:
   pull_request:
     branches:
       - mainnet
-    types: [closed]
+    types: [opened, closed]
 
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}     # set this to your preferred AWS region, e.g. us-west-1
@@ -40,11 +40,11 @@ jobs:
           role-duration-seconds: 1200
       
       
-      - name: Configure env INDEXER_DB_REPLICAS
-        uses: 'marvinpinto/action-inject-ssm-secrets@v1.2.1'
-        with:
-          ssm_parameter: '/mynearwallet/indexer_db_urls_mainnet'
-          env_variable_name: 'INDEXER_DB_REPLICAS'
+#       - name: Configure env INDEXER_DB_REPLICAS
+#         uses: 'marvinpinto/action-inject-ssm-secrets@v1.2.1'
+#         with:
+#           ssm_parameter: '/mynearwallet/indexer_db_urls_mainnet'
+#           env_variable_name: 'INDEXER_DB_REPLICAS'
 
       - name: Configure env INDEXER_DB_CONNECTION
         uses: 'marvinpinto/action-inject-ssm-secrets@v1.2.1'
