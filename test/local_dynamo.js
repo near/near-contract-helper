@@ -36,6 +36,7 @@ async function initLocalDynamo({ dbPath, port } = {}) {
         });
 
     return {
+        port,
         terminateLocalDynamo: () => {
             dynamoLocal.stop(port);
         },
