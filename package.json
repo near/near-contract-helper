@@ -4,7 +4,7 @@
   "description": "Micro-service used by NEARStudio to deploy smart contracts.",
   "main": "app.js",
   "scripts": {
-    "start": "env $(sed 's/ # .*//' .env) supervisor app | bunyan",
+    "start": "node scripts/run-development-dynamo.js & env $(sed 's/ # .*//' .env) supervisor app | bunyan",
     "start:indexer": "env $(sed 's/ # .*//' .env) supervisor indexer | bunyan",
     "docker:start": "node app.js",
     "docker:start:indexer": "node indexer.js",

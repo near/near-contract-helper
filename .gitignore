@@ -3,3 +3,4 @@ node_modules/
 .env
 /.nyc_output/
 recaptcha_enterprise.json
+shared-local-instance.db

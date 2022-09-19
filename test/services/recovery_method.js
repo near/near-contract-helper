@@ -1,10 +1,10 @@
 const Promise = require('bluebird');
 require('dotenv').config({ path: 'test/.env.test' });
 
+const { initTestDynamo } = require('../../local_dynamo');
 const Constants = require('../../src/constants');
 const RecoveryMethodService = require('../../src/services/recovery_method');
 const chai = require('../chai');
-const { initTestDynamo } = require('../local_dynamo');
 const { generateEmailAddress, generateSmsNumber } = require('../utils');
 
 const { IDENTITY_VERIFICATION_METHOD_KINDS, RECOVERY_METHOD_KINDS, TWO_FACTOR_AUTH_KINDS } = Constants;
@@ -22,14 +22,14 @@ describe('RecoveryMethodService', function () {
         await Promise.all(methods.map((method) => recoveryMethodService.deleteRecoveryMethod(method)));
     });
 
-    let terminateLocalDynamo;
+    let terminateLocalDynamo = () => {};
     before(async function() {
-        this.timeout(10000);
+        this.timeout(20000);
         ({ terminateLocalDynamo } = await initTestDynamo());
     });
 
-    after(async function() {
-        await terminateLocalDynamo();
+    after(function() {
+        terminateLocalDynamo();
     });
 
     describe('createRecoveryMethod', function () {

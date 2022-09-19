@@ -1,4 +1,4 @@
-const { initDevelopmentDynamo } = require('../test/local_dynamo');
+const { initDevelopmentDynamo } = require('../local_dynamo');
 
 let terminateLocalDynamo = () => {};
 let port;

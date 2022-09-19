@@ -3,12 +3,12 @@ require('dotenv').config({ path: 'test/.env.test' });
 const nearAPI = require('near-api-js');
 const { parseSeedPhrase } = require('near-seed-phrase');
 
+const { initTestDynamo } = require('../local_dynamo');
 const constants = require('../src/constants');
 const AccountService = require('../src/services/account');
 const RecoveryMethodService = require('../src/services/recovery_method');
 const attachEchoMessageListeners = require('./attachEchoMessageListeners');
 const chai = require('./chai');
-const { initTestDynamo } = require('./local_dynamo');
 const expectRequestHelpers = require('./expectRequestHelpers');
 const createTestServerInstance = require('./createTestServerInstance');
 const TestAccountHelper = require('./TestAccountHelper');
@@ -62,10 +62,10 @@ function createAllRecoveryMethods({ accountId }) {
 }
 
 describe('app routes', function () {
-    this.timeout(15000);
+    this.timeout(20000);
 
     let app, request, testAccountHelper;
-    let terminateLocalDynamo;
+    let terminateLocalDynamo = () => {};
 
     before(async () => {
         const keyStore = new nearAPI.keyStores.InMemoryKeyStore();
@@ -85,8 +85,8 @@ describe('app routes', function () {
         ({ terminateLocalDynamo } = await initTestDynamo());
     });
 
-    after(async function() {
-        await terminateLocalDynamo();
+    after(function() {
+        terminateLocalDynamo();
     });
 
     describe('/account/initializeRecoveryMethodForTempAccount', () => {
