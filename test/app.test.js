@@ -8,7 +8,7 @@ const AccountService = require('../src/services/account');
 const RecoveryMethodService = require('../src/services/recovery_method');
 const attachEchoMessageListeners = require('./attachEchoMessageListeners');
 const chai = require('./chai');
-const initLocalDynamo = require('./local_dynamo');
+const { initTestDynamo } = require('./local_dynamo');
 const expectRequestHelpers = require('./expectRequestHelpers');
 const createTestServerInstance = require('./createTestServerInstance');
 const TestAccountHelper = require('./TestAccountHelper');
@@ -82,7 +82,7 @@ describe('app routes', function () {
             request,
         });
 
-        ({ terminateLocalDynamo } = await initLocalDynamo());
+        ({ terminateLocalDynamo } = await initTestDynamo());
     });
 
     after(async function() {

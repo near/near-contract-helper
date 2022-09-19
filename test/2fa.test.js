@@ -11,7 +11,7 @@ const attachEchoMessageListeners = require('./attachEchoMessageListeners');
 const expectRequestHelpers = require('./expectRequestHelpers');
 const chai = require('./chai');
 const createTestServerInstance = require('./createTestServerInstance');
-const initLocalDynamo = require('./local_dynamo');
+const { initTestDynamo } = require('./local_dynamo');
 const TestAccountHelper = require('./TestAccountHelper');
 
 const { expect } = chai;
@@ -62,7 +62,7 @@ describe('2fa method management', function () {
             request,
         });
 
-        ({ terminateLocalDynamo } = await initLocalDynamo());
+        ({ terminateLocalDynamo } = await initTestDynamo());
     });
 
     after(async () => {

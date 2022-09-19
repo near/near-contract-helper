@@ -4,7 +4,7 @@ require('dotenv').config({ path: 'test/.env.test' });
 const Constants = require('../../src/constants');
 const RecoveryMethodService = require('../../src/services/recovery_method');
 const chai = require('../chai');
-const initLocalDynamo = require('../local_dynamo');
+const { initTestDynamo } = require('../local_dynamo');
 const { generateEmailAddress, generateSmsNumber } = require('../utils');
 
 const { IDENTITY_VERIFICATION_METHOD_KINDS, RECOVERY_METHOD_KINDS, TWO_FACTOR_AUTH_KINDS } = Constants;
@@ -25,7 +25,7 @@ describe('RecoveryMethodService', function () {
     let terminateLocalDynamo;
     before(async function() {
         this.timeout(10000);
-        ({ terminateLocalDynamo } = await initLocalDynamo());
+        ({ terminateLocalDynamo } = await initTestDynamo());
     });
 
     after(async function() {

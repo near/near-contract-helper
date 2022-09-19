@@ -3,7 +3,7 @@ require('dotenv').config({ path: 'test/.env.test' });
 const Constants = require('../../src/constants');
 const IdentityVerificationMethodService = require('../../src/services/identity_verification_method');
 const chai = require('../chai');
-const initLocalDynamo = require('../local_dynamo');
+const { initTestDynamo } = require('../local_dynamo');
 const { generateEmailAddress } = require('../utils');
 
 const { IDENTITY_VERIFICATION_METHOD_KINDS } = Constants;
@@ -17,7 +17,7 @@ describe('IdentityVerificationMethodService', function () {
     let terminateLocalDynamo;
     before(async function() {
         this.timeout(10000);
-        ({ terminateLocalDynamo } = await initLocalDynamo());
+        ({ terminateLocalDynamo } = await initTestDynamo());
     });
 
     after(async function() {

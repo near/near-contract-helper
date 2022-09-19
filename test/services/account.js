@@ -2,7 +2,7 @@ require('dotenv').config({ path: 'test/.env.test' });
 
 const AccountService = require('../../src/services/account');
 const chai = require('../chai');
-const initLocalDynamo = require('../local_dynamo');
+const { initTestDynamo } = require('../local_dynamo');
 const { generateAccountId } = require('../utils');
 
 const { expect } = chai;
@@ -13,7 +13,7 @@ describe('AccountService', function () {
     let terminateLocalDynamo;
     before(async function() {
         this.timeout(10000);
-        ({ terminateLocalDynamo } = await initLocalDynamo());
+        ({ terminateLocalDynamo } = await initTestDynamo());
     });
 
     after(async function() {

@@ -2,7 +2,7 @@ require('dotenv').config({ path: 'test/.env.test' });
 
 const EmailDomainBlacklistService = require('../../src/services/email_domain_blacklist');
 const chai = require('../chai');
-const initLocalDynamo = require('../local_dynamo');
+const { initTestDynamo } = require('../local_dynamo');
 
 const { expect } = chai;
 
@@ -15,7 +15,7 @@ describe('EmailDomainBlacklistService', function () {
     let terminateLocalDynamo;
     before(async function() {
         this.timeout(10000);
-        ({ terminateLocalDynamo } = await initLocalDynamo());
+        ({ terminateLocalDynamo } = await initTestDynamo());
     });
 
     after(async function() {
