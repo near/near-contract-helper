@@ -26,6 +26,9 @@ Now you can add an `ACCOUNT_CREATOR_KEY` to your `.env`. Running a local NEAR ne
 
     yarn start
 
+This starts a local DynamoDB instance on port 7877 which is used when `NODE_ENV=development`
+to facilitate local testing. This instance is persisted to a `.db` file at the project root.
+
 ### Create account (works only on test networks)
 
     curl -H "Content-Type: application/json" -XPOST http://0.0.0.0:3000/account --data '{"newAccountId": "nosuchuseryet", "newAccountPublicKey": "22skMptHjFWNyuEWY22ftn2AbLPSYpmYwGJRGwpNHbTV"}
@@ -43,12 +46,6 @@ Now you can add an `ACCOUNT_CREATOR_KEY` to your `.env`. Running a local NEAR ne
 
 
 ## Running tests
-
-### Create database
-
-Follow the instructions above for creating the development database and `helper` user. Then create an `accounts_test` database using `psql`:
-
-    create database accounts_test with owner=helper;
 
 ### Ensure NEAR localnet is running
 
