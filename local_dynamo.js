@@ -37,7 +37,6 @@ async function initLocalDynamo({ dbPath, port } = {}) {
         terminateLocalDynamo: () => {
             console.warn(`Stopping local DynamoDB instance on port ${port}`);
             dynamoLocal.stop(port);
-            console.warn(`Stopped local DynamoDB instance on port ${port}`);
         },
     };
 }
