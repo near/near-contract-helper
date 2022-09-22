@@ -7,7 +7,6 @@ on:
 
 concurrency:
   group: 'deployments'
-  cancel-in-progress: true
 
 jobs:
   checks:
