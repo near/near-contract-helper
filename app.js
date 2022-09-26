@@ -5,6 +5,11 @@ const body = require('koa-json-body');
 const cors = require('@koa/cors');
 const koaBunyanLogger = require('koa-bunyan-logger');
 
+if (process.env.NODE_ENV === 'development') {
+    const { overrideLocalDynamo } = require('./local_dynamo');
+    overrideLocalDynamo();
+}
+
 const constants = require('./src/constants');
 const AccountService = require('./src/services/account');
 const IdentityVerificationMethodService = require('./src/services/identity_verification_method');

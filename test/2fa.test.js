@@ -4,6 +4,7 @@ const nearAPI = require('near-api-js');
 const { parseSeedPhrase } = require('near-seed-phrase');
 const sinon = require('sinon');
 
+const { initTestDynamo } = require('../local_dynamo');
 const constants = require('../src/constants');
 const AccountService = require('../src/services/account');
 const RecoveryMethodService = require('../src/services/recovery_method');
@@ -11,7 +12,6 @@ const attachEchoMessageListeners = require('./attachEchoMessageListeners');
 const expectRequestHelpers = require('./expectRequestHelpers');
 const chai = require('./chai');
 const createTestServerInstance = require('./createTestServerInstance');
-const initLocalDynamo = require('./local_dynamo');
 const TestAccountHelper = require('./TestAccountHelper');
 
 const { expect } = chai;
@@ -42,10 +42,10 @@ const VERBOSE_OUTPUT_CONFIG = {
 };
 
 describe('2fa method management', function () {
-    this.timeout(15000);
+    this.timeout(20000);
 
     let app, request, testAccountHelper;
-    let terminateLocalDynamo;
+    let terminateLocalDynamo = () => {};
 
     before(async () => {
         const keyStore = new nearAPI.keyStores.InMemoryKeyStore();
@@ -62,11 +62,11 @@ describe('2fa method management', function () {
             request,
         });
 
-        ({ terminateLocalDynamo } = await initLocalDynamo());
+        ({ terminateLocalDynamo } = await initTestDynamo());
     });
 
-    after(async () => {
-        await terminateLocalDynamo();
+    after(() => {
+        terminateLocalDynamo();
     });
 
     describe('setting up 2fa method', () => {
