@@ -1,5 +1,13 @@
 FROM nearprotocol/bridge as bridge
 FROM node:12
+
+# dynamodb local setup
+WORKDIR /usr/dynamodb
+RUN curl -XGET https://s3.us-west-2.amazonaws.com/dynamodb-local/dynamodb_local_latest.tar.gz > dynamodb_local_latest.tar.gz
+RUN tar zxvf dynamodb_local_latest.tar.gz
+RUN apt update && apt install default-jre -y
+COPY ./local_dynamo.sh .
+
 WORKDIR /usr/app
 COPY ./package.json .
 COPY ./yarn.lock .
