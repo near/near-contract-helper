@@ -18,6 +18,12 @@ function overrideLocalDynamo({ port } = { port: LOCAL_DYNAMODB_PORT }) {
         sslEnabled: false,
         region: 'local-env'
     }));
+    [
+        Account,
+        EmailDomainBlacklist,
+        IdentityVerificationMethod,
+        RecoveryMethod,
+    ].map((model) => model.createTableAsync())
 }
 
 async function initLocalDynamo({ dbPath, port } = {}) {
