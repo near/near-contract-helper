@@ -8,13 +8,14 @@ const EmailDomainBlacklist = require('./src/db/schemas/email_domain_blacklist');
 const IdentityVerificationMethod = require('./src/db/schemas/identity_verification_method');
 const RecoveryMethod = require('./src/db/schemas/recovery_method');
 
-const LOCAL_DYNAMODB_PORT = 7877;
-const TEST_DYNAMODB_PORT = 7879;
+const LOCAL_DYNAMODB_HOST = process.env.LOCAL_DYNAMODB_HOST || 'localhost';
+const LOCAL_DYNAMODB_PORT = process.env.LOCAL_DYNAMODB_PORT || 7877;
+const TEST_DYNAMODB_PORT = process.env.TEST_DYNAMODB_PORT || 7879;
 
 function overrideLocalDynamo({ port } = { port: LOCAL_DYNAMODB_PORT }) {
     dynamo.documentClient(new DocumentClient({
         convertEmptyValues: true,
-        endpoint: `localhost:${port}`,
+        endpoint: `${LOCAL_DYNAMODB_HOST}:${port}`,
         sslEnabled: false,
         region: 'local-env'
     }));
