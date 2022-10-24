@@ -12,6 +12,12 @@ const LOCAL_DYNAMODB_HOST = process.env.LOCAL_DYNAMODB_HOST || 'localhost';
 const LOCAL_DYNAMODB_PORT = process.env.LOCAL_DYNAMODB_PORT || 7877;
 const TEST_DYNAMODB_PORT = process.env.TEST_DYNAMODB_PORT || 7879;
 
+function createTables() {
+    const models = [Account, EmailDomainBlacklist, IdentityVerificationMethod, RecoveryMethod];
+    return Promise.all(models.map((model) => model.createTableAsync()))
+        .catch(() => {});
+}
+
 function overrideLocalDynamo({ port } = { port: LOCAL_DYNAMODB_PORT }) {
     dynamo.documentClient(new DocumentClient({
         convertEmptyValues: true,
@@ -24,14 +30,7 @@ function overrideLocalDynamo({ port } = { port: LOCAL_DYNAMODB_PORT }) {
 async function initLocalDynamo({ dbPath, port } = {}) {
     overrideLocalDynamo({ port });
     await dynamoLocal.launch(port, dbPath, dbPath && ['-sharedDb']);
-
-    await Promise.all([
-        Account,
-        EmailDomainBlacklist,
-        IdentityVerificationMethod,
-        RecoveryMethod,
-    ].map((model) => model.createTableAsync()))
-        .catch(() => {});
+    await createTables();
 
     return {
         port,
@@ -43,6 +42,7 @@ async function initLocalDynamo({ dbPath, port } = {}) {
 }
 
 module.exports = {
+    createTables,
     initDevelopmentDynamo: () => initLocalDynamo({ dbPath: __dirname, port: LOCAL_DYNAMODB_PORT }),
     initTestDynamo: () => initLocalDynamo({ port: TEST_DYNAMODB_PORT }),
     overrideLocalDynamo,
