@@ -156,15 +156,7 @@ const likelyTokensFromBlock = async ({ fromBlockTimestamp, accountId }) => {
             and receipt_included_in_block_timestamp > $4
     `;
 
-    const ownershipChangeEvents = `
-        select distinct emitted_by_contract_account_id as receiver_account_id 
-        from assets__fungible_token_events
-        where token_new_owner_account_id = $1
-            and emitted_at_block_timestamp <= $3
-            and emitted_at_block_timestamp > $4
-    `;
-
-    const { rows } = await pool.query([received, mintedWithBridge, calledByUser, ownershipChangeEvents].join(' union '), [accountId, BRIDGE_TOKEN_FACTORY_ACCOUNT_ID, lastBlockTimestamp, fromBlockTimestamp]);
+    const { rows } = await pool.query([received, mintedWithBridge, calledByUser].join(' union '), [accountId, BRIDGE_TOKEN_FACTORY_ACCOUNT_ID, lastBlockTimestamp, fromBlockTimestamp]);
     return { rows, lastBlockTimestamp };
 };
 
