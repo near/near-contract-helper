@@ -32,7 +32,7 @@ app.use(koaBunyanLogger.requestIdContext());
 app.use(koaBunyanLogger.requestLogger());
 
 app.use(body({ limit: '500kb', fallback: true }));
-app.use(cors({ credentials: true }));
+app.use(cors());
 
 let reportException = () => {
 };
