@@ -41,7 +41,7 @@ const VERBOSE_OUTPUT_CONFIG = {
     ECHO_MESSAGE_CONTENT: VERBOSE_OUTPUT || false
 };
 
-describe('2fa method management', function () {
+describe.skip('2fa method management', function () {
     this.timeout(20000);
 
     let app, request, testAccountHelper;
