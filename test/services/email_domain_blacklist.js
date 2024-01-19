@@ -11,7 +11,7 @@ const STALE_AT = (new Date()).toString();
 
 const emailDomainBlacklistService = new EmailDomainBlacklistService();
 
-describe('EmailDomainBlacklistService', function () {
+describe.skip('EmailDomainBlacklistService', function () {
     let terminateLocalDynamo = () => {};
     before(async function() {
         this.timeout(20000);

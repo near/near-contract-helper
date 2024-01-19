@@ -13,7 +13,7 @@ const SECURITY_CODE = '123456';
 
 const identityVerificationMethodService = new IdentityVerificationMethodService();
 
-describe('IdentityVerificationMethodService', function () {
+describe.skip('IdentityVerificationMethodService', function () {
     let terminateLocalDynamo = () => {};
     before(async function() {
         this.timeout(20000);

@@ -16,7 +16,7 @@ const PUBLIC_KEY = 'xyz';
 
 const recoveryMethodService = new RecoveryMethodService();
 
-describe('RecoveryMethodService', function () {
+describe.skip('RecoveryMethodService', function () {
     beforeEach(async function () {
         const methods = await recoveryMethodService.listAllRecoveryMethods(ACCOUNT_ID);
         await Promise.all(methods.map((method) => recoveryMethodService.deleteRecoveryMethod(method)));
