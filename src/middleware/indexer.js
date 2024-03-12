@@ -10,7 +10,7 @@ const {
 
 const replicaConnections = JSON.parse(INDEXER_DB_REPLICAS);
 const indexerConnection = replicaConnections[(new Date()).valueOf() % replicaConnections.length];
-const pool = new Pool({ connectionString: indexerConnection, maxUses: 7500 });
+const pool = new Pool({ connectionString: indexerConnection, maxUses: 1000 });
 
 pool.on('error', (err) => {
     console.error('Postgres pool error: ', err);
@@ -95,8 +95,9 @@ const findAccountActivity = async (ctx) => {
 };
 
 const findAccountsByPublicKey = async (ctx) => {
-    const { publicKey } = ctx.params;
-    const { rows } = await pool.query(`
+    try {
+        const { publicKey } = ctx.params;
+        const { rows } = await pool.query(`
         SELECT DISTINCT account_id
         FROM access_keys
         JOIN accounts USING (account_id)
@@ -104,7 +105,13 @@ const findAccountsByPublicKey = async (ctx) => {
             AND accounts.deleted_by_receipt_id IS NULL
             AND access_keys.deleted_by_receipt_id IS NULL
     `, [publicKey]);
-    ctx.body = rows.map(({ account_id }) => account_id);
+        ctx.body = rows.map(({ account_id }) => account_id);
+    } catch (e) {
+        if (ctx.log && typeof ctx.log.error === 'function') {
+            ctx.log.error(e);
+        }
+        throw e;
+    }
 };
 
 const findReceivers = async (ctx) => {
