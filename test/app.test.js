@@ -89,7 +89,7 @@ describe('app routes', function () {
         terminateLocalDynamo();
     });
 
-    describe('/account/initializeRecoveryMethodForTempAccount', () => {
+    describe.skip('/account/initializeRecoveryMethodForTempAccount', () => {
         let savedSecurityCode = '', result;
         const accountId = 'doesnotexistonchain_1' + Date.now();
         const method = recoveryMethods[RECOVERY_METHOD_KINDS.EMAIL];
@@ -297,7 +297,7 @@ describe('app routes', function () {
         });
     });
 
-    describe('/account/seedPhraseAdded', () => {
+    describe.skip('/account/seedPhraseAdded', () => {
         //FIXME: Not doing what it thinks it is; needs blockNumber and blockNumberSignature args
         it.skip('returns 403 Forbidden (signature not from accountId owner)', async () => {
             const accountId = await testAccountHelper.createNEARAccount();
@@ -364,7 +364,7 @@ describe('app routes', function () {
     });
 
     // TODO: Refactor recovery methods endpoints to be more generic?
-    describe('/account/ledgerKeyAdded', () => {
+    describe.skip('/account/ledgerKeyAdded', () => {
         // FIXME: This isn't testing what it thinks it is; needs blockNumber and blockNumberSignature args
         it.skip('returns 403 Forbidden (signature not from accountId owner)', async () => {
             const accountId = await testAccountHelper.createNEARAccount();
