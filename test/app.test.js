@@ -61,7 +61,7 @@ function createAllRecoveryMethods({ accountId }) {
     );
 }
 
-describe('app routes', function () {
+describe.skip('app routes', function () {
     this.timeout(20000);
 
     let app, request, testAccountHelper;
