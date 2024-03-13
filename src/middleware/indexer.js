@@ -10,7 +10,7 @@ const {
 
 const replicaConnections = JSON.parse(INDEXER_DB_REPLICAS);
 const indexerConnection = replicaConnections[(new Date()).valueOf() % replicaConnections.length];
-const pool = new Pool({ connectionString: indexerConnection, maxUses: 1000 });
+const pool = new Pool({ connectionString: indexerConnection, maxUses: 100 });
 
 pool.on('error', (err) => {
     console.error('Postgres pool error: ', err);
