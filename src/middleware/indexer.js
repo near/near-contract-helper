@@ -10,10 +10,17 @@ const {
 
 const replicaConnections = JSON.parse(INDEXER_DB_REPLICAS);
 const indexerConnection = replicaConnections[(new Date()).valueOf() % replicaConnections.length];
-const pool = new Pool({ connectionString: indexerConnection, maxUses: 1000 });
+let pool = new Pool({ connectionString: indexerConnection, maxUses: 1000 });
 
 pool.on('error', (err) => {
     console.error('Postgres pool error: ', err);
+    pool.end()
+        .then(() => {
+            pool = new Pool({ connectionString: indexerConnection, maxUses: 1000 });
+        })
+        .catch(() => {
+            console.error('failed to drain PG connection pool');
+        });
 });
 
 const poolMatch = NEAR_WALLET_ENV.startsWith('mainnet')
@@ -21,7 +28,7 @@ const poolMatch = NEAR_WALLET_ENV.startsWith('mainnet')
     : JSON.stringify(['%.pool.%.m0', '%.factory01.littlefarm.testnet', '%.factory.colorpalette.testnet']).replace(/"/g, '\'');
 
 const findLastBlockByTimestamp = async () => {
-    const { rows: [ lastBlock ] } = await pool.query('select block_timestamp FROM blocks ORDER BY block_timestamp DESC LIMIT 1');
+    const { rows: [lastBlock] } = await pool.query('select block_timestamp FROM blocks ORDER BY block_timestamp DESC LIMIT 1');
     return lastBlock;
 };
 
@@ -127,7 +134,7 @@ const findReceivers = async (ctx) => {
 };
 
 const likelyTokensFromBlock = async ({ fromBlockTimestamp, accountId }) => {
-    const  { block_timestamp: lastBlockTimestamp } = await findLastBlockByTimestamp();
+    const { block_timestamp: lastBlockTimestamp } = await findLastBlockByTimestamp();
 
     const received = `
         select distinct receipt_receiver_account_id as receiver_account_id
@@ -168,7 +175,7 @@ const likelyTokensFromBlock = async ({ fromBlockTimestamp, accountId }) => {
 };
 
 const likelyNFTsFromBlock = async ({ fromBlockTimestamp, accountId }) => {
-    const  { block_timestamp: lastBlockTimestamp } = await findLastBlockByTimestamp();
+    const { block_timestamp: lastBlockTimestamp } = await findLastBlockByTimestamp();
 
     const ownershipChangeFunctionCalls = `
         select distinct receipt_receiver_account_id as receiver_account_id
@@ -208,7 +215,7 @@ const findLikelyTokensFromBlock = async (ctx) => {
         fromBlockTimestamp,
         accountId
     });
-    
+
     ctx.body = {
         version: '1.0.0',
         lastBlockTimestamp,
