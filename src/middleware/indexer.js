@@ -1,5 +1,6 @@
 const { Pool } = require('pg');
 const Cache = require('node-cache');
+const bunyan = require('bunyan');
 
 const {
     BRIDGE_TOKEN_FACTORY_ACCOUNT_ID = 'factory.bridge.near',
@@ -10,9 +11,30 @@ const {
 
 const replicaConnections = JSON.parse(INDEXER_DB_REPLICAS);
 const indexerConnection = replicaConnections[(new Date()).valueOf() % replicaConnections.length];
-const pool = new Pool({ connectionString: indexerConnection, maxUses: 1000 });
+const pool = new Pool({ connectionString: indexerConnection, maxUses: 100 });
+
+
+let logger;
+try {
+    logger = bunyan.createLogger({ name: 'indexer-logger' });
+} catch {
+    // not empty
+}
+
+pool.on('connect', () => {
+    try {
+        logger.info({ msg: 'connected' });
+    } catch {
+        // not empty
+    }
+});
 
 pool.on('error', (err) => {
+    try {
+        logger.error(err);
+    } catch {
+        // not empty
+    }
     console.error('Postgres pool error: ', err);
 });
 
