@@ -121,30 +121,48 @@ const findAccountActivity = async (ctx) => {
 const findAccountsByPublicKey = async (ctx) => {
     try {
         const { publicKey } = ctx.params;
+        let accounts = [];
 
-        const response = await fetch(GRAPHQL_URL, {
-            method: 'POST',
-            headers: {
-                'content-type': 'application/json',
-                'x-hasura-role': 'dataplatform_near'
-            },
-            body: JSON.stringify({
-                query: `
-                    query access_keys_v1_by_public_key {
-                        dataplatform_near_access_keys_v1_access_keys_v1(
-                        where: {public_key: {_eq: \"${publicKey}\"}}
-                        ) {
-                        account_id
+        if (NEAR_WALLET_ENV.startsWith('mainnet')) {
+            const response = await fetch(GRAPHQL_URL, {
+                method: 'POST',
+                headers: {
+                    'content-type': 'application/json',
+                    'x-hasura-role': 'dataplatform_near'
+                },
+                body: JSON.stringify({
+                    query: `
+                        query access_keys_v1_by_public_key {
+                            dataplatform_near_access_keys_v1_access_keys_v1(
+                            where: {public_key: {_eq: \"${publicKey}\"}}
+                            ) {
+                            account_id
+                            }
                         }
-                    }
-                `,
-                operationName: 'access_keys_v1_by_public_key'
-            }),
-        });
+                    `,
+                    operationName: 'access_keys_v1_by_public_key'
+                }),
+            });
 
-        const respJson = await response.json();
-        const rows = respJson.data.dataplatform_near_access_keys_v1_access_keys_v1;
-        ctx.body = rows.map(item => item.account_id);
+            const respJson = await response.json();
+            const access_keys = respJson.data.dataplatform_near_access_keys_v1_access_keys_v1;
+            accounts = access_keys.map(item => item.account_id);
+        }
+        
+        // fallback to indexer db for non-mainnet environments or if no results from graphql
+        if (accounts.length === 0) {
+            const { rows } = await pool.query(`
+                SELECT DISTINCT account_id
+                FROM access_keys
+                JOIN accounts USING (account_id)
+                WHERE public_key = $1
+                    AND accounts.deleted_by_receipt_id IS NULL
+                    AND access_keys.deleted_by_receipt_id IS NULL
+            `, [publicKey]);  
+            accounts = rows.map(({ account_id }) => account_id);
+        }
+
+        ctx.body = accounts;  
     } catch (e) {
         if (ctx.log && typeof ctx.log.error === 'function') {
             ctx.log.error(e);
