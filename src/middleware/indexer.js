@@ -134,7 +134,7 @@ const findAccountsByPublicKey = async (ctx) => {
                     query: `
                         query access_keys_v1_by_public_key {
                             dataplatform_near_access_keys_v1_access_keys_v1(
-                            where: {public_key: {_eq: "${publicKey}"}}
+                            where: {public_key: {_eq: "${publicKey}"}, account_deleted_by_receipt_id: {_is_null: true}, deleted_by_receipt_id: {_is_null: true}}
                             ) {
                             account_id
                             }
