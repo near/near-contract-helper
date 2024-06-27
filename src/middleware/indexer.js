@@ -52,34 +52,73 @@ const findLastBlockByTimestamp = async () => {
 const findStakingDeposits = async (ctx) => {
     const { accountId } = ctx.params;
 
-    const { rows } = await pool.query(`
-        with deposit_in as (
-            select SUM(to_number(args ->> 'deposit', '99999999999999999999999999999999999999')) deposit,
-                receipt_receiver_account_id validator_id
-            from action_receipt_actions
-            where
-                action_kind = 'FUNCTION_CALL' and
-                args ->> 'method_name' like 'deposit%' and
-                receipt_predecessor_account_id = $1 and
-                receipt_receiver_account_id like ANY(ARRAY${poolMatch})
-            group by receipt_receiver_account_id
-        ), deposit_out as (
-            select SUM(to_number(args ->> 'deposit', '99999999999999999999999999999999999999')) deposit,
-                receipt_predecessor_account_id validator_id
-            from action_receipt_actions
-            where
-                action_kind = 'TRANSFER' and
-                receipt_receiver_account_id = $1 and
-                receipt_predecessor_account_id like ANY(ARRAY${poolMatch})
-            group by receipt_predecessor_account_id
-        )
-        select sum(deposit_in.deposit - coalesce(deposit_out.deposit, 0)) deposit, deposit_in.validator_id
-        from deposit_in
-        left join deposit_out on deposit_in.validator_id = deposit_out.validator_id
-        group by deposit_in.validator_id;
-    `, [accountId]);
+    let rows = [];
+    try {
+        if (NEAR_WALLET_ENV.startsWith('mainnet')) {
+            const response = await fetch(GRAPHQL_URL, {
+                method: 'POST',
+                headers: {
+                    'content-type': 'application/json',
+                    'x-hasura-role': 'dataplatform_near'
+                },
+                body: JSON.stringify({
+                    query: `
+                        query get_deposit_by_validator {
+                            dataplatform_near_staking_get_deposit_by_validator(
+                                args: {search: "${accountId}"} 
+                            ) {
+                                deposit
+                                validator_id
+                            }
+                        }
+                    `,
+                    operationName: 'get_deposit_by_validator'
+                }),
+            });
+            const resp_json = await response.json();
+            const validators = resp_json.data.dataplatform_near_staking_get_deposit_by_validator;
+            rows = validators.map(item => ({deposit: Number(item.deposit).toLocaleString('fullwide', {useGrouping:false}), validator_id: item.validator_id}));
+        }
 
-    ctx.body = rows;
+        // fallback to indexer db for non-mainnet environments or if no results from graphql
+        if (rows.length === 0) {
+            const query_result = await pool.query(`
+                with deposit_in as (
+                    select SUM(to_number(args ->> 'deposit', '99999999999999999999999999999999999999')) deposit,
+                        receipt_receiver_account_id validator_id
+                    from action_receipt_actions
+                    where
+                        action_kind = 'FUNCTION_CALL' and
+                        args ->> 'method_name' like 'deposit%' and
+                        receipt_predecessor_account_id = $1 and
+                        receipt_receiver_account_id like ANY(ARRAY${poolMatch})
+                    group by receipt_receiver_account_id
+                ), deposit_out as (
+                    select SUM(to_number(args ->> 'deposit', '99999999999999999999999999999999999999')) deposit,
+                        receipt_predecessor_account_id validator_id
+                    from action_receipt_actions
+                    where
+                        action_kind = 'TRANSFER' and
+                        receipt_receiver_account_id = $1 and
+                        receipt_predecessor_account_id like ANY(ARRAY${poolMatch})
+                    group by receipt_predecessor_account_id
+                )
+                select sum(deposit_in.deposit - coalesce(deposit_out.deposit, 0)) deposit, deposit_in.validator_id
+                from deposit_in
+                left join deposit_out on deposit_in.validator_id = deposit_out.validator_id
+                group by deposit_in.validator_id;
+            `, [accountId]);
+            
+            rows = query_result.rows;
+        }
+
+        ctx.body = rows;
+    } catch (e) {
+        if (ctx.log && typeof ctx.log.error === 'function') {
+            ctx.log.error(e);
+        }
+        throw e;
+    }
 };
 
 const findAccountActivity = async (ctx) => {
@@ -144,8 +183,8 @@ const findAccountsByPublicKey = async (ctx) => {
                 }),
             });
 
-            const respJson = await response.json();
-            const access_keys = respJson.data.dataplatform_near_access_keys_v1_access_keys_v1;
+            const resp_json = await response.json();
+            const access_keys = resp_json.data.dataplatform_near_access_keys_v1_access_keys_v1;
             accounts = access_keys.map(item => item.account_id);
         }
         
