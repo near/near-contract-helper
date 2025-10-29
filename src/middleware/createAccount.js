@@ -21,6 +21,11 @@ const createAccount = async (ctx) => {
     }
 
     const { newAccountId, newAccountPublicKey } = ctx.request.body;
+    // Prevent test-*.testnet accounts draining the faucet and transferring tokens to `applebear.testnet`
+    // https://testnet.nearblocks.io/address/temp-1761748222018.testnet
+    if (newAccountId.startsWith('temp-')) {
+        ctx.throw(403, 'Please, do not drain testnet faucet.');
+    }
 
     if (accountCreator) {
         if (!accountCreator.initialized) {
