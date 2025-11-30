@@ -105,7 +105,8 @@ const ratelimit = require('koa-ratelimit');
 const accountCreateRatelimitMiddleware = ratelimit({
     driver: 'memory',
     db: new Map(),
-    duration: 15 * 60000,
+    // allow to create up to 10 accounts from a single IP in 12 hours (prevent nsp.testnet and similar abuse)
+    duration: 12 * 60 * 60000,
     max: 10,
     whitelist: () => process.env.NODE_ENV === 'test'
 });
