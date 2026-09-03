@@ -24,7 +24,7 @@
   },
   "homepage": "https://github.com/nearprotocol/near-contract-helper#readme",
   "engines": {
-    "node": ">=22"
+    "node": "22.x"
   },
   "dependencies": {
     "@google-cloud/recaptcha-enterprise": "^2.5.0",
