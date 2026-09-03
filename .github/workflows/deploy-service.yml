@@ -52,10 +52,10 @@ jobs:
     environment: ${{ inputs.gh-environment }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -67,7 +67,7 @@ jobs:
 
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Set docker image name
         id: image
@@ -76,10 +76,10 @@ jobs:
           REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          echo "::set-output name=name::$REGISTRY/$REPOSITORY:$IMAGE_TAG"
+          echo "name=$REGISTRY/$REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Render ECS task definition
-        uses: bluwy/substitute-string-action@v1
+        uses: bluwy/substitute-string-action@v4
         with:
           _input-file: ${{ inputs.task-definition }}
           _output-file: task-definition.json
@@ -97,7 +97,7 @@ jobs:
           TaskExecutionRole: ${{ inputs.task-execution-role }}
 
       - name: Deploy to Amazon ECS
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
           task-definition: task-definition.json
           service: ${{ inputs.ecs-service }}
