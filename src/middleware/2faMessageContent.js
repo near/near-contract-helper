@@ -1,10 +1,10 @@
 const hex = require('hexer');
-const nearAPI = require('near-api-js');
+const { formatNearAmount } = require('near-api-js');
 const escapeHtml = require('escape-html');
 
 const TRUNCATE_ARGUMENTS_LENGTH = 247;
 
-const fmtNear = (amount) => nearAPI.utils.format.formatNearAmount(amount, 4) + 'Ⓝ';
+const fmtNear = (amount) => formatNearAmount(amount, 4) + 'Ⓝ';
 
 const formatArgs = (args, isForSmsDelivery = false) => {
     let output = '';

@@ -1,5 +1,5 @@
-const nearAPI = require('near-api-js');
-const BN = require('bn.js');
+const { parseNearAmount } = require('near-api-js');
+const { NotEnoughBalanceError } = require('near-api-js/rpc-errors');
 
 const recaptchaValidator = require('../RecaptchaValidator');
 const AccountService = require('../services/account');
@@ -17,13 +17,17 @@ const accountService = new AccountService();
 const identityVerificationMethodService = new IdentityVerificationMethodService();
 
 // TODO: Adjust gas to correct amounts
-const MAX_GAS_FOR_ACCOUNT_CREATE = process.env.MAX_GAS_FOR_ACCOUNT_CREATE || '100000000000000';
-const NEW_FUNDED_ACCOUNT_BALANCE = process.env.FUNDED_ACCOUNT_BALANCE || nearAPI.utils.format.parseNearAmount('0.35');
+const MAX_GAS_FOR_ACCOUNT_CREATE = BigInt(process.env.MAX_GAS_FOR_ACCOUNT_CREATE || '100000000000000');
+const NEW_FUNDED_ACCOUNT_BALANCE = process.env.FUNDED_ACCOUNT_BALANCE || parseNearAmount('0.35');
 const FUNDED_NEW_ACCOUNT_CONTRACT_NAME = process.env.FUNDED_NEW_ACCOUNT_CONTRACT_NAME || 'near';
 
+// Leave a buffer of 0.5N in coin-op to avoid corner cases where we got 'not enough storage' error instead of
+// NotEnoughBalance error
+const MIN_FUNDING_ACCOUNT_BALANCE = BigInt(parseNearAmount('0.5'));
+
 // DEPRECATED: Remove after coin-op v1.5 is settled
-const BN_FUNDED_ACCOUNT_BALANCE_REQUIRED = (new BN(NEW_FUNDED_ACCOUNT_BALANCE).add(new BN(MAX_GAS_FOR_ACCOUNT_CREATE)));
-const BN_UNLOCK_FUNDED_ACCOUNT_BALANCE = new BN(process.env.UNLOCK_FUNDED_ACCOUNT_BALANCE || nearAPI.utils.format.parseNearAmount('0.2'));
+const FUNDED_ACCOUNT_BALANCE_REQUIRED = BigInt(NEW_FUNDED_ACCOUNT_BALANCE) + MAX_GAS_FOR_ACCOUNT_CREATE;
+const UNLOCK_FUNDED_ACCOUNT_BALANCE = BigInt(process.env.UNLOCK_FUNDED_ACCOUNT_BALANCE || parseNearAmount('0.2'));
 
 const setJSONErrorResponse = ({ ctx, statusCode, body }) => {
     ctx.status = statusCode;
@@ -37,12 +41,9 @@ async function doCreateFundedAccount({
     ctx,
     isExistingAccount,
 }) {
-    const { available } = await fundingAccount.getAccountBalance();
-    const availableBalanceBN = new BN(available);
+    const available = await fundingAccount.getBalance();
 
-    if (availableBalanceBN.lte(new BN(nearAPI.utils.format.parseNearAmount('0.5')))) {
-        // Leave a buffer of 0.5N in coin-op to avoid corner cases where we got 'not enough storage' error instead of
-        // NotEnoughBalance error
+    if (available <= MIN_FUNDING_ACCOUNT_BALANCE) {
         setJSONErrorResponse({
             ctx,
             statusCode: 503,
@@ -52,16 +53,16 @@ async function doCreateFundedAccount({
     }
 
     try {
-        const newAccountResult = await fundingAccount.functionCall(
-            FUNDED_NEW_ACCOUNT_CONTRACT_NAME,
-            'create_account',
-            {
+        const newAccountResult = await fundingAccount.callFunctionRaw({
+            contractId: FUNDED_NEW_ACCOUNT_CONTRACT_NAME,
+            methodName: 'create_account',
+            args: {
                 new_account_id: newAccountId,
                 new_public_key: newAccountPublicKey.replace(/^ed25519:/, '')
             },
-            MAX_GAS_FOR_ACCOUNT_CREATE,
-            NEW_FUNDED_ACCOUNT_BALANCE
-        );
+            gas: MAX_GAS_FOR_ACCOUNT_CREATE,
+            deposit: BigInt(NEW_FUNDED_ACCOUNT_BALANCE),
+        });
 
         ctx.body = {
             success: true,
@@ -74,7 +75,7 @@ async function doCreateFundedAccount({
             await accountService.deleteAccount(newAccountId);
         }
 
-        if (e.type === 'NotEnoughBalance') {
+        if (e instanceof NotEnoughBalanceError) {
             setJSONErrorResponse({
                 ctx,
                 statusCode: 503,
@@ -142,12 +143,10 @@ const createFundedAccount = async (ctx) => {
     // If someone is using a recovery method that involves a confirmation code (email / SMS)
     // then we need to manually set the fundedAccountNeedsDeposit on the _existing_ record
     const isExistingAccount = !!(await accountService.getAccount(newAccountId));
-    const [fundingAccount] = await Promise.all([
-        ctx.near.account(fundedCreatorKeyJson.account_id),
-        isExistingAccount
-            ? accountService.setAccountRequiresDeposit(newAccountId, true)
-            : accountService.createAccount(newAccountId, { fundedAccountNeedsDeposit: true }),
-    ]);
+    const fundingAccount = ctx.near.account(fundedCreatorKeyJson.account_id);
+    await (isExistingAccount
+        ? accountService.setAccountRequiresDeposit(newAccountId, true)
+        : accountService.createAccount(newAccountId, { fundedAccountNeedsDeposit: true }));
 
     await doCreateFundedAccount({
         fundingAccount,
@@ -269,10 +268,8 @@ async function createIdentityVerifiedFundedAccount(ctx) {
         return;
     }
 
-    const [account, fundingAccount] = await Promise.all([
-        accountService.getAccount(newAccountId),
-        ctx.near.account(fundedCreatorKeyJson.account_id)
-    ]);
+    const account = await accountService.getAccount(newAccountId);
+    const fundingAccount = ctx.near.account(fundedCreatorKeyJson.account_id);
 
     await doCreateFundedAccount({
         fundingAccount,
@@ -299,12 +296,10 @@ async function clearFundedAccountNeedsDeposit(ctx) {
         return;
     }
 
-    const nearAccount = await ctx.near.account(accountId);
+    const nearAccount = ctx.near.account(accountId);
+    const available = await nearAccount.getBalance();
 
-    const { available } = await nearAccount.getAccountBalance();
-    const availableBalanceBN = new BN(available);
-
-    if (availableBalanceBN.gt(BN_UNLOCK_FUNDED_ACCOUNT_BALANCE)) {
+    if (available > UNLOCK_FUNDED_ACCOUNT_BALANCE) {
         await accountService.setAccountRequiresDeposit(accountId, false);
         ctx.status = 200;
         ctx.body = { success: true };
@@ -318,8 +313,8 @@ async function clearFundedAccountNeedsDeposit(ctx) {
             success: false,
             code: 'NotEnoughBalance',
             message: `${accountId} does not have enough balance to be unlocked`,
-            currentBalance: available,
-            requiredUnlockBalance: BN_UNLOCK_FUNDED_ACCOUNT_BALANCE.toString()
+            currentBalance: available.toString(),
+            requiredUnlockBalance: UNLOCK_FUNDED_ACCOUNT_BALANCE.toString()
         }
     });
 }
@@ -331,13 +326,11 @@ const checkFundedAccountAvailable = async (ctx) => {
     }
 
     try {
-        const fundingAccount = await ctx.near.account(fundedCreatorKeyJson.account_id);
-
-        const { available } = await fundingAccount.getAccountBalance();
-        const availableBalanceBN = new BN(available);
+        const fundingAccount = ctx.near.account(fundedCreatorKeyJson.account_id);
+        const available = await fundingAccount.getBalance();
 
         ctx.body = {
-            available: availableBalanceBN.gt(BN_FUNDED_ACCOUNT_BALANCE_REQUIRED)
+            available: available > FUNDED_ACCOUNT_BALANCE_REQUIRED
         };
 
         return;
@@ -355,5 +348,5 @@ module.exports = {
     clearFundedAccountNeedsDeposit,
     createFundedAccount,
     createIdentityVerifiedFundedAccount,
-    BN_UNLOCK_FUNDED_ACCOUNT_BALANCE
+    UNLOCK_FUNDED_ACCOUNT_BALANCE
 };

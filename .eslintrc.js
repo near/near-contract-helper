@@ -1,12 +1,12 @@
 module.exports = {
     env: {
-        es6: true,
+        es2020: true,
         node: true
     },
     extends: 'eslint:recommended',
     parser: 'babel-eslint',
     parserOptions: {
-        ecmaVersion: 2018
+        ecmaVersion: 2020
     },
     rules: {
         indent: ['error', 4, { SwitchCase: 1 }],
