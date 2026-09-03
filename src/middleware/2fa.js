@@ -1,4 +1,3 @@
-const nearAPI = require('near-api-js');
 const escapeHtml = require('escape-html');
 const password = require('secure-random-password');
 
@@ -40,9 +39,14 @@ const GAS_2FA_CONFIRM = process.env.GAS_2FA_CONFIRM || '100000000000000';
 
 // confirms a multisig request
 const confirmRequest = async (near, accountId, request_id) => {
-    const account = await near.account(accountId);
+    const account = near.account(accountId);
 
-    return await account.functionCall(accountId, 'confirm', { request_id }, GAS_2FA_CONFIRM);
+    return await account.callFunctionRaw({
+        contractId: accountId,
+        methodName: 'confirm',
+        args: { request_id },
+        gas: BigInt(GAS_2FA_CONFIRM),
+    });
 };
 
 
@@ -83,11 +87,12 @@ const sendMessageTo2faDestination = async ({
 const getRequestDataFromChain = async ({ requestId, ctx, accountId }) => {
     let request;
 
-    // What if this throws? Why catch all failures to account.viewFunction() but not errors for this call?
-    const account = await ctx.near.account(accountId);
-
     try {
-        request = await account.viewFunction(accountId, 'get_request', { request_id: parseInt(requestId) });
+        request = await ctx.near.provider.callFunction({
+            contractId: accountId,
+            method: 'get_request',
+            args: { request_id: parseInt(requestId) },
+        });
     } catch (e) {
         // Should this really be a generic catch()? This will fire due to e.g. network transport errors
         const message = `could not find request id ${requestId} for account ${accountId}. ${e}`;
@@ -186,20 +191,10 @@ const sendCode = async (ctx, method, requestId = -1, accountId = '') => {
 /********************************
  Checking code_hash (is multisig deployed)
  ********************************/
-const isContractDeployed = async (accountId) => {
-    const keyStore = {
-        async getKey() {
-            return nearAPI.KeyPair.fromString('bs');
-        },
-    };
+const isContractDeployed = async (near, accountId) => {
     // check account code_hash
-    const near = await nearAPI.connect({
-        deps: { keyStore },
-        nodeUrl: process.env.NODE_URL
-    });
-    const nearAccount = new nearAPI.Account(near.connection, accountId);
-    const state = await nearAccount.state();
-    return MULTISIG_CONTRACT_HASHES.includes(state.code_hash);
+    const { code_hash } = await near.provider.viewAccount({ accountId, blockQuery: { finality: 'optimistic' } });
+    return MULTISIG_CONTRACT_HASHES.includes(code_hash);
 };
 
 const getTwoFactorRecoveryMethod = async (ctx, accountId) => {
@@ -221,7 +216,7 @@ const getTwoFactorRecoveryMethod = async (ctx, accountId) => {
 // Call this to get the public key of the access key that contract-helper will be using to confirm multisig requests
 const getAccessKey = async (ctx) => {
     const { accountId } = ctx.request.body;
-    ctx.body = { publicKey: (await ctx.near.connection.signer.getPublicKey(accountId, 'default')).toString() };
+    ctx.body = { publicKey: ctx.near.getPublicKey(accountId).toString() };
 };
 
 // http post http://localhost:3000/2fa/init accountId=mattlock method:='{"kind":"2fa-email","detail":"matt@near.org"}'
@@ -240,7 +235,7 @@ const initCode = async (ctx) => {
         return;
     }
 
-    const hasContractDeployed = await isContractDeployed(accountId);
+    const hasContractDeployed = await isContractDeployed(ctx.near, accountId);
     const twoFactorMethod = await getTwoFactorRecoveryMethod(ctx, accountId);
     if (twoFactorMethod) {
         // check if multisig contract is already deployed

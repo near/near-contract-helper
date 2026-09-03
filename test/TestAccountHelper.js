@@ -1,4 +1,5 @@
-const nearAPI = require('near-api-js');
+const crypto = require('crypto');
+const { Account, JsonRpcProvider, KeyPairSigner } = require('near-api-js');
 const uuid = require('uuid');
 
 const constants = require('../src/constants');
@@ -15,15 +16,13 @@ class TestAccountHelper {
         app,
         ECHO_SECURITY_CODES = false,
         keyPair,
-        keyStore,
         request,
     }) {
         this._keyPair = keyPair;
-        this._keyStore = keyStore;
+        this._keyPairsByAccountId = new Map();
         this._request = request;
         this._app = app;
 
-        this._signer = new nearAPI.InMemorySigner(this._keyStore);
         this._securityCodesByAccountId = {};
 
         if (this._app) {
@@ -36,29 +35,32 @@ class TestAccountHelper {
         }
     }
 
-    async ensureNEARApiClientInitialized() {
-        if (!this._NEARApiClient) {
-            this._NEARApiClient = await nearAPI.connect({
-                deps: { keyStore: this._keyStore },
-                nodeUrl: process.env.NODE_URL
-            });
-        }
-    }
-
     get near() {
-        return this._NEARApiClient;
-    }
+        if (!this._near) {
+            const provider = new JsonRpcProvider({ url: process.env.NODE_URL });
+            this._near = {
+                provider,
+                account: (accountId) => new Account(
+                    accountId,
+                    provider,
+                    new KeyPairSigner(this.getKeyPairForAccount(accountId))
+                ),
+            };
+        }
 
-    get keyStore() {
-        return this._keyStore;
+        return this._near;
     }
 
     get publicKey() {
-        return this._keyPair.publicKey.toString();
+        return this._keyPair.getPublicKey().toString();
     }
 
-    get signer() {
-        return this._signer;
+    setKeyPairForAccount(accountId, keyPair) {
+        this._keyPairsByAccountId.set(accountId, keyPair);
+    }
+
+    getKeyPairForAccount(accountId) {
+        return this._keyPairsByAccountId.get(accountId) || this._keyPair;
     }
 
     clearSecurityCodeForAccount(accountId) {
@@ -73,11 +75,9 @@ class TestAccountHelper {
     }
 
     async getLatestBlockHeight() {
-        await this.ensureNEARApiClientInitialized();
-
         const {
             sync_info: { latest_block_height }
-        } = await this._NEARApiClient.connection.provider.status();
+        } = await this.near.provider.viewNodeStatus();
 
         return latest_block_height;
     }
@@ -208,10 +208,10 @@ class TestAccountHelper {
         valid = true,
     }) {
         const blockNumber = String(valid ? blockHeight : blockHeight - 101);
-        const message = Buffer.from(blockNumber);
+        const hash = crypto.createHash('sha256').update(Buffer.from(blockNumber)).digest();
 
-        const signedHash = await this._signer.signMessage(message, accountId);
-        const blockNumberSignature = Buffer.from(signedHash.signature).toString('base64');
+        const { signature } = this.getKeyPairForAccount(accountId).sign(hash);
+        const blockNumberSignature = Buffer.from(signature).toString('base64');
 
         return { blockNumber, blockNumberSignature };
     }
@@ -229,8 +229,8 @@ class TestAccountHelper {
                 newAccountPublicKey: this.publicKey
             });
 
-        // Register the new keypair with our keystore so that our NEAR Client instance knows about it
-        await this._keyStore.setKey(undefined, newAccountId, this._keyPair);
+        // Remember the new account's keypair so that requests signed on its behalf use it
+        this.setKeyPairForAccount(newAccountId, this._keyPair);
 
         return newAccountId;
     }

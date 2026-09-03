@@ -1,15 +1,15 @@
-const nearAPI = require('near-api-js');
-const { utils: { serialize: { base_encode } } } = nearAPI;
-const nacl = require('tweetnacl');
 const crypto = require('crypto');
-const bs58 = require('bs58');
+const { Account, JsonRpcProvider, KeyPair, KeyPairSigner, PublicKey, baseEncode } = require('near-api-js');
+const { AccountDoesNotExistError } = require('near-api-js/rpc-errors');
 
 const VALID_BLOCK_AGE = 100;
 
 const verifySignature = async (nearAccount, data, signature) => {
     try {
         const hash = crypto.createHash('sha256').update(data).digest();
-        const accessKeys = (await nearAccount.getAccessKeys()).filter(({ access_key: { permission } }) =>
+        const signatureBytes = Buffer.from(signature, 'base64');
+        const { keys } = await nearAccount.getAccessKeyList();
+        const accessKeys = keys.filter(({ access_key: { permission } }) =>
             permission === 'FullAccess' ||
             // wallet key
             (
@@ -25,9 +25,13 @@ const verifySignature = async (nearAccount, data, signature) => {
                 permission.FunctionCall.method_names.includes('add_request')
             )
         );
-        return accessKeys.some(it => {
-            const publicKey = it.public_key.replace('ed25519:', '');
-            return nacl.sign.detached.verify(hash, Buffer.from(signature, 'base64'), bs58.decode(publicKey));
+        return accessKeys.some(({ public_key }) => {
+            try {
+                return PublicKey.from(public_key).verify(hash, signatureBytes);
+            } catch (e) {
+                // e.g. the signature length does not match this key's type
+                return false;
+            }
         });
     } catch (e) {
         console.error(e);
@@ -41,14 +45,14 @@ async function checkAccountOwnership(ctx, next) {
         ctx.throw(403, 'You must provide an accountId, blockNumber, and blockNumberSignature');
     }
 
-    const currentBlock = (await ctx.near.connection.provider.status()).sync_info.latest_block_height;
+    const currentBlock = (await ctx.near.provider.viewNodeStatus()).sync_info.latest_block_height;
     const givenBlock = Number(blockNumber);
 
     if (givenBlock <= currentBlock - VALID_BLOCK_AGE || givenBlock > currentBlock) {
         ctx.throw(403, `You must provide a blockNumber within ${VALID_BLOCK_AGE} of the most recent block; provided: ${blockNumber}, current: ${currentBlock}`);
     }
 
-    const nearAccount = await ctx.near.account(accountId);
+    const nearAccount = ctx.near.account(accountId);
     if (!(await verifySignature(nearAccount, blockNumber, blockNumberSignature))) {
         ctx.throw(403, `blockNumberSignature did not match a signature of blockNumber=${blockNumber} from accountId=${accountId}`);
     }
@@ -56,12 +60,11 @@ async function checkAccountOwnership(ctx, next) {
     return await next();
 }
 
-// TODO: near-api-js should have explicit account existence check
 async function getAccountExists(near, accountId) {
     try {
-        await (await near.account(accountId)).state();
+        await near.provider.viewAccount({ accountId, blockQuery: { finality: 'optimistic' } });
     } catch (e) {
-        if (e.type === 'AccountDoesNotExist') {
+        if (e instanceof AccountDoesNotExistError) {
             return false;
         }
         throw e;
@@ -146,41 +149,41 @@ const fundedCreatorKeyJson = (() => {
 
 const DETERM_KEY_SEED = process.env.DETERM_KEY_SEED || creatorKeyJson.private_key;
 
-const keyStore = {
-    async getKey(networkId, accountId) {
-        // Standard account (un-funded) creation using the master creator account directly
-        if (creatorKeyJson && accountId == creatorKeyJson.account_id) {
-            return nearAPI.KeyPair.fromString(creatorKeyJson.secret_key || creatorKeyJson.private_key);
-        }
+// Older near-api-js releases accepted a bare base58 ed25519 secret key; keep accepting that format for configured keys
+const parseKeyPair = (encodedKey) => KeyPair.fromString(encodedKey.includes(':') ? encodedKey : `ed25519:${encodedKey}`);
 
-        // To create new accounts funded from a source account, by way of `near.create_account` function call
-        if (fundedCreatorKeyJson && accountId === fundedCreatorKeyJson.account_id) {
-            return nearAPI.KeyPair.fromString(fundedCreatorKeyJson.secret_key || fundedCreatorKeyJson.private_key);
-        }
+function getKeyPairForAccount(accountId) {
+    // Standard account (un-funded) creation using the master creator account directly
+    if (creatorKeyJson && accountId == creatorKeyJson.account_id) {
+        return parseKeyPair(creatorKeyJson.secret_key || creatorKeyJson.private_key);
+    }
 
-        // return 2FA confirm key for account
-        const hash = crypto.createHash('sha256').update(accountId + DETERM_KEY_SEED).digest();
-        const keyPair = nacl.sign.keyPair.fromSeed(hash);
-        return nearAPI.KeyPair.fromString(base_encode(keyPair.secretKey));
-    },
+    // To create new accounts funded from a source account, by way of `near.create_account` function call
+    if (fundedCreatorKeyJson && accountId === fundedCreatorKeyJson.account_id) {
+        return parseKeyPair(fundedCreatorKeyJson.secret_key || fundedCreatorKeyJson.private_key);
+    }
+
+    // 2FA confirm key for account, derived deterministically from the account id
+    const seed = crypto.createHash('sha256').update(accountId + DETERM_KEY_SEED).digest();
+    return KeyPair.fromString(`ed25519:${baseEncode(seed)}`);
+}
+
+const provider = new JsonRpcProvider({ url: process.env.NODE_URL });
+
+const near = {
+    provider,
+    account: (accountId) => new Account(accountId, provider, new KeyPairSigner(getKeyPairForAccount(accountId))),
+    getPublicKey: (accountId) => getKeyPairForAccount(accountId).getPublicKey(),
 };
 
-const nearPromise = (async () => {
-    const near = await nearAPI.connect({
-        deps: { keyStore },
-        masterAccount: creatorKeyJson && creatorKeyJson.account_id,
-        nodeUrl: process.env.NODE_URL
-    });
-    return near;
-})();
-
 const withNear = async (ctx, next) => {
-    ctx.near = await nearPromise;
+    ctx.near = near;
     await next();
 };
 
 module.exports = {
     parseSeedPhrase: require('near-seed-phrase').parseSeedPhrase,
+    parseKeyPair,
     creatorKeyJson,
     creatorKeysJson,
     fundedCreatorKeyJson,

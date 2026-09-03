@@ -48,7 +48,6 @@ describe.skip('2fa method management', function () {
     let terminateLocalDynamo = () => {};
 
     before(async () => {
-        const keyStore = new nearAPI.keyStores.InMemoryKeyStore();
         const keyPair = nearAPI.KeyPair.fromString(parseSeedPhrase(SEED_PHRASE).secretKey);
 
         ({ request, app } = createTestServerInstance());
@@ -58,7 +57,6 @@ describe.skip('2fa method management', function () {
             app,
             ECHO_SECURITY_CODES: VERBOSE_OUTPUT_CONFIG.ECHO_SECURITY_CODES,
             keyPair,
-            keyStore,
             request,
         });
 

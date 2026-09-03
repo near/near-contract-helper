@@ -261,7 +261,7 @@ router.post(
 );
 
 const {
-    BN_UNLOCK_FUNDED_ACCOUNT_BALANCE
+    UNLOCK_FUNDED_ACCOUNT_BALANCE
 } = require('./src/middleware/fundedAccount');
 router.get(
     '/account/walletState/:accountId',
@@ -272,7 +272,7 @@ router.get(
         ctx.body = {
             accountId,
             fundedAccountNeedsDeposit,
-            requiredUnlockBalance: BN_UNLOCK_FUNDED_ACCOUNT_BALANCE.toString(),
+            requiredUnlockBalance: UNLOCK_FUNDED_ACCOUNT_BALANCE.toString(),
         };
     },
 );

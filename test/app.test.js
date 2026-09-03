@@ -68,7 +68,6 @@ describe.skip('app routes', function () {
     let terminateLocalDynamo = () => {};
 
     before(async () => {
-        const keyStore = new nearAPI.keyStores.InMemoryKeyStore();
         const keyPair = nearAPI.KeyPair.fromString(parseSeedPhrase(SEED_PHRASE).secretKey);
 
         ({ request, app } = createTestServerInstance());
@@ -78,7 +77,6 @@ describe.skip('app routes', function () {
             app,
             ECHO_SECURITY_CODES: VERBOSE_OUTPUT_CONFIG.ECHO_SECURITY_CODES,
             keyPair,
-            keyStore,
             request,
         });
 
@@ -251,12 +249,12 @@ describe.skip('app routes', function () {
 
         it.skip('returns 403 Forbidden (signature from a key without FullAccess)', async () => {
             const accountId = await testAccountHelper.createNEARAccount();
-            const nearAccount = await testAccountHelper.near.account(accountId);
+            const nearAccount = testAccountHelper.near.account(accountId);
 
             const newKeyPair = nearAPI.KeyPair.fromRandom('ED25519');
-            const publicKey = newKeyPair.publicKey.toString();
-            await nearAccount.addKey(publicKey, 'fake-contract');
-            await testAccountHelper.keyStore.setKey(undefined, accountId, newKeyPair);
+            const publicKey = newKeyPair.getPublicKey().toString();
+            await nearAccount.addFunctionCallAccessKey({ publicKey, contractId: 'fake-contract', methodNames: [] });
+            testAccountHelper.setKeyPairForAccount(accountId, newKeyPair);
 
             return testAccountHelper.getRecoveryMethods({ accountId })
                 .then((res) => {
@@ -323,7 +321,7 @@ describe.skip('app routes', function () {
 
         it.skip('finds/creates account, adds phraseAddedAt; returns recovery methods', async () => {
             const accountId = await testAccountHelper.createNEARAccount();
-            const publicKey = nearAPI.KeyPair.fromRandom('ED25519').publicKey.toString();
+            const publicKey = nearAPI.KeyPair.fromRandom('ED25519').getPublicKey().toString();
 
             const { body: [phrase] } = await request.post('/account/seedPhraseAdded')
                 .send({
@@ -343,7 +341,7 @@ describe.skip('app routes', function () {
 
             await request.post('/account/seedPhraseAdded')
                 .send({
-                    publicKey: nearAPI.KeyPair.fromRandom('ED25519').publicKey.toString(),
+                    publicKey: nearAPI.KeyPair.fromRandom('ED25519').getPublicKey().toString(),
                     accountId: nonExistentNamedAccountId,
                 })
                 .then(expectFailedWithCode(403, `Named account ${nonExistentNamedAccountId} does not exist`));
@@ -352,7 +350,7 @@ describe.skip('app routes', function () {
         it.skip('allows creation of ledger access key if account is implicit and does not exist', async () => {
             const { body: [result] } = await request.post('/account/seedPhraseAdded')
                 .send({
-                    publicKey: nearAPI.KeyPair.fromRandom('ED25519').publicKey.toString(),
+                    publicKey: nearAPI.KeyPair.fromRandom('ED25519').getPublicKey().toString(),
                     accountId: NON_EXISTENT_IMPLICIT_ACCOUNT_ID,
                 })
                 .then(expectJSONResponse);
@@ -386,7 +384,7 @@ describe.skip('app routes', function () {
 
         it.skip('finds/creates account, adds phraseAddedAt; returns recovery methods', async () => {
             const accountId = await testAccountHelper.createNEARAccount();
-            const publicKey = nearAPI.KeyPair.fromRandom('ED25519').publicKey.toString();
+            const publicKey = nearAPI.KeyPair.fromRandom('ED25519').getPublicKey().toString();
 
             const { body: [result] } = await request.post('/account/ledgerKeyAdded')
                 .send({
@@ -406,7 +404,7 @@ describe.skip('app routes', function () {
 
             await request.post('/account/ledgerKeyAdded')
                 .send({
-                    publicKey: nearAPI.KeyPair.fromRandom('ED25519').publicKey.toString(),
+                    publicKey: nearAPI.KeyPair.fromRandom('ED25519').getPublicKey().toString(),
                     accountId: nonExistentNamedAccountId,
                 })
                 .then(expectFailedWithCode(403, `Named account ${nonExistentNamedAccountId} does not exist`));
@@ -415,7 +413,7 @@ describe.skip('app routes', function () {
         it.skip('allows creation of ledger access key if account is implicit and does not exist', async () => {
             const { body: [result] } = await request.post('/account/ledgerKeyAdded')
                 .send({
-                    publicKey: nearAPI.KeyPair.fromRandom('ED25519').publicKey.toString(),
+                    publicKey: nearAPI.KeyPair.fromRandom('ED25519').getPublicKey().toString(),
                     accountId: NON_EXISTENT_IMPLICIT_ACCOUNT_ID,
                 })
                 .then(expectJSONResponse);
